@@ -405,7 +405,7 @@ textarea.fi{resize:vertical;min-height:70px}
             <div class="card-title">출석 / 숙제 관리</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <select class="fi fi-sm" id="att-class" onchange="renderAttList()" style="width:auto"></select>
-              <input type="date" class="fi fi-sm" id="att-date" style="width:auto">
+              <input type="date" class="fi fi-sm" id="att-date" onchange="renderAttList()" style="width:auto">
               <select class="fi fi-sm" id="att-week-sel" style="width:auto"></select>
               <button class="btn btn-primary btn-sm" onclick="saveAttendance()">💾 저장</button>
             </div>
@@ -871,6 +871,11 @@ function weekList() {
 }
 function currentWeek() {
   const d = new Date(); const y = d.getFullYear();
+  const start = new Date(y,0,1); const w = Math.ceil(((d-start)/86400000+start.getDay()+1)/7);
+  return `${y}-W${String(w).padStart(2,'0')}`;
+}
+function dateToWeek(dateStr) {
+  const d = new Date(dateStr); const y = d.getFullYear();
   const start = new Date(y,0,1); const w = Math.ceil(((d-start)/86400000+start.getDay()+1)/7);
   return `${y}-W${String(w).padStart(2,'0')}`;
 }
@@ -1465,6 +1470,36 @@ function openStudentDetail(sid) {
   const weeks = [...new Set(sc.map(x=>x.week))].sort().reverse();
   const subjs = getSubjects();
   const md = getCumulativeMdp(sid);
+  // Weekly attendance section
+  const dayNames = ['일','월','화','수','목','금','토'];
+  const statusLabel = {present:'출석', late:'지각', absent:'결석', bogang:'보강'};
+  const statusColor = {present:'var(--green)', late:'var(--yellow)', absent:'var(--red)', bogang:'var(--orange)'};
+  const attByWeek = {};
+  Object.entries(attendance[sid]||{}).forEach(([date, val])=>{
+    const status = resolveAttStatus(val); if(!status) return;
+    const wk = dateToWeek(date);
+    if(!attByWeek[wk]) attByWeek[wk]=[];
+    attByWeek[wk].push({date, status});
+  });
+  const attWeeks = Object.keys(attByWeek).sort().reverse();
+  let attHtml = '';
+  if(!attWeeks.length) {
+    attHtml = '<div style="color:var(--text3);font-size:12px;padding:12px">출석 기록 없음</div>';
+  } else {
+    attHtml = '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>주차</th><th>출석 현황</th></tr></thead><tbody>';
+    attWeeks.forEach(wk=>{
+      const entries = attByWeek[wk].sort((a,b)=>a.date.localeCompare(b.date));
+      const badges = entries.map(({date, status})=>{
+        const d = new Date(date);
+        const col = statusColor[status]||'var(--text2)';
+        const lbl = statusLabel[status]||status;
+        const mmdd = `${d.getMonth()+1}/${String(d.getDate()).padStart(2,'0')}`;
+        return `<span style="display:inline-flex;align-items:center;gap:3px;margin:2px 4px 2px 0;padding:3px 8px;border-radius:20px;font-size:11px;background:${col}22;color:${col};font-weight:600">${mmdd}(${dayNames[d.getDay()]}) ${lbl}</span>`;
+      }).join('');
+      attHtml += `<tr><td style="font-weight:600;white-space:nowrap;font-size:12px;color:var(--text2)">${wk}</td><td>${badges}</td></tr>`;
+    });
+    attHtml += '</tbody></table></div>';
+  }
   // Recent 3 weeks per subject chart
   const recent3 = weeks.slice(0,3).reverse();
   let chartHtml = '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>과목</th>' + recent3.map(w=>`<th class="num">${w}</th>`).join('') + '<th class="num">추세</th></tr></thead><tbody>';
@@ -1508,7 +1543,8 @@ function openStudentDetail(sid) {
     <div class="card"><div class="card-header">
       <div class="card-title">주차별 성적 조회</div>
       <select class="fi fi-sm" id="detail-week-sel" onchange="renderDetailWeekScores('${sid}')" style="width:auto">${weeks.map(w=>`<option>${w}</option>`).join('')}</select>
-    </div><div id="detail-week-scores" style="overflow-x:auto"></div></div>`;
+    </div><div id="detail-week-scores" style="overflow-x:auto"></div></div>
+    <div class="card"><div class="card-header"><div class="card-title">주차별 출석 여부</div></div>${attHtml}</div>`;
   renderDetailWeekScores(sid);
 }
 function renderDetailWeekScores(sid) {
