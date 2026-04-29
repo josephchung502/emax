@@ -12,6 +12,7 @@
   --accent:#4f9cf9; --accent2:#7c6af7; --green:#34d399; --red:#f87171;
   --yellow:#fbbf24; --orange:#fb923c; --purple:#a78bfa;
   --text:#e8ecf4; --text2:#8892a4; --text3:#4a5568; --text4:#2d3748;
+  --sidebar-w:220px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
@@ -28,7 +29,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 /* ── APP SHELL ── */
 #app{display:none;height:100vh;overflow:hidden}
-.sidebar{width:220px;height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100;overflow-y:auto}
+.sidebar{width:var(--sidebar-w);height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100;overflow-y:auto}
 .logo{padding:20px 18px 16px;border-bottom:1px solid var(--border)}
 .logo-class{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin-bottom:2px}
 .logo-main{font-size:18px;font-weight:900;color:var(--text)}
@@ -42,7 +43,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .nav-footer{padding:12px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;align-items:center;justify-content:space-between}
 .class-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(79,156,249,.15);color:var(--accent)}
 
-.main{margin-left:220px;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+.main{margin-left:var(--sidebar-w);height:100vh;overflow:hidden;display:flex;flex-direction:column}
 .topbar{height:54px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0}
 .page-title{font-size:15px;font-weight:700}
 .topbar-right{display:flex;align-items:center;gap:8px}
@@ -244,6 +245,11 @@ textarea.fi{resize:vertical;min-height:70px}
   .splash-cards{flex-direction:column}
   .splash-card{min-width:unset;width:200px}
 }
+/* ── RESIZE HANDLES ── */
+.sb-resizer{position:fixed;top:0;left:var(--sidebar-w);width:5px;height:100vh;cursor:col-resize;z-index:200;background:transparent;transition:background .2s;user-select:none}
+.sb-resizer:hover,.sb-resizer.active{background:rgba(79,156,249,.35)}
+.card-rh{height:10px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text4);font-size:9px;letter-spacing:3px;transition:color .15s,background .15s;user-select:none;border-top:1px solid transparent}
+.card-rh:hover{color:var(--border2);background:rgba(255,255,255,.03);border-top-color:var(--border)}
 </style>
 </head>
 <body>
@@ -911,6 +917,7 @@ function enterClass(cls) {
   initData();
   document.getElementById('splash').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
+  initResizable();
   document.getElementById('sidebarClass').textContent = cfg().label;
   document.getElementById('footerClass').textContent = cfg().label;
   if(gasUrl) {
@@ -2153,6 +2160,79 @@ function openSettings() {
   document.getElementById('settings-banner').textContent = on?'✅ Google Sheets 연결됨':'🔴 URL을 입력해주세요';
   document.getElementById('modal-settings').classList.add('open');
 }
+/* ═══════════════════════════════════════════════════════
+   RESIZABLE PANELS
+═══════════════════════════════════════════════════════ */
+let _sbW = 220;
+let _resizableInited = false;
+const _cardSizes = JSON.parse(localStorage.getItem('emax_card_sizes')||'{}');
+
+function applySidebarW(w) {
+  _sbW = w;
+  document.documentElement.style.setProperty('--sidebar-w', w+'px');
+  const r = document.querySelector('.sb-resizer');
+  if(r) r.style.left = w+'px';
+}
+
+function setupResizableCards() {
+  document.querySelectorAll('.card').forEach(card=>{
+    if(card.dataset.cid) return;
+    const t = card.querySelector('.card-title');
+    if(!t) return;
+    const id = 'c_'+t.textContent.trim().replace(/\s+/g,'_').replace(/[^\w가-힣]/g,'').slice(0,30);
+    card.dataset.cid = id;
+    card.style.overflow = 'hidden';
+    card.style.display = 'flex';
+    card.style.flexDirection = 'column';
+    if(_cardSizes[id]) card.style.height = _cardSizes[id]+'px';
+    // add drag handle
+    const rh = document.createElement('div');
+    rh.className = 'card-rh';
+    rh.title = '드래그로 크기 조절';
+    rh.innerHTML = '&#8943;';
+    rh.addEventListener('mousedown', e=>{
+      e.preventDefault();
+      const startY = e.clientY;
+      const startH = card.getBoundingClientRect().height;
+      const onMove = ev=>{
+        const newH = Math.max(80, startH + ev.clientY - startY);
+        card.style.height = newH+'px';
+      };
+      const onUp = ()=>{
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        _cardSizes[id] = Math.round(card.getBoundingClientRect().height);
+        localStorage.setItem('emax_card_sizes', JSON.stringify(_cardSizes));
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    card.appendChild(rh);
+  });
+}
+
+let _moTimer;
+function initResizable() {
+  const savedW = parseInt(localStorage.getItem('emax_sidebar_w'))||220;
+  applySidebarW(savedW);
+  if(_resizableInited) return;
+  _resizableInited = true;
+
+  // sidebar drag handle
+  const resizer = document.createElement('div');
+  resizer.className = 'sb-resizer';
+  document.body.appendChild(resizer);
+  let dragging = false;
+  resizer.addEventListener('mousedown', e=>{ dragging=true; resizer.classList.add('active'); e.preventDefault(); });
+  document.addEventListener('mousemove', e=>{ if(!dragging) return; applySidebarW(Math.max(160, Math.min(420, e.clientX))); });
+  document.addEventListener('mouseup', ()=>{ if(!dragging) return; dragging=false; resizer.classList.remove('active'); localStorage.setItem('emax_sidebar_w', _sbW); });
+
+  // auto-setup new cards via MutationObserver (debounced)
+  const mo = new MutationObserver(()=>{ clearTimeout(_moTimer); _moTimer=setTimeout(setupResizableCards, 80); });
+  mo.observe(document.querySelector('.content'), {childList:true, subtree:true});
+  setupResizableCards();
+}
+
 let toastT;
 function showToast(msg,type='i'){
   const t=document.getElementById('toast');
