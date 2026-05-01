@@ -1385,7 +1385,7 @@ function renderSessionHw() {
         html+=`<td style="text-align:center;background:rgba(168,85,247,.04)"><input type="checkbox" id="hw-opt-${s.id}-${h.key}" ${done?'checked':''} onchange="updateSessionHwTotal('${s.id}','${cls}')"></td>`;
       });
       const total = hwCfg.reduce((a,h)=>a+((hw[h.key]||{}).done?(h.max||0):0),0) + autoGiven;
-      html+=`<td id="sess-hw-total-${s.id}" style="text-align:center;font-family:'DM Mono';font-size:11px;font-weight:700;color:${total>=80?'var(--green)':total>=60?'var(--yellow)':'var(--red)'}">${total}</td>`;
+      html+=`<td style="text-align:center;white-space:nowrap"><span id="sess-hw-total-${s.id}" style="font-family:'DM Mono';font-size:11px;font-weight:700;color:${total>=80?'var(--green)':total>=60?'var(--yellow)':'var(--red)'}">${total}</span> <button class="btn btn-green btn-sm" style="font-size:9px;padding:2px 6px" onclick="setSessHwMax('${s.id}','${cls}')" title="모든 필수 항목 체크 → 100점">💯</button></td>`;
       html+=`<td id="sess-mdp-${s.id}" style="text-align:center;font-family:'DM Mono';font-size:10px;font-weight:700;color:var(--purple)">${getCumulativeMdp(s.id)}</td>`;
     } else {
       hwCfg.forEach(h=>{
@@ -1398,6 +1398,13 @@ function renderSessionHw() {
   });
   html += '</tbody></table></div>';
   document.getElementById('session-hw').innerHTML = html;
+}
+function setSessHwMax(sid, cls) {
+  getHwItems(cls).forEach(h=>{
+    const el = document.getElementById(`hw-${sid}-${h.key}`);
+    if(el) el.checked = true;
+  });
+  updateSessionHwTotal(sid, cls);
 }
 function updateSessionHwTotal(sid, cls) {
   const c = cls || sessionContext.cls;
@@ -1853,6 +1860,15 @@ async function saveAttendance() {
   await postToSheets({action:'saveAllAtt', attData});
   showToast('출석 저장됨 ✓','s');
 }
+function setHwMax(sid) {
+  const s = (students[currentClass]||[]).find(st=>st.id===sid);
+  if(!s) return;
+  getHwItems(s.cls).forEach(h=>{
+    const el = document.getElementById(`hwm-${sid}-${h.key}`);
+    if(el) el.checked = true;
+  });
+  updateHwTotal(sid);
+}
 function openHwModal(sid, week) {
   const s = (students[currentClass]||[]).find(st=>st.id===sid);
   if(!s) return;
@@ -1885,7 +1901,10 @@ function openHwModal(sid, week) {
     }
     html += `</tbody></table></div>
     <div style="margin-top:12px;padding:12px 16px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:12px;color:var(--text2)">숙제 총점</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:12px;color:var(--text2)">숙제 총점</span>
+        <button class="btn btn-green btn-sm" onclick="setHwMax('${sid}')" title="모든 필수 항목 체크 → 100점">💯 100점</button>
+      </div>
       <div><span id="hwm-total" style="font-size:20px;font-weight:900;font-family:'DM Mono';color:var(--accent)">0</span><span style="font-size:12px;color:var(--text3)"> / 100점</span></div>
     </div>`;
     // 선택 숙제 섹션
