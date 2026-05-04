@@ -945,7 +945,7 @@ function enterClass(cls) {
     setSyncStatus('syncing');
     // 학생 먼저 → 그 뒤 전체 데이터 로드
     loadStudentsFromSheets().then(async function() {
-      await loadScoresFromSheets();
+      await loadScoresFromSheets(true); // silent — 자동 동기화 시 "데이터 없음" 토스트 억제
       await loadAttendanceFromSheets();
       await loadHomeworkFromSheets();
       await loadRetestsFromSheets();
@@ -1109,15 +1109,14 @@ async function loadRetestsFromSheets() {
   } catch(e) { console.warn('재시험 불러오기 실패:', e.message); }
 }
 
-async function loadScoresFromSheets() {
-  if(!gasUrl){showToast('Sheets URL을 설정해주세요','i');return;}
+async function loadScoresFromSheets(silent) {
+  if(!gasUrl){if(!silent) showToast('Sheets URL을 설정해주세요','i');return;}
   setSyncStatus('syncing');
-  showToast('Sheets에서 불러오는 중...','i');
+  if(!silent) showToast('Sheets에서 불러오는 중...','i');
   try {
     const url = gasUrl + '?action=getScores&class=' + encodeURIComponent(currentClass);
     const data = await jsonpFetch(url, 15000);
     if(Array.isArray(data) && data.length > 1) {
-      // 기존 scores 중 Sheets에서 온 항목 교체 (중복 방지)
       const sheetRows = data.slice(1);
       sheetRows.forEach(function(r) {
         // 열 순서: 반구분(0), 반(1), 학생명(2), 주차(3), 과목(4), 점수(5), 날짜(6), 메모(7)
@@ -1136,18 +1135,14 @@ async function loadScoresFromSheets() {
       renderDashboard();
       if(document.getElementById('tab-scores').classList.contains('active')) renderScoreView();
       setSyncStatus('synced');
-      showToast(sheetRows.length + '개 성적 불러옴 ✓','s');
+      if(!silent) showToast(sheetRows.length + '개 성적 불러옴 ✓','s');
     } else {
       setSyncStatus('synced');
-      showToast('데이터 없음 (시트가 비어있거나 헤더만 있음)','i');
+      if(!silent) showToast('성적 데이터 없음 (시트가 비어있거나 헤더만 있음)','i');
     }
   } catch(e) {
     setSyncStatus('error');
-    if(e.message === 'timeout') {
-      showToast('시간 초과 — Apps Script URL과 배포 설정을 확인해주세요','e');
-    } else {
-      showToast('불러오기 실패: ' + e.message,'e');
-    }
+    if(!silent) showToast(e.message==='timeout'?'시간 초과 — Apps Script URL 확인':'불러오기 실패: '+e.message,'e');
   }
 }
 
@@ -1641,27 +1636,37 @@ function renderDetailWeekScores(sid) {
   const map = {}; sc.forEach(x=>{map[x.type]=x.score;});
   document.getElementById('detail-week-scores').innerHTML = `<table class="tbl"><thead><tr><th>과목</th><th class="num">점수</th></tr></thead><tbody>${subjs.map(s=>`<tr><td>${s}</td><td class="num">${map[s]!==undefined?`<span class="score-pill" style="color:${scoreColor(map[s])};background:${scoreColor(map[s])}22">${map[s]}</span>`:'—'}</td></tr>`).join('')}</tbody></table>`;
 }
-function deleteStudent(id) {
-  if(!confirm('삭제?')) return;
+async function deleteStudent(id) {
+  if(!confirm('삭제하시겠습니까?')) return;
+  const st = (students[currentClass]||[]).find(s=>s.id===id);
   students[currentClass] = (students[currentClass]||[]).filter(s=>s.id!==id);
   renderStudentList();
+  if(st) {
+    await postToSheets({action:'deleteStudent', name:st.name, cls:st.cls});
+    showToast(st.name+' 삭제됨 (Sheets 반영)','s');
+  }
 }
 function openAddStudent() {
   const sel = document.getElementById('ns-class');
   sel.innerHTML = getAllClasses().map(c=>`<option>${c}</option>`).join('');
   document.getElementById('modal-add-student').classList.add('open');
 }
-function addStudent() {
+async function addStudent() {
   const name = document.getElementById('ns-name').value.trim();
   if(!name){showToast('이름 입력 필요','e');return;}
-  const id = 'u'+Date.now();
-  const s = {id,name,cls:document.getElementById('ns-class').value,grade:document.getElementById('ns-grade').value,phone:''};
+  const cls = document.getElementById('ns-class').value;
+  const grade = document.getElementById('ns-grade').value;
+  // loadStudentsFromSheets()와 동일한 ID 형식 — 재시작 후에도 ID가 일치해야 데이터 유지됨
+  const id = 'sh_' + cls.replace(/[^a-zA-Z0-9가-힣]/g,'') + '_' + name.replace(/[^a-zA-Z0-9가-힣]/g,'');
+  if((students[currentClass]||[]).find(s=>s.id===id)){showToast('이미 같은 이름의 학생이 있습니다','e');return;}
+  const s = {id, name, cls, grade, phone:''};
   if(!students[currentClass]) students[currentClass]=[];
   students[currentClass].push(s);
   scores[id]=[]; attendance[id]={}; homework[id]={}; retests[id]={};
   closeModal('modal-add-student');
   renderStudentList(); renderDashboard();
-  showToast(name+' 추가됨','s');
+  await postToSheets({action:'addStudent', name, cls, grade, phone:''});
+  showToast(name+' 추가됨 (Sheets 반영)','s');
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1695,10 +1700,11 @@ function renderScoreEntry() {
     const retestDone = isRetestDone(s.id, week);
     const isRetest = !retestDone && isRetestCandidate(s.id, week, s.cls);
     const hwTotal = calcHwTotal(s.id, week, s.cls);
-    html += `<tr>
-      <td class="student-name">${s.name}${retestDone?`<span class="badge b-green" style="margin-left:4px;font-size:9px">재시험완료</span>`:isRetest?`<span class="retest-badge">재시험</span>`:''}</td>
-      ${subjs.map(subj=>`<td><input type="number" id="ent-${s.id}-${subj.replace(/[\s\/]/g,'_')}" value="${existing[subj]??''}" min=0 max=100 style="width:55px"></td>`).join('')}
-      <td style="text-align:center;font-family:'DM Mono';font-size:12px;color:${scoreColor(hwTotal)}">${hwTotal}</td>
+    const isAbsent = getAttStatus(s.id, date) === 'absent';
+    html += `<tr style="${isAbsent?'opacity:0.45;':''}">
+      <td class="student-name">${s.name}${isAbsent?`<span class="badge b-red" style="margin-left:4px;font-size:9px">결석</span>`:retestDone?`<span class="badge b-green" style="margin-left:4px;font-size:9px">재시험완료</span>`:isRetest?`<span class="retest-badge">재시험</span>`:''}</td>
+      ${subjs.map(subj=>`<td><input type="number" id="ent-${s.id}-${subj.replace(/[\s\/]/g,'_')}" value="${existing[subj]??''}" min=0 max=100 style="width:55px" ${isAbsent?'disabled title="결석"':''}></td>`).join('')}
+      <td style="text-align:center;font-family:'DM Mono';font-size:12px;color:${isAbsent?'var(--text3)':scoreColor(hwTotal)}">${isAbsent?'결석':hwTotal}</td>
     </tr>`;
   });
   html += '</tbody>';
@@ -1721,6 +1727,7 @@ async function saveScores() {
   const ss = getStudents(cls);
   const subjs = getSubjects();
   ss.forEach(s=>{
+    if(getAttStatus(s.id, date) === 'absent') return; // 결석 학생 제외
     subjs.forEach(subj=>{
       const el = document.getElementById(`ent-${s.id}-${subj.replace(/[\s\/]/g,'_')}`);
       if(!el||el.value==='') return;
@@ -1854,7 +1861,7 @@ function renderAttList() {
         <option value="pass"${retestInfo.result==='pass'?' selected':''}>통과</option>
         <option value="fail"${retestInfo.result==='fail'?' selected':''}>미통과</option>
       </select>`:'—'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="openHwModal('${s.id}','${week}','${date}')">숙제 입력${currentClass==='KG6'&&hwTotal?` (${hwTotal}점)`:''}</button></td>
+      <td>${curStatus==='absent'?`<span style="color:var(--text3);font-size:11px">결석 제외</span>`:`<button class="btn btn-ghost btn-sm" onclick="openHwModal('${s.id}','${week}','${date}')">숙제 입력${currentClass==='KG6'&&hwTotal?` (${hwTotal}점)`:''}</button>`}</td>
     </tr>`;
   });
   html += '</tbody></table></div>';
