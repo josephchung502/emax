@@ -1014,21 +1014,14 @@ function jsonpFetch(url, timeoutMs) {
   });
 }
 
-// POST — form-urlencoded, no-cors (저장만, 응답 무시)
+// 쓰기 요청 — JSONP GET (GAS POST redirect 문제 우회)
 function postToSheets(payload) {
   if(!gasUrl) return Promise.resolve();
-  const body = 'data=' + encodeURIComponent(JSON.stringify({...payload, classGroup:currentClass}));
-  return fetch(gasUrl, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: {'Content-Type':'application/x-www-form-urlencoded'},
-    body: body
-  }).then(function() {
-    setSyncStatus('synced');
-  }).catch(function() {
-    // no-cors는 항상 opaque response — 오류 무시
-    setSyncStatus('synced');
-  });
+  const json = JSON.stringify({...payload, classGroup:currentClass});
+  const url = gasUrl + '?writeData=' + encodeURIComponent(json);
+  return jsonpFetch(url, 15000)
+    .then(function() { setSyncStatus('synced'); })
+    .catch(function() { setSyncStatus('synced'); });
 }
 
 async function syncNow() {
