@@ -320,6 +320,12 @@ textarea.fi{resize:vertical;min-height:70px}
           <div class="stat-card"><div class="stat-label">VOC 재시험 대상</div><div class="stat-value" style="color:var(--red)" id="d-retest">—</div></div>
         </div>
 
+        <!-- 재시험 대상자 카드 (대상자 있을 때만 표시) -->
+        <div class="card" id="d-retest-card" style="display:none;margin-bottom:18px">
+          <div class="card-header"><div class="card-title">🔁 VOC 재시험 대상자 — 이번 주</div></div>
+          <div id="d-retest-list" style="overflow-x:auto;padding:0 0 4px"></div>
+        </div>
+
         <!-- 수업 일정 카드 (Sheets에서) -->
         <div class="card">
           <div class="card-header">
@@ -1087,17 +1093,18 @@ async function loadRetestsFromSheets() {
     const data = await jsonpFetch(url, 15000);
     if(!Array.isArray(data) || data.length < 2) return;
     data.slice(1).forEach(function(r) {
-      // 열 순서: 반구분(0), 반(1), 학생명(2), 주차(3), 응시여부(4), 재시험점수(5)
+      // 열 순서: 반구분(0), 반(1), 학생명(2), 주차(3), 응시여부(4), 재시험점수(5), 결과(6)
       const clsName = String(r[1]||'').trim();
       const name    = String(r[2]||'').trim();
       const week    = String(r[3]||'').trim();
       const taken   = String(r[4]||'').trim() === 'yes';
       const score   = parseInt(r[5])||null;
+      const result  = String(r[6]||'').trim();
       if(!name || !week) return;
       const st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
       if(!st) return;
       if(!retests[st.id]) retests[st.id]={};
-      retests[st.id][week] = {taken, score};
+      retests[st.id][week] = {taken, score, result};
     });
   } catch(e) { console.warn('재시험 불러오기 실패:', e.message); }
 }
@@ -1223,8 +1230,25 @@ function renderDashboard() {
   const attAll = all.flatMap(s=>Object.values(attendance[s.id]||{}).map(resolveAttStatus));
   document.getElementById('d-att').textContent = attAll.length?Math.round(attAll.filter(a=>a==='present').length/attAll.length*100)+'%':'—';
   const cw = currentWeek();
-  const retestCount = all.filter(s=>isRetestCandidate(s.id,cw,s.cls)).length;
-  document.getElementById('d-retest').textContent = retestCount;
+  const retestCandidates = all.filter(s=>isRetestCandidate(s.id,cw,s.cls));
+  document.getElementById('d-retest').textContent = retestCandidates.length;
+  const retestCard = document.getElementById('d-retest-card');
+  if(retestCard) {
+    retestCard.style.display = retestCandidates.length ? '' : 'none';
+    if(retestCandidates.length) {
+      document.getElementById('d-retest-list').innerHTML = `<table class="tbl"><thead><tr><th>학생</th><th>반</th><th>결과</th><th></th></tr></thead><tbody>` +
+        retestCandidates.map(s=>{
+          const ri = (retests[s.id]||{})[cw]||{};
+          return `<tr><td style="font-weight:600">${s.name}</td><td><span class="badge b-blue">${s.cls}</span></td>
+            <td><select id="dash-retest-${s.id}" class="fi fi-sm" style="width:auto">
+              <option value=""${!ri.result?' selected':''}>미진행</option>
+              <option value="pass"${ri.result==='pass'?' selected':''}>통과</option>
+              <option value="fail"${ri.result==='fail'?' selected':''}>미통과</option>
+            </select></td>
+            <td><button class="btn btn-primary btn-sm" onclick="saveDashboardRetest('${s.id}','${cw}')">저장</button></td></tr>`;
+        }).join('') + `</tbody></table>`;
+    }
+  }
   // Recent scores
   const recent = all.flatMap(s=>(scores[s.id]||[]).map(sc=>({...sc,name:s.name,cls:s.cls}))).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
   document.getElementById('d-recent-scores').innerHTML = recent.length?recent.map(sc=>`<tr><td>${sc.name}</td><td><span class="badge b-blue">${sc.type}</span></td><td class="num"><span class="score-pill" style="color:${scoreColor(sc.score)};background:${scoreColor(sc.score)}22">${sc.score}</span></td><td style="color:var(--text3);font-size:11px">${sc.date}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px">없음</td></tr>';
@@ -1710,7 +1734,15 @@ async function saveScores() {
   showToast('성적 저장됨','s');
   renderScoreView();
   renderDashboard();
-  await postToSheets({action:'saveScores',cls,week,date});
+  // 실제 점수 데이터 포함 전송
+  const scoreData = [];
+  ss.forEach(s=>{
+    subjs.forEach(subj=>{
+      const sc = (scores[s.id]||[]).find(x=>x.date===date&&x.type===subj);
+      if(sc) scoreData.push({name:s.name,cls:s.cls,week:sc.week,type:sc.type,score:sc.score,date:sc.date,memo:sc.memo||''});
+    });
+  });
+  await postToSheets({action:'saveScores',cls,week,date,scoreData});
 }
 function renderScoreView() {
   const cls = document.getElementById('sc-view-class')?.value; if(!cls) return;
@@ -1783,7 +1815,7 @@ function renderAttList() {
       html += `<tr>
         <td style="font-weight:600;color:var(--orange)">${s.name}</td>
         <td><span class="badge b-orange">${s.cls}</span></td>
-        <td><button class="btn btn-ghost btn-sm" onclick="openHwModal('${s.id}','${week}')">숙제 입력${currentClass==='KG6'&&hwTotal?` (${hwTotal}점)`:''}</button></td>
+        <td><button class="btn btn-ghost btn-sm" onclick="openHwModal('${s.id}','${week}','${date}')">숙제 입력${currentClass==='KG6'&&hwTotal?` (${hwTotal}점)`:''}</button></td>
       </tr>`;
     });
     html += '</tbody></table></div>';
@@ -1817,8 +1849,12 @@ function renderAttList() {
       <td style="font-weight:600">${s.name}${currentClass==='KG6'&&mdp?`<span style="font-size:10px;color:var(--purple);margin-left:6px;font-family:'DM Mono'">🏆${mdp}</span>`:''}${retestDone?`<span class="badge b-green" style="margin-left:4px;font-size:9px">재시험완료</span>`:isRetest?`<span class="retest-badge">재시험</span>`:''}${isBogangActive?`<span class="badge b-orange" style="margin-left:4px">보강→${bogangCls||'?'}</span>`:''}</td>
       ${attBtns}
       ${bogangCell}
-      <td>${retestDone?`<span class="badge b-green">${retestInfo.result==='pass'?'통과':'미통과'}</span>`:isRetest?`<span class="badge b-red">미진행</span>`:'—'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="openHwModal('${s.id}','${week}')">숙제 입력${currentClass==='KG6'&&hwTotal?` (${hwTotal}점)`:''}</button></td>
+      <td>${(isRetest||retestDone)?`<select class="fi fi-sm" style="width:auto" onchange="saveRetestResult('${s.id}','${week}',this.value)">
+        <option value=""${!retestInfo.result?' selected':''}>미진행</option>
+        <option value="pass"${retestInfo.result==='pass'?' selected':''}>통과</option>
+        <option value="fail"${retestInfo.result==='fail'?' selected':''}>미통과</option>
+      </select>`:'—'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openHwModal('${s.id}','${week}','${date}')">숙제 입력${currentClass==='KG6'&&hwTotal?` (${hwTotal}점)`:''}</button></td>
     </tr>`;
   });
   html += '</tbody></table></div>';
@@ -1860,6 +1896,20 @@ async function saveAttendance() {
   await postToSheets({action:'saveAllAtt', attData});
   showToast('출석 저장됨 ✓','s');
 }
+async function saveRetestResult(sid, week, result) {
+  if(!retests[sid]) retests[sid]={};
+  if(!retests[sid][week]) retests[sid][week]={};
+  retests[sid][week].taken = !!result;
+  retests[sid][week].result = result;
+  const st = (students[currentClass]||[]).find(s=>s.id===sid);
+  await postToSheets({action:'saveRetest', name:st?.name||'', cls:st?.cls||'', week, taken:result?'yes':'no', result, score:null});
+  renderDashboard();
+}
+async function saveDashboardRetest(sid, week) {
+  const result = document.getElementById('dash-retest-'+sid)?.value || '';
+  await saveRetestResult(sid, week, result);
+  showToast('재시험 결과 저장됨','s');
+}
 function setHwMax(sid) {
   const s = (students[currentClass]||[]).find(st=>st.id===sid);
   if(!s) return;
@@ -1869,11 +1919,13 @@ function setHwMax(sid) {
   });
   updateHwTotal(sid);
 }
-function openHwModal(sid, week) {
+function openHwModal(sid, week, date) {
   const s = (students[currentClass]||[]).find(st=>st.id===sid);
   if(!s) return;
   document.getElementById('hw-modal-title').textContent = `${s.name} — 숙제 (${week})`;
-  const hwData = (homework[sid]||{})[week]||{};
+  // 저장된 날짜가 현재 선택한 날짜와 다르면 빈 데이터(초기화)로 열기
+  const saved = (homework[sid]||{})[week]||{};
+  const hwData = (!date || !saved._classDate || saved._classDate === date) ? saved : {};
   const hwCfg = getHwItems(s.cls);
   const optHwCfg = getOptionalHwItems(s.cls);
   const autoGiven = getAutoGivenPts(s.cls);
@@ -1946,6 +1998,7 @@ function openHwModal(sid, week) {
   document.getElementById('hw-modal-body').innerHTML = html;
   document.getElementById('hw-modal-body')._sid = sid;
   document.getElementById('hw-modal-body')._week = week;
+  document.getElementById('hw-modal-body')._date = date || '';
   if(isKG6) updateHwTotal(sid);
   document.getElementById('modal-hw').classList.add('open');
 }
@@ -1994,9 +2047,10 @@ function updateHwTotal(sid) {
 }
 function saveHwFromModal() {
   const body = document.getElementById('hw-modal-body');
-  const sid = body._sid; const week = body._week;
+  const sid = body._sid; const week = body._week; const date = body._date || '';
   if(!homework[sid]) homework[sid]={};
   if(!homework[sid][week]) homework[sid][week]={};
+  if(date) homework[sid][week]._classDate = date;  // 어느 날짜에 저장했는지 기록
   const st = (students[currentClass]||[]).find(s=>s.id===sid);
   const hwCfg = getHwItems(st?.cls);
   const isKG6 = currentClass==='KG6';
