@@ -621,7 +621,7 @@ textarea.fi{resize:vertical;min-height:70px}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.0.0.4';
+const APP_VERSION = '1.0.0.5';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -897,15 +897,26 @@ function resolveAttStatus(val) {
 function getAttStatus(sid, date) {
   return resolveAttStatus((attendance[sid]||{})[date]);
 }
-function getAttBogangCls(sid, date) {
+function getAttBogangInfo(sid, date) {
   const val = (attendance[sid]||{})[date];
-  return (typeof val === 'object' && val) ? (val.targetCls||'') : '';
+  return (typeof val === 'object' && val && val.status === 'bogang') ? val : null;
+}
+function getAttBogangCls(sid, date) {
+  const info = getAttBogangInfo(sid, date);
+  return info ? (info.targetCls||'') : '';
 }
 function getBogangStudentsForClass(cls, date) {
-  return (students[currentClass]||[]).filter(s => {
-    const val = (attendance[s.id]||{})[date];
-    return typeof val === 'object' && val && val.status === 'bogang' && val.targetCls === cls && s.cls !== cls;
+  const result = [];
+  (students[currentClass]||[]).forEach(s => {
+    if(s.cls === cls) return;
+    for(const [srcDate, val] of Object.entries(attendance[s.id]||{})) {
+      if(typeof val === 'object' && val && val.status === 'bogang' && val.targetCls === cls && val.targetDate === date) {
+        result.push({...s, bogangFromCls: s.cls, bogangFromDate: srcDate});
+        return;
+      }
+    }
   });
+  return result;
 }
 function attRate(sid) {
   const att = Object.values(attendance[sid]||{}).map(resolveAttStatus);
@@ -1066,50 +1077,45 @@ async function syncNow() {
 
 async function loadAttendanceFromSheets() {
   if(!gasUrl) return;
-  try {
-    const url = gasUrl + '?action=getAttendance&class=' + encodeURIComponent(currentClass);
-    const data = await jsonpFetch(url, 15000);
-    if(!Array.isArray(data) || data.length < 2) return;
-    data.slice(1).forEach(function(r) {
-      // 열 순서: 반구분(0), 반(1), 학생명(2), 날짜(3), 출석상태(4)
-      const clsName = String(r[1]||'').trim();
-      const name    = String(r[2]||'').trim();
-      const date    = String(r[3]||'').trim();
-      const status  = String(r[4]||'').trim();
-      if(!name || !date || !status) return;
-      const st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
-      if(!st) return;
-      if(!attendance[st.id]) attendance[st.id]={};
-      // bogang 상태가 JSON으로 저장된 경우 파싱
-      try { attendance[st.id][date] = JSON.parse(status); }
-      catch(e) { attendance[st.id][date] = status; }
-    });
-    if(document.getElementById('tab-attendance')?.classList.contains('active')) renderAttList();
-    renderDashboard();
-  } catch(e) { console.warn('출석 불러오기 실패:', e.message); }
+  const url = gasUrl + '?action=getAttendance&class=' + encodeURIComponent(currentClass);
+  const data = await jsonpFetch(url, 15000);
+  if(!Array.isArray(data) || data.length < 2) return;
+  data.slice(1).forEach(function(r) {
+    // 열 순서: 반구분(0), 반(1), 학생명(2), 날짜(3), 출석상태(4)
+    const clsName = String(r[1]||'').trim();
+    const name    = String(r[2]||'').trim();
+    const date    = String(r[3]||'').trim();
+    const status  = String(r[4]||'').trim();
+    if(!name || !date || !status) return;
+    const st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
+    if(!st) return;
+    if(!attendance[st.id]) attendance[st.id]={};
+    try { attendance[st.id][date] = JSON.parse(status); }
+    catch(e) { attendance[st.id][date] = status; }
+  });
+  if(document.getElementById('tab-attendance')?.classList.contains('active')) renderAttList();
+  renderDashboard();
 }
 
 async function loadHomeworkFromSheets() {
   if(!gasUrl) return;
-  try {
-    const url = gasUrl + '?action=getHomework&class=' + encodeURIComponent(currentClass);
-    const data = await jsonpFetch(url, 15000);
-    if(!Array.isArray(data) || data.length < 2) return;
-    data.slice(1).forEach(function(r) {
-      // 열 순서: 반구분(0), 반(1), 학생명(2), 주차(3), 숙제총점(4), 상세JSON(5)
-      const clsName = String(r[1]||'').trim();
-      const name    = String(r[2]||'').trim();
-      const week    = String(r[3]||'').trim();
-      const detail  = String(r[5]||'').trim();
-      if(!name || !week || !detail) return;
-      const st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
-      if(!st) return;
-      try {
-        if(!homework[st.id]) homework[st.id]={};
-        homework[st.id][week] = JSON.parse(detail);
-      } catch(e) {}
-    });
-  } catch(e) { console.warn('숙제 불러오기 실패:', e.message); }
+  const url = gasUrl + '?action=getHomework&class=' + encodeURIComponent(currentClass);
+  const data = await jsonpFetch(url, 15000);
+  if(!Array.isArray(data) || data.length < 2) return;
+  data.slice(1).forEach(function(r) {
+    // 열 순서: 반구분(0), 반(1), 학생명(2), 주차(3), 숙제총점(4), 상세JSON(5)
+    const clsName = String(r[1]||'').trim();
+    const name    = String(r[2]||'').trim();
+    const week    = String(r[3]||'').trim();
+    const detail  = String(r[5]||'').trim();
+    if(!name || !week || !detail) return;
+    const st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
+    if(!st) return;
+    try {
+      if(!homework[st.id]) homework[st.id]={};
+      homework[st.id][week] = JSON.parse(detail);
+    } catch(e) {}
+  });
 }
 
 async function loadRetestsFromSheets() {
@@ -1822,11 +1828,16 @@ function initAttSelects() {
   renderAttList();
 }
 async function loadAttHwFromSheets() {
+  if(!gasUrl) { showToast('GAS URL을 먼저 설정해주세요','w'); return; }
   showToast('출석/숙제 불러오는 중...','i');
-  await loadAttendanceFromSheets();
-  await loadHomeworkFromSheets();
-  renderAttList();
-  showToast('불러오기 완료 ✓','s');
+  try {
+    await loadAttendanceFromSheets();
+    await loadHomeworkFromSheets();
+    renderAttList();
+    showToast('불러오기 완료 ✓','s');
+  } catch(e) {
+    showToast('불러오기 실패: ' + e.message, 'e');
+  }
 }
 function renderAttList() {
   const cls = document.getElementById('att-class')?.value; if(!cls) return;
@@ -1848,7 +1859,7 @@ function renderAttList() {
 
   if(bogangIn.length) {
     html += '<div style="overflow-x:auto;padding:0 0 4px"><table class="tbl"><thead><tr>'
-      + '<th>학생</th><th>원래 반</th><th>출석</th><th>지각</th><th>결석</th><th>이번주 재시험</th><th>숙제</th>'
+      + '<th>학생</th><th>원래 반</th><th>원래 날짜</th><th>출석</th><th>지각</th><th>결석</th><th>이번주 재시험</th><th>숙제</th>'
       + '</tr></thead><tbody>';
     bogangIn.forEach(function(s) {
       var curStatus = getAttStatus(s.id, date);
@@ -1870,6 +1881,7 @@ function renderAttList() {
         : '<button class="btn btn-ghost btn-sm" onclick="openHwModal(\'' + s.id + '\',\'' + week + '\',\'' + date + '\')">숙제 입력' + (hwTotal ? ' (' + hwTotal + '점)' : '') + '</button>';
       html += '<tr><td style="font-weight:700;color:var(--orange)">' + s.name + '</td>'
         + '<td><span class="badge b-orange">' + s.cls + '</span></td>'
+        + '<td style="color:var(--text3);font-size:12px">' + (s.bogangFromDate||'') + '</td>'
         + attBtns
         + '<td>' + retestCell + '</td>'
         + '<td>' + hwCell + '</td></tr>';
@@ -1887,14 +1899,14 @@ function renderAttList() {
   var bogangOut = [];
   ss.forEach(function(s) {
     var curStatus = getAttStatus(s.id, date);
-    var bogangCls = getAttBogangCls(s.id, date);
+    var bogangInfo = getAttBogangInfo(s.id, date);
+    var isBogangActive = !!bogangInfo;
+    if(isBogangActive) bogangOut.push({s:s, bogangCls:bogangInfo.targetCls||'', bogangDate:bogangInfo.targetDate||''});
     var retestDone = isRetestDone(s.id, week);
     var isRetest = !retestDone && isRetestCandidate(s.id, week, s.cls);
     var retestInfo = (retests[s.id]||{})[week]||{};
     var hwTotal = currentClass==='KG6' ? calcHwTotal(s.id, week, s.cls) : null;
     var mdp = currentClass==='KG6' ? getCumulativeMdp(s.id) : 0;
-    var isBogangActive = curStatus === 'bogang';
-    if(isBogangActive) bogangOut.push({s:s, bogangCls:bogangCls});
 
     var attBtns = ['present','late','absent'].map(function(st, i) {
       var labels = ['출석','지각','결석'];
@@ -1904,11 +1916,12 @@ function renderAttList() {
     }).join('');
 
     var bogangClsOpts = allCls.filter(function(c){return c!==cls;}).map(function(c){
-      return '<option value="' + c + '"' + (bogangCls===c?' selected':'') + '>' + c + '</option>';
+      return '<option value="' + c + '"' + ((bogangInfo&&bogangInfo.targetCls===c)?' selected':'') + '>' + c + '</option>';
     }).join('');
-    var bogangCell = '<td><div style="display:flex;align-items:center;gap:5px">'
-      + '<button class="btn btn-sm" onclick="setAtt(\'' + s.id + '\',\'' + date + '\',\'bogang\')" style="background:' + (isBogangActive?'rgba(251,146,60,.22)':'transparent') + ';border:1px solid ' + (isBogangActive?'var(--orange)':'var(--border)') + ';color:' + (isBogangActive?'var(--orange)':'var(--text3)') + '">보강</button>'
-      + (isBogangActive ? '<select class="fi fi-sm" style="width:auto;padding:3px 6px" onchange="setBogangAtt(\'' + s.id + '\',\'' + date + '\',this.value)"><option value="">반 선택</option>' + bogangClsOpts + '</select>' : '')
+    var bogangCell = '<td><div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">'
+      + '<button class="btn btn-sm" onclick="toggleBogang(\'' + s.id + '\',\'' + date + '\')" style="background:' + (isBogangActive?'rgba(251,146,60,.22)':'transparent') + ';border:1px solid ' + (isBogangActive?'var(--orange)':'var(--border)') + ';color:' + (isBogangActive?'var(--orange)':'var(--text3)') + '">보강</button>'
+      + (isBogangActive ? '<select class="fi fi-sm" style="width:auto;padding:3px 5px;font-size:12px" onchange="setBogangCls(\'' + s.id + '\',\'' + date + '\',this.value)"><option value="">반 선택</option>' + bogangClsOpts + '</select>' : '')
+      + (isBogangActive ? '<input type="date" class="fi fi-sm" style="width:auto;padding:3px 5px;font-size:12px" value="' + (bogangInfo.targetDate||'') + '" onchange="setBogangDate(\'' + s.id + '\',\'' + date + '\',this.value)">' : '')
       + '</div></td>';
 
     var retestCell = (isRetest||retestDone)
@@ -1922,7 +1935,7 @@ function renderAttList() {
     if(currentClass==='KG6'&&mdp) nameBadges += '<span style="font-size:11px;color:var(--purple);margin-left:6px;font-family:\'DM Mono\'">&#127942;' + mdp + '</span>';
     if(retestDone) nameBadges += '<span class="badge b-green" style="margin-left:4px;font-size:10px">재시험완료</span>';
     else if(isRetest) nameBadges += '<span class="retest-badge">재시험</span>';
-    if(isBogangActive) nameBadges += '<span class="badge b-orange" style="margin-left:4px">&rarr;' + (bogangCls||'?') + '</span>';
+    if(isBogangActive) nameBadges += '<span class="badge b-orange" style="margin-left:4px">&rarr;' + (bogangInfo.targetCls||'?') + (bogangInfo.targetDate?' ('+bogangInfo.targetDate+')':'') + '</span>';
 
     html += '<tr' + (isBogangActive?' style="opacity:0.55"':'') + '>'
       + '<td style="font-weight:600">' + s.name + nameBadges + '</td>'
@@ -1940,11 +1953,11 @@ function renderAttList() {
     + '<span style="font-weight:700;color:var(--accent2);font-size:13px">&#128228; 보강 간 학생 <span style="background:rgba(124,106,247,.2);border-radius:10px;padding:1px 8px;font-size:12px">' + bogangOut.length + '명</span></span>'
     + '</div>';
   if(bogangOut.length) {
-    html += '<div style="overflow-x:auto;padding:0 0 4px"><table class="tbl"><thead><tr><th>학생</th><th>보강 간 반</th><th>날짜</th></tr></thead><tbody>';
+    html += '<div style="overflow-x:auto;padding:0 0 4px"><table class="tbl"><thead><tr><th>학생</th><th>보강 가는 반</th><th>보강 날짜</th></tr></thead><tbody>';
     bogangOut.forEach(function(item) {
       html += '<tr><td style="font-weight:600">' + item.s.name + '</td>'
-        + '<td><span class="badge b-blue">' + (item.bogangCls||'미지정') + '</span></td>'
-        + '<td style="color:var(--text2)">' + date + '</td></tr>';
+        + '<td><span class="badge b-blue">' + (item.bogangCls||'반 미지정') + '</span></td>'
+        + '<td style="color:var(--text2)">' + (item.bogangDate||'날짜 미지정') + '</td></tr>';
     });
     html += '</tbody></table></div>';
   } else {
@@ -1958,21 +1971,35 @@ function renderAttList() {
 async function setAtt(sid, date, status) {
   if(!attendance[sid]) attendance[sid]={};
   const cur = getAttStatus(sid, date);
-  if(status === 'bogang') {
-    attendance[sid][date] = cur === 'bogang' ? '' : {status:'bogang', targetCls:''};
-  } else {
-    attendance[sid][date] = cur === status ? '' : status;
-  }
+  attendance[sid][date] = cur === status ? '' : status;
   renderAttList();
   const st = (students[currentClass]||[]).find(s=>s.id===sid);
   const finalVal = attendance[sid][date];
-  const finalStatus = typeof finalVal === 'object' ? JSON.stringify(finalVal) : (finalVal||'');
-  await postToSheets({action:'saveAtt', name:st?.name||'', cls:st?.cls||'', date, status:finalStatus});
+  await postToSheets({action:'saveAtt', name:st?.name||'', cls:st?.cls||'', date, status:typeof finalVal==='object'?JSON.stringify(finalVal):(finalVal||'')});
 }
-async function setBogangAtt(sid, date, targetCls) {
+async function toggleBogang(sid, date) {
   if(!attendance[sid]) attendance[sid]={};
-  attendance[sid][date] = {status:'bogang', targetCls};
+  const isCur = getAttStatus(sid, date) === 'bogang';
+  attendance[sid][date] = isCur ? '' : {status:'bogang', targetCls:'', targetDate:''};
   renderAttList();
+  const st = (students[currentClass]||[]).find(s=>s.id===sid);
+  const val = attendance[sid][date];
+  await postToSheets({action:'saveAtt', name:st?.name||'', cls:st?.cls||'', date, status:typeof val==='object'?JSON.stringify(val):(val||'')});
+}
+async function setBogangCls(sid, date, targetCls) {
+  if(!attendance[sid]) attendance[sid]={};
+  const cur = attendance[sid][date];
+  const targetDate = (typeof cur==='object'&&cur) ? (cur.targetDate||'') : '';
+  attendance[sid][date] = {status:'bogang', targetCls, targetDate};
+  renderAttList();
+  const st = (students[currentClass]||[]).find(s=>s.id===sid);
+  await postToSheets({action:'saveAtt', name:st?.name||'', cls:st?.cls||'', date, status:JSON.stringify(attendance[sid][date])});
+}
+async function setBogangDate(sid, date, targetDate) {
+  if(!attendance[sid]) attendance[sid]={};
+  const cur = attendance[sid][date];
+  const targetCls = (typeof cur==='object'&&cur) ? (cur.targetCls||'') : '';
+  attendance[sid][date] = {status:'bogang', targetCls, targetDate};
   const st = (students[currentClass]||[]).find(s=>s.id===sid);
   await postToSheets({action:'saveAtt', name:st?.name||'', cls:st?.cls||'', date, status:JSON.stringify(attendance[sid][date])});
 }
