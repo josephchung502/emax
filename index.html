@@ -1076,32 +1076,45 @@ async function syncNow() {
 }
 
 async function loadAttendanceFromSheets() {
-  if(!gasUrl) return;
+  if(!gasUrl) return 0;
   const url = gasUrl + '?action=getAttendance&class=' + encodeURIComponent(currentClass);
   const data = await jsonpFetch(url, 15000);
-  if(!Array.isArray(data) || data.length < 2) return;
+  console.log('[eMAX] getAttendance raw rows:', Array.isArray(data) ? data.length : data);
+  if(!Array.isArray(data) || data.length < 2) return 0;
+  let loaded = 0;
   data.slice(1).forEach(function(r) {
     // 열 순서: 반구분(0), 반(1), 학생명(2), 날짜(3), 출석상태(4)
     const clsName = String(r[1]||'').trim();
     const name    = String(r[2]||'').trim();
-    const date    = String(r[3]||'').trim();
+    // 날짜: Date 객체나 슬래시 형식도 변환
+    const rawDate = r[3];
+    const date    = rawDate instanceof Date
+      ? rawDate.toISOString().slice(0,10)
+      : String(rawDate||'').trim().replace(/\//g,'-');
     const status  = String(r[4]||'').trim();
     if(!name || !date || !status) return;
-    const st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
+    // name+cls 우선, 없으면 currentClass 내 name으로 fallback
+    let st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
+    if(!st) st = (students[currentClass]||[]).find(s=>s.name===name);
     if(!st) return;
     if(!attendance[st.id]) attendance[st.id]={};
     try { attendance[st.id][date] = JSON.parse(status); }
     catch(e) { attendance[st.id][date] = status; }
+    loaded++;
   });
+  console.log('[eMAX] 출석 로드:', loaded, '건 / 전체 행:', data.length - 1);
   if(document.getElementById('tab-attendance')?.classList.contains('active')) renderAttList();
   renderDashboard();
+  return loaded;
 }
 
 async function loadHomeworkFromSheets() {
-  if(!gasUrl) return;
+  if(!gasUrl) return 0;
   const url = gasUrl + '?action=getHomework&class=' + encodeURIComponent(currentClass);
   const data = await jsonpFetch(url, 15000);
-  if(!Array.isArray(data) || data.length < 2) return;
+  console.log('[eMAX] getHomework raw rows:', Array.isArray(data) ? data.length : data);
+  if(!Array.isArray(data) || data.length < 2) return 0;
+  let loaded = 0;
   data.slice(1).forEach(function(r) {
     // 열 순서: 반구분(0), 반(1), 학생명(2), 주차(3), 숙제총점(4), 상세JSON(5)
     const clsName = String(r[1]||'').trim();
@@ -1109,13 +1122,17 @@ async function loadHomeworkFromSheets() {
     const week    = String(r[3]||'').trim();
     const detail  = String(r[5]||'').trim();
     if(!name || !week || !detail) return;
-    const st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
+    let st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
+    if(!st) st = (students[currentClass]||[]).find(s=>s.name===name);
     if(!st) return;
     try {
       if(!homework[st.id]) homework[st.id]={};
       homework[st.id][week] = JSON.parse(detail);
+      loaded++;
     } catch(e) {}
   });
+  console.log('[eMAX] 숙제 로드:', loaded, '건');
+  return loaded;
 }
 
 async function loadRetestsFromSheets() {
@@ -1831,12 +1848,14 @@ async function loadAttHwFromSheets() {
   if(!gasUrl) { showToast('GAS URL을 먼저 설정해주세요','w'); return; }
   showToast('출석/숙제 불러오는 중...','i');
   try {
-    await loadAttendanceFromSheets();
-    await loadHomeworkFromSheets();
+    if(!(students[currentClass]||[]).length) await loadStudentsFromSheets();
+    const attCnt = await loadAttendanceFromSheets() || 0;
+    const hwCnt  = await loadHomeworkFromSheets()   || 0;
     renderAttList();
-    showToast('불러오기 완료 ✓','s');
+    showToast('완료 ✓  출석 ' + attCnt + '건 · 숙제 ' + hwCnt + '건', 's');
   } catch(e) {
     showToast('불러오기 실패: ' + e.message, 'e');
+    console.error('[eMAX] loadAttHwFromSheets error:', e);
   }
 }
 function renderAttList() {
