@@ -1417,6 +1417,8 @@ function renderDashboardHwIncomplete() {
     // 휴강 주 제외
     const classDate=getCurrentWeekClassDate(s.cls);
     if(classDate && isHoliday(classDate)) return;
+    // 이번 주 수업이 아직 안 일어났으면 제외
+    if(classDate && classDate > today) return;
     // 결석 제외 (schedule 날짜 or 요일 계산 날짜)
     const classEv=scheduleData.find(ev=>ev.cls===s.cls&&dateToWeek(ev.date)===cw);
     const attDate=classEv?classEv.date:classDate;
