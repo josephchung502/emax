@@ -1016,7 +1016,7 @@ function goTab(id, el) {
   if(id==='students') { initStudentFilters(); renderStudentList(); }
   if(id==='scores') {
     initScoreSelects(); renderScoreEntry(); renderScoreView();
-    if(gasUrl) loadScoresFromSheets(true).then(()=>{ renderScoreEntry(); renderScoreView(); });
+    if(gasUrl) loadScoresFromSheets(true).then(()=>{ renderScoreView(); });
   }
   if(id==='attendance') { initAttSelects(); renderAttList(); }
   if(id==='report') initReport();
