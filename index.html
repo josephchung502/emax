@@ -880,6 +880,46 @@ function getCumulativeMdp(sid) {
   return fromScores + calcMdpFromHw(sid);
 }
 
+// ── 휴강 날짜 & 요일 헬퍼 ──────────────────────────────
+const HOLIDAYS = [
+  ['2026-02-16','2026-02-18'],
+  ['2026-05-01','2026-05-07'],
+  ['2026-07-27','2026-08-01'],
+  ['2026-09-24','2026-09-26'],
+  ['2026-10-03','2026-10-09'],
+  ['2026-12-21','2026-12-26'],
+];
+function isHoliday(dateStr) {
+  return HOLIDAYS.some(function(h){ return dateStr>=h[0]&&dateStr<=h[1]; });
+}
+// 반 이름 끝 알파벳 → 요일 숫자 (1=월...6=토)
+function getClassDayOfWeek(cls) {
+  const m = String(cls).match(/([A-Z]+)$/);
+  if(!m) return -1;
+  const map = {M:1,T:2,W:3,TH:4,F:5,S:6,SA:6};
+  return map[m[1]]!==undefined ? map[m[1]] : -1;
+}
+// 이번 주 해당 반 수업 날짜
+function getCurrentWeekClassDate(cls) {
+  const dow = getClassDayOfWeek(cls);
+  if(dow<1) return null;
+  const today = new Date();
+  const todayDow = today.getDay()===0?7:today.getDay();
+  const d = new Date(today);
+  d.setDate(today.getDate()+(dow-todayDow));
+  return d.toISOString().slice(0,10);
+}
+// N주 전 해당 반 수업 날짜 (weeksBack=1 → 1주 전)
+function getPrevWeekClassDate(cls, weeksBack) {
+  const dow = getClassDayOfWeek(cls);
+  if(dow<1) return null;
+  const today = new Date();
+  const todayDow = today.getDay()===0?7:today.getDay();
+  const d = new Date(today);
+  d.setDate(today.getDate()+(dow-todayDow)-weeksBack*7);
+  return d.toISOString().slice(0,10);
+}
+
 function normalizeStr(s) {
   // 전각문자→반각, 공백제거, 대문자 통일
   return String(s||'').replace(/[！-～]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xfee0)).replace(/\s+/g,'').toUpperCase();
@@ -1352,74 +1392,89 @@ function renderDashboard() {
 /* ── 이번 주 숙제 미완성 ── */
 function getNextClassDate(cls) {
   const today = new Date().toISOString().slice(0,10);
-  const future = scheduleData.filter(ev=>ev.cls===cls&&ev.date>today).sort((a,b)=>a.date.localeCompare(b.date));
+  const dow = getClassDayOfWeek(cls);
+  if(dow>=1) {
+    const d = new Date(today);
+    for(let i=1;i<=21;i++){
+      d.setDate(d.getDate()+1);
+      const dStr=d.toISOString().slice(0,10);
+      if((d.getDay()===0?7:d.getDay())===dow && !isHoliday(dStr)) return dStr;
+    }
+  }
+  const future=scheduleData.filter(ev=>ev.cls===cls&&ev.date>today&&!isHoliday(ev.date)).sort((a,b)=>a.date.localeCompare(b.date));
   return future.length ? future[0].date : null;
 }
 
 function renderDashboardHwIncomplete() {
-  const el = document.getElementById('d-hw-incomplete');
+  const el=document.getElementById('d-hw-incomplete');
   if(!el) return;
   if(currentClass!=='KG6'){el.innerHTML='<div style="padding:14px 16px;color:var(--text3);font-size:13px">KG6 반만 적용됩니다.</div>';return;}
-  const cw = currentWeek();
-  const today = new Date().toISOString().slice(0,10);
-  const all = students[currentClass]||[];
-  const rows = [];
+  const cw=currentWeek();
+  const today=new Date().toISOString().slice(0,10);
+  const all=students[currentClass]||[];
+  const itemRows=[];
   all.forEach(s=>{
-    // 결석 확인: 이번 주 수업 날짜에 결석이면 제외
-    const classEv = scheduleData.find(ev=>ev.cls===s.cls&&dateToWeek(ev.date)===cw);
-    if(classEv && getAttStatus(s.id, classEv.date)==='absent') return;
-    // 마감 확인: 다음 수업날이 되면 숨김
-    const nextDate = getNextClassDate(s.cls);
+    // 휴강 주 제외
+    const classDate=getCurrentWeekClassDate(s.cls);
+    if(classDate && isHoliday(classDate)) return;
+    // 결석 제외 (schedule 날짜 or 요일 계산 날짜)
+    const classEv=scheduleData.find(ev=>ev.cls===s.cls&&dateToWeek(ev.date)===cw);
+    const attDate=classEv?classEv.date:classDate;
+    if(attDate && getAttStatus(s.id,attDate)==='absent') return;
+    // 마감(다음 수업날) 지나면 제외
+    const nextDate=getNextClassDate(s.cls);
     if(nextDate && today>=nextDate) return;
-    const hwTotal = calcHwTotal(s.id, cw, s.cls);
+    const hwTotal=calcHwTotal(s.id,cw,s.cls);
     if(hwTotal===null||hwTotal>=100) return;
-    const hwData = (homework[s.id]||{})[cw]||{};
-    const incomplete = getHwItems(s.cls).filter(h=>!(hwData[h.key]||{}).done).map(h=>h.label);
-    rows.push({s, hwTotal, incomplete});
+    const hwData=(homework[s.id]||{})[cw]||{};
+    // 미완성 항목만 추출
+    const incompleteItems=getHwItems(s.cls).filter(h=>!(hwData[h.key]||{}).done);
+    incompleteItems.forEach(h=>{
+      itemRows.push({s,cw,itemKey:h.key,itemLabel:h.label,hwTotal});
+    });
   });
-  if(!rows.length){
+  if(!itemRows.length){
     el.innerHTML='<div style="padding:14px 16px;color:var(--text3);font-size:13px">이번 주 미완성 숙제 없음 ✓</div>';
     return;
   }
-  el.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>학생</th><th>반</th><th class="num">점수</th><th>미완성 항목</th><th>처리</th></tr></thead><tbody>'
-    +rows.map(({s,hwTotal,incomplete})=>{
-      const sid=s.id;
+  el.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>학생</th><th>반</th><th>미완성 항목</th><th>처리</th></tr></thead><tbody>'
+    +itemRows.map(({s,cw,itemKey,itemLabel,hwTotal})=>{
+      const sid=s.id; const ek=itemKey.replace(/[^a-zA-Z0-9_]/g,'_');
       return `<tr>
         <td style="font-weight:600">${s.name}</td>
         <td><span class="badge b-blue">${s.cls}</span></td>
-        <td class="num" style="color:${scoreColor(hwTotal)};font-family:'DM Mono'">${hwTotal}점</td>
-        <td style="font-size:11px;color:var(--text3);max-width:150px;white-space:normal">${incomplete.length?incomplete.join(', '):'—'}</td>
+        <td style="font-size:12px">${itemLabel}</td>
         <td style="white-space:nowrap">
-          <select class="fi fi-sm" id="hw-sel-${sid}" style="width:auto" onchange="onHwStatusChange('${sid}','${cw}','${s.cls}')">
+          <select class="fi fi-sm" id="hwi-sel-${sid}-${ek}" style="width:auto" onchange="onHwItemStatusChange('${sid}','${cw}','${s.cls}','${itemKey}')">
             <option value="미흡">미흡</option><option value="완성">완성</option>
           </select>
-          <span id="hw-btns-${sid}" style="display:none;gap:4px;margin-left:4px;align-items:center">
-            <button class="btn btn-sm" style="background:rgba(74,222,128,.15);border:1px solid var(--green);color:var(--green)" onclick="markHwComplete('${sid}','${cw}','${s.cls}',100)">100%</button>
-            <button class="btn btn-sm" style="background:rgba(250,204,21,.15);border:1px solid var(--yellow);color:var(--yellow)" onclick="markHwComplete('${sid}','${cw}','${s.cls}',50)">50% 늦제출</button>
+          <span id="hwi-btns-${sid}-${ek}" style="display:none;gap:4px;margin-left:4px;align-items:center">
+            <button class="btn btn-sm" style="background:rgba(74,222,128,.15);border:1px solid var(--green);color:var(--green)" onclick="markHwItemComplete('${sid}','${cw}','${s.cls}','${itemKey}',100)">100%</button>
+            <button class="btn btn-sm" style="background:rgba(250,204,21,.15);border:1px solid var(--yellow);color:var(--yellow)" onclick="markHwItemComplete('${sid}','${cw}','${s.cls}','${itemKey}',50)">50% 늦제출</button>
           </span>
         </td>
       </tr>`;
     }).join('')+'</tbody></table></div>';
 }
 
-function onHwStatusChange(sid, week, cls) {
-  const sel=document.getElementById('hw-sel-'+sid);
-  const btns=document.getElementById('hw-btns-'+sid);
+function onHwItemStatusChange(sid, week, cls, itemKey) {
+  const ek=itemKey.replace(/[^a-zA-Z0-9_]/g,'_');
+  const sel=document.getElementById(`hwi-sel-${sid}-${ek}`);
+  const btns=document.getElementById(`hwi-btns-${sid}-${ek}`);
   if(!sel||!btns) return;
   btns.style.display=sel.value==='완성'?'inline-flex':'none';
 }
 
-async function markHwComplete(sid, week, cls, percent) {
+async function markHwItemComplete(sid, week, cls, itemKey, percent) {
   if(!homework[sid]) homework[sid]={};
   if(!homework[sid][week]) homework[sid][week]={};
-  getHwItems(cls).forEach(h=>{homework[sid][week][h.key]={done:true,score:h.max||0};});
-  if(percent===50) homework[sid][week]._late=true;
-  else delete homework[sid][week]._late;
+  const h=getHwItems(cls).find(x=>x.key===itemKey);
+  if(h) homework[sid][week][h.key]={done:true,score:h.max||0,late:percent===50};
   const st=(students[currentClass]||[]).find(s=>s.id===sid);
   const total=calcHwTotal(sid,week,cls);
   await postToSheets({action:'saveHw',name:st?.name||'',cls:st?.cls||'',week,total,detail:JSON.stringify(homework[sid][week]||{})});
   renderDashboard();
-  showToast(`${st?.name||''} 숙제 ${percent}% 인정 저장됨 ✓`,'s');
+  showToast(`${st?.name||''} [${h?.label||itemKey}] ${percent}% 인정 ✓`,'s');
 }
 
 /* ── 3주 연속 미완성 + 상담 ── */
@@ -1431,8 +1486,16 @@ function renderDashboardHwConsult() {
   const pw1=prevWeek(cw),pw2=prevWeek(pw1),pw3=prevWeek(pw2);
   const all=students[currentClass]||[];
   const consultList=all.filter(s=>{
-    const weeks=[pw1,pw2,pw3];
-    return weeks.every(w=>{
+    const weeksBack=[1,2,3]; // pw1,pw2,pw3에 해당하는 weeksBack
+    const nonHolidayWeeks=weeksBack.filter(n=>{
+      const d=getPrevWeekClassDate(s.cls,n);
+      return d && !isHoliday(d);
+    });
+    if(nonHolidayWeeks.length<3) return false; // 3주 미만이면 해당 없음
+    const checkWeeks=[pw1,pw2,pw3];
+    return checkWeeks.every((w,i)=>{
+      const d=getPrevWeekClassDate(s.cls,i+1);
+      if(d && isHoliday(d)) return false; // 휴강 주는 카운트 안 함
       const hwData=(homework[s.id]||{})[w];
       if(!hwData||Object.keys(hwData).filter(k=>!k.startsWith('_')).length===0) return false;
       const total=calcHwTotal(s.id,w,s.cls);
@@ -1526,7 +1589,7 @@ function renderScheduleCards() {
   // 현재 반 그룹(KG6/G5TFS)에 속하는 반만 필터
   const myClasses = getAllClasses();
   const filtered = scheduleData.filter(function(ev){
-    return myClasses.includes(ev.cls);
+    return myClasses.includes(ev.cls) && !isHoliday(ev.date);
   });
 
   if(!filtered.length) {
@@ -1962,10 +2025,11 @@ function calcHwTotal(sid, week, cls) {
   const hwData = (homework[sid]||{})[week]||{};
   if(currentClass==='KG6') {
     const reqPts = getHwItems(cls).reduce((acc,h)=>{
-      return acc + ((hwData[h.key]||{}).done ? (h.max||0) : 0);
+      const item = hwData[h.key]||{};
+      if(!item.done) return acc;
+      return acc + (item.late ? Math.round((h.max||0)*0.5) : (h.max||0));
     }, 0);
-    const total = reqPts + getAutoGivenPts(cls);
-    return hwData._late ? Math.round(total * 0.5) : total;
+    return reqPts + getAutoGivenPts(cls);
   }
   return null;
 }
