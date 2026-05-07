@@ -637,7 +637,7 @@ const CLASS_CONFIG = {
   'G5TFS': {
     label: 'G5 TFS',
     classes: ['G5-22TH','G5-42F','G5-46SA'],
-    subjects: ['VOC Test','Gram HW','GraSP','Sci HW','Sci Test','TFL Reading','Grammar Test','TFL Speaking','Novel','MarketDay Points'],
+    subjects: ['VOC Test','Gram HW','GraSP','Sci HW','Sci Test','Sci Teachback','TFL Reading','Grammar Test','TFL Speaking','Novel','MarketDay Points'],
     hwItems: ['VOC HW','Sci HW','Adv Reading HW','TFL RCT Sum','GR HW','GR Sum','GR 오답노트','Novel HW','Sci Teachback Script','Grasp'],
     retestSubject: 'VOC Test',
     retestKey: 'retest-g5',
@@ -1408,10 +1408,10 @@ function getNextClassDate(cls) {
 function renderDashboardHwIncomplete() {
   const el=document.getElementById('d-hw-incomplete');
   if(!el) return;
-  if(currentClass!=='KG6'){el.innerHTML='<div style="padding:14px 16px;color:var(--text3);font-size:13px">KG6 반만 적용됩니다.</div>';return;}
   const cw=currentWeek();
   const today=new Date().toISOString().slice(0,10);
   const all=students[currentClass]||[];
+  const isKG6=currentClass==='KG6';
   const itemRows=[];
   all.forEach(s=>{
     // 휴강 주 제외
@@ -1419,43 +1419,60 @@ function renderDashboardHwIncomplete() {
     if(classDate && isHoliday(classDate)) return;
     // 이번 주 수업이 아직 안 일어났으면 제외
     if(classDate && classDate > today) return;
-    // 결석 제외 (schedule 날짜 or 요일 계산 날짜)
+    // 결석 제외
     const classEv=scheduleData.find(ev=>ev.cls===s.cls&&dateToWeek(ev.date)===cw);
     const attDate=classEv?classEv.date:classDate;
     if(attDate && getAttStatus(s.id,attDate)==='absent') return;
-    // 마감(다음 수업날) 지나면 제외
-    const nextDate=getNextClassDate(s.cls);
-    if(nextDate && today>=nextDate) return;
-    const hwTotal=calcHwTotal(s.id,cw,s.cls);
-    if(hwTotal===null||hwTotal>=100) return;
     const hwData=(homework[s.id]||{})[cw]||{};
-    // 미완성 항목만 추출
-    const incompleteItems=getHwItems(s.cls).filter(h=>!(hwData[h.key]||{}).done);
-    incompleteItems.forEach(h=>{
-      itemRows.push({s,cw,itemKey:h.key,itemLabel:h.label,hwTotal});
-    });
+    if(isKG6) {
+      const hwTotal=calcHwTotal(s.id,cw,s.cls);
+      if(hwTotal===null||hwTotal>=100) return;
+      getHwItems(s.cls).filter(h=>!(hwData[h.key]||{}).done).forEach(h=>{
+        itemRows.push({s,cw,itemKey:h.key,itemLabel:h.label,isKG6:true});
+      });
+    } else {
+      const hwItems=getHwItems(s.cls);
+      const incomplete=hwItems.filter(h=>!(hwData[h]||{}).done);
+      if(!incomplete.length) return;
+      incomplete.forEach(h=>{
+        itemRows.push({s,cw,itemKey:h,itemLabel:h,isKG6:false});
+      });
+    }
   });
   if(!itemRows.length){
     el.innerHTML='<div style="padding:14px 16px;color:var(--text3);font-size:13px">이번 주 미완성 숙제 없음 ✓</div>';
     return;
   }
   el.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>학생</th><th>반</th><th>미완성 항목</th><th>처리</th></tr></thead><tbody>'
-    +itemRows.map(({s,cw,itemKey,itemLabel,hwTotal})=>{
+    +itemRows.map(({s,cw,itemKey,itemLabel,isKG6})=>{
       const sid=s.id; const ek=itemKey.replace(/[^a-zA-Z0-9_]/g,'_');
-      return `<tr>
-        <td style="font-weight:600">${s.name}</td>
-        <td><span class="badge b-blue">${s.cls}</span></td>
-        <td style="font-size:12px">${itemLabel}</td>
-        <td style="white-space:nowrap">
-          <select class="fi fi-sm" id="hwi-sel-${sid}-${ek}" style="width:auto" onchange="onHwItemStatusChange('${sid}','${cw}','${s.cls}','${itemKey}')">
-            <option value="미흡">미흡</option><option value="완성">완성</option>
-          </select>
-          <span id="hwi-btns-${sid}-${ek}" style="display:none;gap:4px;margin-left:4px;align-items:center">
-            <button class="btn btn-sm" style="background:rgba(74,222,128,.15);border:1px solid var(--green);color:var(--green)" onclick="markHwItemComplete('${sid}','${cw}','${s.cls}','${itemKey}',100)">100%</button>
-            <button class="btn btn-sm" style="background:rgba(250,204,21,.15);border:1px solid var(--yellow);color:var(--yellow)" onclick="markHwItemComplete('${sid}','${cw}','${s.cls}','${itemKey}',50)">50% 늦제출</button>
-          </span>
-        </td>
-      </tr>`;
+      if(isKG6) {
+        return `<tr>
+          <td style="font-weight:600">${s.name}</td>
+          <td><span class="badge b-blue">${s.cls}</span></td>
+          <td style="font-size:12px">${itemLabel}</td>
+          <td style="white-space:nowrap">
+            <select class="fi fi-sm" id="hwi-sel-${sid}-${ek}" style="width:auto" onchange="onHwItemStatusChange('${sid}','${cw}','${s.cls}','${itemKey}')">
+              <option value="미흡">미흡</option><option value="완성">완성</option>
+            </select>
+            <span id="hwi-btns-${sid}-${ek}" style="display:none;gap:4px;margin-left:4px;align-items:center">
+              <button class="btn btn-sm" style="background:rgba(74,222,128,.15);border:1px solid var(--green);color:var(--green)" onclick="markHwItemComplete('${sid}','${cw}','${s.cls}','${itemKey}',100)">100%</button>
+              <button class="btn btn-sm" style="background:rgba(250,204,21,.15);border:1px solid var(--yellow);color:var(--yellow)" onclick="markHwItemComplete('${sid}','${cw}','${s.cls}','${itemKey}',50)">50% 늦제출</button>
+            </span>
+          </td>
+        </tr>`;
+      } else {
+        return `<tr>
+          <td style="font-weight:600">${s.name}</td>
+          <td><span class="badge b-blue">${s.cls}</span></td>
+          <td style="font-size:12px">${itemLabel}</td>
+          <td>
+            <select class="fi fi-sm" style="width:auto" onchange="onHwItemG5Change('${sid}','${cw}','${s.cls}','${itemKey}',this.value)">
+              <option value="미흡">미흡</option><option value="완성">완성</option>
+            </select>
+          </td>
+        </tr>`;
+      }
     }).join('')+'</tbody></table></div>';
 }
 
@@ -1479,29 +1496,44 @@ async function markHwItemComplete(sid, week, cls, itemKey, percent) {
   showToast(`${st?.name||''} [${h?.label||itemKey}] ${percent}% 인정 ✓`,'s');
 }
 
+async function onHwItemG5Change(sid, week, cls, itemKey, value) {
+  if(value!=='완성') return;
+  if(!homework[sid]) homework[sid]={};
+  if(!homework[sid][week]) homework[sid][week]={};
+  homework[sid][week][itemKey]={done:true};
+  const st=(students[currentClass]||[]).find(s=>s.id===sid);
+  await postToSheets({action:'saveHw',name:st?.name||'',cls:st?.cls||'',week,total:null,detail:JSON.stringify(homework[sid][week]||{})});
+  renderDashboard();
+  showToast(`${st?.name||''} [${itemKey}] 완성 처리 ✓`,'s');
+}
+
 /* ── 3주 연속 미완성 + 상담 ── */
 function renderDashboardHwConsult() {
   const el=document.getElementById('d-hw-consult');
   if(!el) return;
-  if(currentClass!=='KG6'){el.innerHTML='<div style="padding:14px 16px;color:var(--text3);font-size:13px">KG6 반만 적용됩니다.</div>';return;}
   const cw=currentWeek();
   const pw1=prevWeek(cw),pw2=prevWeek(pw1),pw3=prevWeek(pw2);
   const all=students[currentClass]||[];
+  const isKG6=currentClass==='KG6';
   const consultList=all.filter(s=>{
-    const weeksBack=[1,2,3]; // pw1,pw2,pw3에 해당하는 weeksBack
+    const weeksBack=[1,2,3];
     const nonHolidayWeeks=weeksBack.filter(n=>{
       const d=getPrevWeekClassDate(s.cls,n);
       return d && !isHoliday(d);
     });
-    if(nonHolidayWeeks.length<3) return false; // 3주 미만이면 해당 없음
+    if(nonHolidayWeeks.length<3) return false;
     const checkWeeks=[pw1,pw2,pw3];
     return checkWeeks.every((w,i)=>{
       const d=getPrevWeekClassDate(s.cls,i+1);
-      if(d && isHoliday(d)) return false; // 휴강 주는 카운트 안 함
+      if(d && isHoliday(d)) return false;
       const hwData=(homework[s.id]||{})[w];
       if(!hwData||Object.keys(hwData).filter(k=>!k.startsWith('_')).length===0) return false;
-      const total=calcHwTotal(s.id,w,s.cls);
-      return total!==null&&total<100;
+      if(isKG6) {
+        const total=calcHwTotal(s.id,w,s.cls);
+        return total!==null&&total<100;
+      } else {
+        return getHwItems(s.cls).some(h=>!(hwData[h]||{}).done);
+      }
     });
   });
   if(!consultList.length){
@@ -1699,9 +1731,8 @@ function renderSessionHw() {
     hwCfg.forEach(h=>{ html+=`<th title="${h.key}" style="font-size:9px;min-width:60px">${h.label.slice(0,6)}..<br><span style="color:var(--text3)">${h.max?h.max+'pt':'선택'}</span></th>`; });
     if(autoGiven>0) html+=`<th style="font-size:9px;min-width:45px;background:rgba(74,222,128,.06);color:var(--green)">기본<br>+${autoGiven}pt</th>`;
     optHwCfg.forEach(h=>{ html+=`<th title="${h.key}&#10;선택숙제 — 해오면 +200 Market Day" style="font-size:9px;min-width:60px;background:rgba(168,85,247,.08);color:var(--purple)">${h.label.slice(0,6)}..<br><span style="color:var(--purple);font-size:8px">+200MDP</span></th>`; });
-  } else { hwCfg.forEach(h=>{ html+=`<th>${h}</th>`; }); }
-  html += `<th style="min-width:50px">합계${isKG6?'<br><span style="font-size:9px;color:var(--text3)">/100</span>':''}</th>`;
-  if(isKG6) html += `<th style="min-width:55px;color:var(--purple);font-size:9px">누적MDP</th>`;
+  } else { hwCfg.forEach(h=>{ html+=`<th>${h}</th>`; }); html+=`<th style="min-width:60px">전부 완성</th>`; }
+  if(isKG6) { html += `<th style="min-width:50px">합계<br><span style="font-size:9px;color:var(--text3)">/100</span></th><th style="min-width:55px;color:var(--purple);font-size:9px">누적MDP</th>`; }
   html += '</tr></thead><tbody>';
 
   ss.forEach(s=>{
@@ -1725,7 +1756,7 @@ function renderSessionHw() {
         const done=(hw[h]||{}).done;
         html+=`<td style="text-align:center"><input type="checkbox" id="hw-${s.id}-${h.replace(/\s/g,'_')}" ${done?'checked':''}></td>`;
       });
-      html+=`<td></td>`;
+      html+=`<td style="text-align:center"><button class="btn btn-green btn-sm" style="font-size:9px;padding:2px 6px" onclick="setSessHwMaxG5('${s.id}','${cls}')">✓ 전부</button></td>`;
     }
     html += '</tr>';
   });
@@ -1738,6 +1769,12 @@ function setSessHwMax(sid, cls) {
     if(el) el.checked = true;
   });
   updateSessionHwTotal(sid, cls);
+}
+function setSessHwMaxG5(sid, cls) {
+  getHwItems(cls).forEach(h=>{
+    const el = document.getElementById(`hw-${sid}-${h.replace(/\s/g,'_')}`);
+    if(el) el.checked = true;
+  });
 }
 function updateSessionHwTotal(sid, cls) {
   const c = cls || sessionContext.cls;
@@ -2006,7 +2043,8 @@ function renderScoreEntry() {
   const ss = getStudents(cls);
   const subjs = getSubjects();
   const tbl = document.getElementById('score-entry-table');
-  let html = `<thead><tr><th style="min-width:90px;text-align:left">학생</th>${subjs.map(s=>`<th>${s}</th>`).join('')}<th>숙제점수</th></tr></thead><tbody>`;
+  const isKG6 = currentClass==='KG6';
+  let html = `<thead><tr><th style="min-width:90px;text-align:left">학생</th>${subjs.map(s=>`<th>${s}</th>`).join('')}${isKG6?'<th>숙제점수</th>':''}</tr></thead><tbody>`;
   ss.forEach(s=>{
     const existing = {};
     (scores[s.id]||[]).filter(sc=>sc.date===date).forEach(sc=>{existing[sc.type]=sc.score;});
@@ -2017,7 +2055,7 @@ function renderScoreEntry() {
     html += `<tr style="${isAbsent?'opacity:0.45;':''}">
       <td class="student-name">${s.name}${isAbsent?`<span class="badge b-red" style="margin-left:4px;font-size:9px">결석</span>`:retestDone?`<span class="badge b-green" style="margin-left:4px;font-size:9px">재시험완료</span>`:isRetest?`<span class="retest-badge">재시험</span>`:''}</td>
       ${subjs.map(subj=>`<td><input type="number" id="ent-${s.id}-${subj.replace(/[\s\/]/g,'_')}" value="${existing[subj]??''}" min=0 max=100 style="width:55px" ${isAbsent?'disabled title="결석"':''}></td>`).join('')}
-      <td style="text-align:center;font-family:'DM Mono';font-size:12px;color:${isAbsent?'var(--text3)':scoreColor(hwTotal)}">${isAbsent?'결석':hwTotal}</td>
+      ${isKG6?`<td style="text-align:center;font-family:'DM Mono';font-size:12px;color:${isAbsent?'var(--text3)':scoreColor(hwTotal)}">${isAbsent?'결석':hwTotal}</td>`:''}
     </tr>`;
   });
   html += '</tbody>';
@@ -2327,6 +2365,14 @@ function setHwMax(sid) {
   });
   updateHwTotal(sid);
 }
+function setHwMaxG5(sid) {
+  const s = (students[currentClass]||[]).find(st=>st.id===sid);
+  if(!s) return;
+  getHwItems(s.cls).forEach(h=>{
+    const el = document.getElementById(`hwm-${sid}-${h.replace(/\s/g,'_')}`);
+    if(el) el.checked = true;
+  });
+}
 function openHwModal(sid, week, date) {
   const s = (students[currentClass]||[]).find(st=>st.id===sid);
   if(!s) return;
@@ -2401,7 +2447,10 @@ function openHwModal(sid, week, date) {
       const done = (hwData[h]||{}).done;
       html += `<tr><td class="hw-label">${h}</td><td style="text-align:center"><input type="checkbox" id="hwm-${sid}-${h.replace(/\s/g,'_')}" ${done?'checked':''}></td></tr>`;
     });
-    html += '</tbody></table>';
+    html += `</tbody></table>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end">
+      <button class="btn btn-green btn-sm" onclick="setHwMaxG5('${sid}')">✓ 전부 완성</button>
+    </div>`;
   }
   document.getElementById('hw-modal-body').innerHTML = html;
   document.getElementById('hw-modal-body')._sid = sid;
