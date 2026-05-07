@@ -2041,7 +2041,10 @@ function initScoreSelects() {
   if(scDate && !scDate.value) scDate.value = today;
   const fromEl = document.getElementById('sc-view-from');
   const toEl = document.getElementById('sc-view-to');
-  if(fromEl && !fromEl.value) fromEl.value = today.slice(0,8)+'01';
+  if(fromEl && !fromEl.value) {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-2);
+    fromEl.value = d.toISOString().slice(0,10);
+  }
   if(toEl && !toEl.value) toEl.value = today;
 }
 function renderScoreEntry() {
