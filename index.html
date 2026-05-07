@@ -822,7 +822,7 @@ function threshold() { return retestThreshold[currentClass]; }
 
 // G6-42M → "4", G6-32M → "3", G6-23T → "2"
 function getClassLevel(cls) {
-  const m = String(cls||'').match(/G6-(\d)/);
+  const m = String(cls||'').match(/G[56]-(\d)/);
   return m ? m[1] : null;
 }
 // 레벨에 맞는 필수 hwItems 반환
@@ -846,16 +846,15 @@ function getAutoGivenPts(cls) {
   const level = getClassLevel(cls);
   return (KG6_LEVEL_CONFIG[level] || KG6_LEVEL_CONFIG['4']).autoGivenPts;
 }
-// 레벨별 VOC 재시험 기준 점수
+// 레벨별 VOC 재시험 기준 점수 (KG6 + G5TFS 공통)
 function getRetestCutoff(cls, sid) {
-  // per-student override takes priority (기준점수 컬럼)
   if (sid) {
     const st = (students[currentClass]||[]).find(s=>s.id===sid);
     if (st && st.threshold) return st.threshold;
   }
-  if (currentClass !== 'KG6' || !cls) return retestThreshold[currentClass];
   const level = getClassLevel(cls);
-  return retestThreshold['KG6_' + level] || retestThreshold.KG6;
+  if (level) return retestThreshold['KG6_' + level] || retestThreshold[currentClass];
+  return retestThreshold[currentClass];
 }
 // 숙제 최대 점수 (필수 max + 자동부여 = 항상 100pt for KG6)
 function getHwMax(cls) {
@@ -2089,7 +2088,7 @@ async function saveScores() {
   const ss = getStudents(cls);
   const subjs = getSubjects();
   ss.forEach(s=>{
-    if(getAttStatus(s.id, date) === 'absent') return; // 결석 학생 제외
+    if(getAttStatus(s.id, date) === 'absent') return;
     subjs.forEach(subj=>{
       const el = document.getElementById(`ent-${s.id}-${subj.replace(/[\s\/]/g,'_')}`);
       if(!el||el.value==='') return;
@@ -2103,15 +2102,14 @@ async function saveScores() {
   showToast('성적 저장됨','s');
   renderScoreView();
   renderDashboard();
-  // 실제 점수 데이터 포함 전송
-  const scoreData = [];
-  ss.forEach(s=>{
-    subjs.forEach(subj=>{
-      const sc = (scores[s.id]||[]).find(x=>x.date===date&&x.type===subj);
-      if(sc) scoreData.push({name:s.name,cls:s.cls,week:sc.week,type:sc.type,score:sc.score,date:sc.date,memo:sc.memo||''});
-    });
-  });
-  await postToSheets({action:'saveScores',cls,week,date,scoreData});
+  // 학생별로 나눠서 전송 — 대반(10명×11과목) URL 길이 초과 방지
+  for(const s of ss) {
+    const scoreData = (scores[s.id]||[])
+      .filter(x=>x.date===date)
+      .map(x=>({name:s.name,cls:s.cls,week:x.week,type:x.type,score:x.score,date:x.date,memo:x.memo||''}));
+    if(scoreData.length>0)
+      await postToSheets({action:'saveScores',cls:s.cls,week,date,name:s.name,scoreData});
+  }
 }
 function renderScoreView() {
   const cls = document.getElementById('sc-view-class')?.value; if(!cls) return;
