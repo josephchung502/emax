@@ -405,6 +405,7 @@ textarea.fi{resize:vertical;min-height:70px}
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <select class="fi fi-sm" id="sc-class" onchange="renderScoreEntry()" style="width:auto"></select>
               <input type="date" class="fi fi-sm" id="sc-date" onchange="renderScoreEntry()" style="width:auto">
+              <button class="btn btn-ghost btn-sm" onclick="loadScoresForEntry()">↻ 불러오기</button>
               <button class="btn btn-primary btn-sm" onclick="saveScores()">💾 저장 + Sheets 동기화</button>
             </div>
           </div>
@@ -1086,11 +1087,16 @@ async function loadAttendanceFromSheets() {
     // 열 순서: 반구분(0), 반(1), 학생명(2), 날짜(3), 출석상태(4)
     const clsName = String(r[1]||'').trim();
     const name    = String(r[2]||'').trim();
-    // 날짜: Date 객체나 슬래시 형식도 변환
+    // 날짜 정규화: ISO datetime("2024-05-06T…"), YYYY/MM/DD, M/D/YYYY 모두 YYYY-MM-DD로
     const rawDate = r[3];
-    const date    = rawDate instanceof Date
-      ? rawDate.toISOString().slice(0,10)
-      : String(rawDate||'').trim().replace(/\//g,'-');
+    const date = (function() {
+      const s = rawDate instanceof Date ? rawDate.toISOString() : String(rawDate||'').trim();
+      if(s.includes('T')) return s.slice(0,10);
+      if(s.match(/^\d{4}[\/\-]/)) return s.slice(0,10).replace(/\//g,'-');
+      const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if(m) return m[3]+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0');
+      return s.replace(/\//g,'-');
+    })();
     const status  = String(r[4]||'').trim();
     if(!name || !date || !status) return;
     // name+cls 우선, 없으면 currentClass 내 name으로 fallback
@@ -1193,6 +1199,12 @@ async function loadScoresFromSheets(silent) {
     setSyncStatus('error');
     if(!silent) showToast(e.message==='timeout'?'시간 초과 — Apps Script URL 확인':'불러오기 실패: '+e.message,'e');
   }
+}
+
+async function loadScoresForEntry() {
+  if(!gasUrl) { showToast('GAS URL을 먼저 설정해주세요','w'); return; }
+  await loadScoresFromSheets();
+  renderScoreEntry();
 }
 
 async function loadScheduleFromSheets() {
