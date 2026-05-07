@@ -530,11 +530,10 @@ textarea.fi{resize:vertical;min-height:70px}
     <div class="modal-title">학생 추가</div>
     <div class="form-row" style="margin-bottom:12px">
       <div class="form-group"><label>이름</label><input class="fi" type="text" id="ns-name" placeholder="홍길동"></div>
-      <div class="form-group"><label>반</label><select class="fi" id="ns-class"></select></div>
+      <div class="form-group"><label>그룹</label><select class="fi" id="ns-group" onchange="onNsGroupChange()"><option value="KG6">KG6</option><option value="G5TFS">G5TFS</option></select></div>
     </div>
     <div class="form-row" style="margin-bottom:12px">
-      <div class="form-group"><label>학년</label><select class="fi" id="ns-grade"><option>G4</option><option>G5</option><option>G6</option><option>G7</option></select></div>
-      <div class="form-group"><label>학부모 연락처</label><input class="fi" type="tel" id="ns-phone" placeholder="010-0000-0000"></div>
+      <div class="form-group"><label>반</label><select class="fi" id="ns-class"></select></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-add-student')">취소</button>
@@ -1959,7 +1958,7 @@ function openStudentDetail(sid) {
       <div class="avatar">${s.name[0]}</div>
       <div>
         <div class="profile-name">${s.name}</div>
-        <div class="profile-meta"><span class="badge b-blue">${s.cls}</span> &nbsp; ${s.grade} &nbsp; ${s.phone||''}</div>
+        <div class="profile-meta"><span class="badge b-blue">${s.cls}</span> &nbsp; ${s.grade}</div>
       </div>
       <div style="margin-left:auto;display:flex;gap:20px">
         <div style="text-align:center"><div style="font-size:10px;color:var(--text2)">평균</div><div style="font-size:22px;font-weight:900;font-family:'DM Mono';color:${a?scoreColor(a):'var(--text3)'}">${a||'—'}</div></div>
@@ -1999,22 +1998,28 @@ async function deleteStudent(id) {
   await postToSheets({action:'deleteStudent', name:st.name, cls:st.cls});
   showToast(st.name+' 삭제됨 — Sheets 동기화됨','s');
 }
-function openAddStudent() {
+function onNsGroupChange() {
+  const grp = document.getElementById('ns-group').value;
   const sel = document.getElementById('ns-class');
-  sel.innerHTML = getAllClasses().map(c=>`<option>${c}</option>`).join('');
+  sel.innerHTML = CLASS_CONFIG[grp].classes.map(c=>`<option>${c}</option>`).join('');
+}
+function openAddStudent() {
+  document.getElementById('ns-name').value = '';
+  document.getElementById('ns-group').value = currentClass;
+  onNsGroupChange();
   document.getElementById('modal-add-student').classList.add('open');
 }
 async function addStudent() {
   const name = document.getElementById('ns-name').value.trim();
   if(!name){showToast('이름 입력 필요','e');return;}
+  const grp = document.getElementById('ns-group').value;
   const cls = document.getElementById('ns-class').value;
-  const grade = document.getElementById('ns-grade').value;
-  // loadStudentsFromSheets()와 동일한 ID 형식 — 재시작 후에도 ID 일치
+  const grade = grp === 'G5TFS' ? 'G5' : 'G6';
   const id = 'sh_' + cls.replace(/[^a-zA-Z0-9가-힣]/g,'') + '_' + name.replace(/[^a-zA-Z0-9가-힣]/g,'');
-  if((students[currentClass]||[]).find(s=>s.id===id)){showToast('이미 같은 이름의 학생이 있습니다','e');return;}
+  if((students[grp]||[]).find(s=>s.id===id)){showToast('이미 같은 이름의 학생이 있습니다','e');return;}
   const s = {id, name, cls, grade, phone:''};
-  if(!students[currentClass]) students[currentClass]=[];
-  students[currentClass].push(s);
+  if(!students[grp]) students[grp]=[];
+  students[grp].push(s);
   scores[id]=[]; attendance[id]={}; homework[id]={}; retests[id]={};
   closeModal('modal-add-student');
   renderStudentList(); renderDashboard();
