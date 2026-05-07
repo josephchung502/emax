@@ -1223,13 +1223,14 @@ async function loadScoresFromSheets(silent) {
   setSyncStatus('syncing');
   if(!silent) showToast('Sheets에서 불러오는 중...','i');
   try {
-    const url = gasUrl + '?action=getScores&class=' + encodeURIComponent(currentClass);
+    const clsesParam = CLASS_CONFIG[currentClass].classes.map(function(c){return encodeURIComponent(c);}).join(',');
+    const url = gasUrl + '?action=getScores&class=' + encodeURIComponent(currentClass) + '&classes=' + clsesParam;
     const data = await jsonpFetch(url, 15000);
     if(Array.isArray(data) && data.length > 1) {
       const sheetRows = data.slice(1);
       sheetRows.forEach(function(r) {
         // 열 순서: 반구분(0), 반(1), 학생명(2), 주차(3), 과목(4), 점수(5), 날짜(6), 메모(7)
-        const clsName = String(r[1]); const name = String(r[2]);
+        const clsName = String(r[1]).trim(); const name = String(r[2]).trim();
         const week = String(r[3]); const type = String(r[4]);
         const score = parseInt(r[5]);
         const date = String(r[6]||''); const memo = String(r[7]||'');
