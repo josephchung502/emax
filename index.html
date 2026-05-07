@@ -357,18 +357,21 @@ textarea.fi{resize:vertical;min-height:70px}
         </div>
 
         <div class="grid-2">
-          <div class="card">
-            <div class="card-header"><div class="card-title">최근 성적</div></div>
-            <div style="overflow-x:auto">
-              <table class="tbl"><thead><tr><th>학생</th><th>과목</th><th class="num">점수</th><th>날짜</th></tr></thead>
-              <tbody id="d-recent-scores"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">없음</td></tr></tbody></table>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="card">
+              <div class="card-header"><div class="card-title">📋 이번 주 숙제 미완성</div></div>
+              <div id="d-hw-incomplete"><div style="padding:14px 16px;color:var(--text3);font-size:13px">데이터 로딩 중...</div></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">📞 3주 연속 미완성 — 상담 필요</div></div>
+              <div id="d-hw-consult"><div style="padding:14px 16px;color:var(--text3);font-size:13px">데이터 로딩 중...</div></div>
             </div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title">⚠️ 주의 학생</div></div>
+            <div class="card-header"><div class="card-title">⚠️ 주의 학생 <span style="font-size:10px;font-weight:400;color:var(--text3)">(반별 평균 최하위)</span></div></div>
             <div style="overflow-x:auto">
-              <table class="tbl"><thead><tr><th>학생</th><th>이슈</th><th class="num">점수</th></tr></thead>
-              <tbody id="d-alerts"><tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">없음</td></tr></tbody></table>
+              <table class="tbl"><thead><tr><th>학생</th><th>반</th><th>이슈</th><th class="num">평균</th></tr></thead>
+              <tbody id="d-alerts"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">없음</td></tr></tbody></table>
             </div>
           </div>
         </div>
@@ -700,6 +703,8 @@ let selectedMsgType = '';
 let msgLibrary = JSON.parse(localStorage.getItem('emax_msg_lib') || '[]');
 let hwOrder = {};
 let scheduleData = [];
+let consultations = {}; // { studentId: { week: { done: bool, notes: '' } } }
+const _consultExpanded = new Set();
 let sessionContext = {}; // current open session {cls, date, week}
 
 // 학생 데이터 초기화 — Sheets에서 불러오거나 빈 상태로 시작
@@ -995,6 +1000,7 @@ function enterClass(cls) {
       await loadHomeworkFromSheets();
       await loadRetestsFromSheets();
       await loadScheduleFromSheets();
+      await loadConsultationsFromSheets();
       setSyncStatus('synced');
     });
   } else {
@@ -1072,6 +1078,7 @@ async function syncNow() {
   await loadHomeworkFromSheets();
   await loadRetestsFromSheets();
   await loadScheduleFromSheets();
+  await loadConsultationsFromSheets();
   setSyncStatus('synced');
   showToast('전체 동기화 완료 ✓','s');
 }
@@ -1310,32 +1317,208 @@ function renderDashboard() {
         }).join('') + `</tbody></table>`;
     }
   }
-  // Recent scores
-  const recent = all.flatMap(s=>(scores[s.id]||[]).map(sc=>({...sc,name:s.name,cls:s.cls}))).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
-  document.getElementById('d-recent-scores').innerHTML = recent.length?recent.map(sc=>`<tr><td>${sc.name}</td><td><span class="badge b-blue">${sc.type}</span></td><td class="num"><span class="score-pill" style="color:${scoreColor(sc.score)};background:${scoreColor(sc.score)}22">${sc.score}</span></td><td style="color:var(--text3);font-size:11px">${sc.date}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px">없음</td></tr>';
-  // Alerts — 과목별 주의 + 추세
+  // 주의 학생: 각 반에서 평균 꼴찌 학생만, 이슈 기준(과목 75점 미만) 동일
   const alertRows = [];
-  all.forEach(s=>{
+  getAllClasses().forEach(cls=>{
+    const clsStudents = all.filter(s=>s.cls===cls);
+    if(!clsStudents.length) return;
+    const withAvg = clsStudents.map(s=>({s, a:studentAvg(s.id)})).filter(x=>x.a!==null&&x.a!==undefined);
+    if(!withAvg.length) return;
+    withAvg.sort((a,b)=>a.a-b.a);
+    const {s, a} = withAvg[0];
     const sc = scores[s.id]||[];
     const subjs = getSubjects().filter(sub=>sub!=='MarketDay Points');
     const issues = [];
     subjs.forEach(subj=>{
-      const subjectScores = sc.filter(x=>x.type===subj).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
-      if(!subjectScores.length) return;
-      const latest = subjectScores[0].score;
-      if(latest < 75) {
-        const trend = subjectScores.length>=2 ? (subjectScores[0].score>subjectScores[1].score?'📈':subjectScores[0].score<subjectScores[1].score?'📉':'➡️') : '—';
+      const ss = sc.filter(x=>x.type===subj).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+      if(!ss.length) return;
+      const latest = ss[0].score;
+      if(latest<75){
+        const trend = ss.length>=2?(ss[0].score>ss[1].score?'📈':ss[0].score<ss[1].score?'📉':'➡️'):'—';
         issues.push({subj, score:latest, trend, level:latest<60?'위험':'주의'});
       }
     });
-    if(issues.length) alertRows.push({s, issues});
+    if(issues.length) alertRows.push({s, issues, avg:a});
   });
-  document.getElementById('d-alerts').innerHTML = alertRows.length ? alertRows.map(({s,issues})=>{
-    const overallA = studentAvg(s.id);
+  document.getElementById('d-alerts').innerHTML = alertRows.length ? alertRows.map(({s,issues,avg:a})=>{
     const issueHtml = issues.map(i=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span class="badge ${i.level==='위험'?'b-red':'b-yellow'}" style="font-size:9px">${i.subj.slice(0,8)}</span><span style="font-family:'DM Mono';font-size:11px;color:${scoreColor(i.score)}">${i.score}점</span><span>${i.trend}</span></div>`).join('');
-    return `<tr><td style="font-weight:600;vertical-align:top">${s.name}</td><td>${issueHtml}</td><td class="num" style="color:${overallA?scoreColor(overallA):'var(--text3)'};vertical-align:top">${overallA||'—'}</td></tr>`;
-  }).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:14px">주의 학생 없음 ✓</td></tr>';
+    return `<tr><td style="font-weight:600;vertical-align:top">${s.name}</td><td style="vertical-align:top"><span class="badge b-blue" style="font-size:9px">${s.cls}</span></td><td>${issueHtml}</td><td class="num" style="color:${scoreColor(a)};vertical-align:top;font-family:'DM Mono'">${a}</td></tr>`;
+  }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px">주의 학생 없음 ✓</td></tr>';
+  renderDashboardHwIncomplete();
+  renderDashboardHwConsult();
   renderScheduleCards();
+}
+
+/* ── 이번 주 숙제 미완성 ── */
+function getNextClassDate(cls) {
+  const today = new Date().toISOString().slice(0,10);
+  const future = scheduleData.filter(ev=>ev.cls===cls&&ev.date>today).sort((a,b)=>a.date.localeCompare(b.date));
+  return future.length ? future[0].date : null;
+}
+
+function renderDashboardHwIncomplete() {
+  const el = document.getElementById('d-hw-incomplete');
+  if(!el) return;
+  if(currentClass!=='KG6'){el.innerHTML='<div style="padding:14px 16px;color:var(--text3);font-size:13px">KG6 반만 적용됩니다.</div>';return;}
+  const cw = currentWeek();
+  const today = new Date().toISOString().slice(0,10);
+  const all = students[currentClass]||[];
+  const rows = [];
+  all.forEach(s=>{
+    // 결석 확인: 이번 주 수업 날짜에 결석이면 제외
+    const classEv = scheduleData.find(ev=>ev.cls===s.cls&&dateToWeek(ev.date)===cw);
+    if(classEv && getAttStatus(s.id, classEv.date)==='absent') return;
+    // 마감 확인: 다음 수업날이 되면 숨김
+    const nextDate = getNextClassDate(s.cls);
+    if(nextDate && today>=nextDate) return;
+    const hwTotal = calcHwTotal(s.id, cw, s.cls);
+    if(hwTotal===null||hwTotal>=100) return;
+    const hwData = (homework[s.id]||{})[cw]||{};
+    const incomplete = getHwItems(s.cls).filter(h=>!(hwData[h.key]||{}).done).map(h=>h.label);
+    rows.push({s, hwTotal, incomplete});
+  });
+  if(!rows.length){
+    el.innerHTML='<div style="padding:14px 16px;color:var(--text3);font-size:13px">이번 주 미완성 숙제 없음 ✓</div>';
+    return;
+  }
+  el.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>학생</th><th>반</th><th class="num">점수</th><th>미완성 항목</th><th>처리</th></tr></thead><tbody>'
+    +rows.map(({s,hwTotal,incomplete})=>{
+      const sid=s.id;
+      return `<tr>
+        <td style="font-weight:600">${s.name}</td>
+        <td><span class="badge b-blue">${s.cls}</span></td>
+        <td class="num" style="color:${scoreColor(hwTotal)};font-family:'DM Mono'">${hwTotal}점</td>
+        <td style="font-size:11px;color:var(--text3);max-width:150px;white-space:normal">${incomplete.length?incomplete.join(', '):'—'}</td>
+        <td style="white-space:nowrap">
+          <select class="fi fi-sm" id="hw-sel-${sid}" style="width:auto" onchange="onHwStatusChange('${sid}','${cw}','${s.cls}')">
+            <option value="미흡">미흡</option><option value="완성">완성</option>
+          </select>
+          <span id="hw-btns-${sid}" style="display:none;gap:4px;margin-left:4px;align-items:center">
+            <button class="btn btn-sm" style="background:rgba(74,222,128,.15);border:1px solid var(--green);color:var(--green)" onclick="markHwComplete('${sid}','${cw}','${s.cls}',100)">100%</button>
+            <button class="btn btn-sm" style="background:rgba(250,204,21,.15);border:1px solid var(--yellow);color:var(--yellow)" onclick="markHwComplete('${sid}','${cw}','${s.cls}',50)">50% 늦제출</button>
+          </span>
+        </td>
+      </tr>`;
+    }).join('')+'</tbody></table></div>';
+}
+
+function onHwStatusChange(sid, week, cls) {
+  const sel=document.getElementById('hw-sel-'+sid);
+  const btns=document.getElementById('hw-btns-'+sid);
+  if(!sel||!btns) return;
+  btns.style.display=sel.value==='완성'?'inline-flex':'none';
+}
+
+async function markHwComplete(sid, week, cls, percent) {
+  if(!homework[sid]) homework[sid]={};
+  if(!homework[sid][week]) homework[sid][week]={};
+  getHwItems(cls).forEach(h=>{homework[sid][week][h.key]={done:true,score:h.max||0};});
+  if(percent===50) homework[sid][week]._late=true;
+  else delete homework[sid][week]._late;
+  const st=(students[currentClass]||[]).find(s=>s.id===sid);
+  const total=calcHwTotal(sid,week,cls);
+  await postToSheets({action:'saveHw',name:st?.name||'',cls:st?.cls||'',week,total,detail:JSON.stringify(homework[sid][week]||{})});
+  renderDashboard();
+  showToast(`${st?.name||''} 숙제 ${percent}% 인정 저장됨 ✓`,'s');
+}
+
+/* ── 3주 연속 미완성 + 상담 ── */
+function renderDashboardHwConsult() {
+  const el=document.getElementById('d-hw-consult');
+  if(!el) return;
+  if(currentClass!=='KG6'){el.innerHTML='<div style="padding:14px 16px;color:var(--text3);font-size:13px">KG6 반만 적용됩니다.</div>';return;}
+  const cw=currentWeek();
+  const pw1=prevWeek(cw),pw2=prevWeek(pw1),pw3=prevWeek(pw2);
+  const all=students[currentClass]||[];
+  const consultList=all.filter(s=>{
+    const weeks=[pw1,pw2,pw3];
+    return weeks.every(w=>{
+      const hwData=(homework[s.id]||{})[w];
+      if(!hwData||Object.keys(hwData).filter(k=>!k.startsWith('_')).length===0) return false;
+      const total=calcHwTotal(s.id,w,s.cls);
+      return total!==null&&total<100;
+    });
+  });
+  if(!consultList.length){
+    el.innerHTML='<div style="padding:14px 16px;color:var(--text3);font-size:13px">3주 연속 미완성 학생 없음 ✓</div>';
+    return;
+  }
+  el.innerHTML='<div style="padding:6px 16px 4px;font-size:11px;color:var(--text3)">학생 이름 클릭 → 상담 기록</div>'
+    +consultList.map(s=>{
+      const cData=(consultations[s.id]||{})[cw]||{};
+      const isOpen=_consultExpanded.has(s.id);
+      const statusBadge=cData.done===true
+        ?'<span class="badge b-green" style="font-size:9px">상담완료</span>'
+        :cData.done===false
+          ?'<span class="badge b-yellow" style="font-size:9px">미완료</span>'
+          :'<span style="font-size:9px;color:var(--text3)">미기록</span>';
+      return `<div style="border-top:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;user-select:none" onclick="toggleConsultRow('${s.id}','${cw}')">
+          <div><span style="font-weight:600">${s.name}</span><span class="badge b-blue" style="margin-left:6px;font-size:9px">${s.cls}</span></div>
+          <div style="display:flex;align-items:center;gap:6px">${statusBadge}<span style="font-size:11px;color:var(--text3)">${isOpen?'▲':'▼'}</span></div>
+        </div>
+        <div id="consult-detail-${s.id}" style="display:${isOpen?'block':'none'};padding:0 16px 14px">
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <button class="btn btn-sm" onclick="setConsultStatus('${s.id}','${cw}',true)"
+              style="background:${cData.done===true?'rgba(74,222,128,.15)':'transparent'};border:1px solid ${cData.done===true?'var(--green)':'var(--border)'};color:${cData.done===true?'var(--green)':'var(--text2)'}">상담 완료</button>
+            <button class="btn btn-sm" onclick="setConsultStatus('${s.id}','${cw}',false)"
+              style="background:${cData.done===false?'rgba(250,204,21,.15)':'transparent'};border:1px solid ${cData.done===false?'var(--yellow)':'var(--border)'};color:${cData.done===false?'var(--yellow)':'var(--text2)'}">미완료</button>
+          </div>
+          ${cData.done===true?`<textarea class="fi" rows="3" id="consult-notes-${s.id}" style="width:100%;font-size:12px;resize:vertical;box-sizing:border-box" placeholder="상담 내용 메모...">${cData.notes||''}</textarea><br><button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="saveConsultationNotes('${s.id}','${cw}')">💾 메모 저장</button>`:''}
+        </div>
+      </div>`;
+    }).join('');
+}
+
+function toggleConsultRow(sid, week) {
+  if(_consultExpanded.has(sid)) _consultExpanded.delete(sid);
+  else _consultExpanded.add(sid);
+  renderDashboardHwConsult();
+}
+
+async function setConsultStatus(sid, week, done) {
+  if(!consultations[sid]) consultations[sid]={};
+  if(!consultations[sid][week]) consultations[sid][week]={};
+  consultations[sid][week].done=done;
+  _consultExpanded.add(sid);
+  const st=(students[currentClass]||[]).find(s=>s.id===sid);
+  await postToSheets({action:'saveConsultation',name:st?.name||'',cls:st?.cls||'',week,done,notes:consultations[sid][week].notes||''});
+  renderDashboardHwConsult();
+  showToast(done?'상담 완료로 저장됨 ✓':'미완료로 저장됨','s');
+}
+
+async function saveConsultationNotes(sid, week) {
+  const notesEl=document.getElementById('consult-notes-'+sid);
+  const notes=notesEl?notesEl.value:'';
+  if(!consultations[sid]) consultations[sid]={};
+  if(!consultations[sid][week]) consultations[sid][week]={};
+  consultations[sid][week].notes=notes;
+  const st=(students[currentClass]||[]).find(s=>s.id===sid);
+  await postToSheets({action:'saveConsultation',name:st?.name||'',cls:st?.cls||'',week,done:consultations[sid][week].done||false,notes});
+  showToast('상담 메모 저장됨 ✓','s');
+}
+
+async function loadConsultationsFromSheets() {
+  if(!gasUrl) return;
+  try {
+    const url=gasUrl+'?action=getConsultations&class='+encodeURIComponent(currentClass);
+    const data=await jsonpFetch(url,12000);
+    if(!Array.isArray(data)||data.length<2) return;
+    data.slice(1).forEach(r=>{
+      // 열: classGroup(0), cls(1), name(2), week(3), done(4), notes(5)
+      const clsName=String(r[1]||'').trim(), name=String(r[2]||'').trim();
+      const week=String(r[3]||'').trim();
+      const done=String(r[4]||'').trim().toLowerCase()==='true';
+      const notes=String(r[5]||'').trim();
+      if(!name||!week) return;
+      let st=(students[currentClass]||[]).find(s=>s.name===name&&s.cls===clsName);
+      if(!st) st=(students[currentClass]||[]).find(s=>s.name===name);
+      if(!st) return;
+      if(!consultations[st.id]) consultations[st.id]={};
+      consultations[st.id][week]={done,notes};
+    });
+    renderDashboardHwConsult();
+  } catch(e){console.warn('상담 데이터 로드 실패:',e.message);}
 }
 
 function renderScheduleCards() {
@@ -1781,7 +1964,8 @@ function calcHwTotal(sid, week, cls) {
     const reqPts = getHwItems(cls).reduce((acc,h)=>{
       return acc + ((hwData[h.key]||{}).done ? (h.max||0) : 0);
     }, 0);
-    return reqPts + getAutoGivenPts(cls);
+    const total = reqPts + getAutoGivenPts(cls);
+    return hwData._late ? Math.round(total * 0.5) : total;
   }
   return null;
 }
