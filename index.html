@@ -420,7 +420,7 @@ textarea.fi{resize:vertical;min-height:70px}
           <div class="card-header">
             <div class="card-title">성적 조회</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <select class="fi fi-sm" id="sc-view-class" onchange="renderScoreView()" style="width:auto"></select>
+              <select class="fi fi-sm" id="sc-view-class" onchange="if(gasUrl)loadScoresFromSheets(true).then(renderScoreView);else renderScoreView()" style="width:auto"></select>
               <input type="date" class="fi fi-sm" id="sc-view-from" onchange="renderScoreView()" style="width:auto">
               <span style="color:var(--text3);font-size:12px">~</span>
               <input type="date" class="fi fi-sm" id="sc-view-to" onchange="renderScoreView()" style="width:auto">
@@ -1014,7 +1014,10 @@ function goTab(id, el) {
   document.getElementById('pageTitle').textContent = pageTitles[id];
   if(id==='dashboard') renderDashboard();
   if(id==='students') { initStudentFilters(); renderStudentList(); }
-  if(id==='scores') { initScoreSelects(); renderScoreEntry(); renderScoreView(); }
+  if(id==='scores') {
+    initScoreSelects(); renderScoreEntry(); renderScoreView();
+    if(gasUrl) loadScoresFromSheets(true).then(()=>{ renderScoreEntry(); renderScoreView(); });
+  }
   if(id==='attendance') { initAttSelects(); renderAttList(); }
   if(id==='report') initReport();
   if(id==='message') initMessage();
