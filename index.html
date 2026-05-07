@@ -1232,7 +1232,12 @@ async function loadScoresFromSheets(silent) {
         const clsName = String(r[1]).trim(); const name = String(r[2]).trim();
         const week = String(r[3]); const type = String(r[4]);
         const score = parseInt(r[5]);
-        const date = String(r[6]||''); const memo = String(r[7]||'');
+        // GAS가 Date 객체를 UTC ISO 문자열로 반환하는 경우 로컬(KST) 날짜로 변환
+        const rawDate = String(r[6]||'');
+        const date = rawDate.length > 10 && rawDate.includes('T')
+          ? (function(){ const d=new Date(rawDate); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); })()
+          : rawDate;
+        const memo = String(r[7]||'');
         const st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
         if(!st || isNaN(score)) return;
         if(!scores[st.id]) scores[st.id]=[];
