@@ -745,9 +745,9 @@ async function loadStudentsFromSheets() {
     const dataRows = hasHeader ? data.slice(1) : data;
 
     // 헤더 없으면 열 순서 고정(col 0=반구분, 1=반, 2=학생명), 헤더 있으면 탐색
-    let useCls, useName, useGroup, useGrade, usePhone, useThreshold;
+    let useCls, useName, useGroup, useGrade, useThreshold, usePersonalLevel;
     if (!hasHeader) {
-      useGroup = 0; useCls = 1; useName = 2; useGrade = -1; usePhone = -1; useThreshold = -1;
+      useGroup = 0; useCls = 1; useName = 2; useGrade = -1; useThreshold = -1; usePersonalLevel = -1;
     } else {
       const header = firstRow;
       function colIdx(names) {
@@ -757,12 +757,12 @@ async function loadStudentsFromSheets() {
         }
         return -1;
       }
-      useCls   = colIdx(['반','class']) >= 0 ? colIdx(['반','class']) : 1;
-      useName  = colIdx(['학생','이름','name']) >= 0 ? colIdx(['학생','이름','name']) : 2;
-      useGroup = colIdx(['반구분','group']) >= 0 ? colIdx(['반구분','group']) : 0;
-      useGrade     = colIdx(['학년','grade']);
-      usePhone     = colIdx(['연락','phone','번호']);
-      useThreshold = colIdx(['기준점수','threshold','레벨기준']);
+      useCls          = colIdx(['반','class']) >= 0 ? colIdx(['반','class']) : 1;
+      useName         = colIdx(['학생','이름','name']) >= 0 ? colIdx(['학생','이름','name']) : 2;
+      useGroup        = colIdx(['반구분','group']) >= 0 ? colIdx(['반구분','group']) : 0;
+      useGrade        = colIdx(['학년','grade']);
+      useThreshold    = colIdx(['기준점수','threshold','레벨기준']);
+      usePersonalLevel = colIdx(['개인레벨','personalLevel','개인 레벨']);
     }
 
     const myClasses = getAllClasses();
@@ -790,12 +790,12 @@ async function loadStudentsFromSheets() {
       // 반구분 없으면 반 이름으로 필터
       if(!group && !myClasses.some(mc => normalizeStr(mc) === normalizeStr(cls))) return;
 
-      const grade     = useGrade>=0     ? String(r[useGrade]||'').trim()     : (currentClass==='KG6'?'G6':'G5');
-      const phone     = usePhone>=0     ? String(r[usePhone]||'').trim()     : '';
-      const threshold = useThreshold>=0 ? parseInt(r[useThreshold])||null    : null;
+      const grade         = useGrade>=0         ? String(r[useGrade]||'').trim()         : (currentClass==='KG6'?'G6':'G5');
+      const threshold     = useThreshold>=0     ? parseInt(r[useThreshold])||null         : null;
+      const personalLevel = usePersonalLevel>=0 ? String(r[usePersonalLevel]||'').trim() || null : null;
       const id = 'sh_' + cls.replace(/[^a-zA-Z0-9가-힣]/g,'') + '_' + name.replace(/[^a-zA-Z0-9가-힣]/g,'');
 
-      loaded.push({id:id, name:name, cls:cls, grade:grade, phone:phone, threshold:threshold});
+      loaded.push({id:id, name:name, cls:cls, grade:grade, threshold:threshold, personalLevel:personalLevel});
       if(!scores[id])     scores[id]     = [];
       if(!attendance[id]) attendance[id] = {};
       if(!homework[id])   homework[id]   = {};
@@ -839,24 +839,32 @@ function getClassLevel(cls) {
   return m ? m[1] : null;
 }
 // 레벨에 맞는 필수 hwItems 반환
-function getHwItems(cls) {
+// 학생 개인 레벨 우선, 없으면 반 레벨 (KG6 전용)
+function resolveLevel(cls, sid) {
+  if (sid && currentClass === 'KG6') {
+    const st = (students[currentClass]||[]).find(s=>s.id===sid);
+    if (st && st.personalLevel) return st.personalLevel;
+  }
+  return getClassLevel(cls);
+}
+function getHwItems(cls, sid) {
   const allItems = cfg().hwItems;
   if (currentClass !== 'KG6') return allItems;
-  const level = getClassLevel(cls);
+  const level = resolveLevel(cls, sid);
   const reqKeys = (KG6_LEVEL_CONFIG[level] || KG6_LEVEL_CONFIG['4']).requiredKeys;
   return allItems.filter(h => reqKeys.includes(h.key));
 }
 // 레벨별 선택 숙제 hwItems 반환 (해오면 +200 Market Day pts)
-function getOptionalHwItems(cls) {
+function getOptionalHwItems(cls, sid) {
   if (currentClass !== 'KG6') return [];
-  const level = getClassLevel(cls);
+  const level = resolveLevel(cls, sid);
   const optKeys = (KG6_LEVEL_CONFIG[level] || KG6_LEVEL_CONFIG['4']).optionalHwKeys;
   return cfg().hwItems.filter(h => optKeys.includes(h.key));
 }
 // 레벨별 자동 부여 점수 (필수 숙제 max + autoGiven = 100pt)
-function getAutoGivenPts(cls) {
+function getAutoGivenPts(cls, sid) {
   if (currentClass !== 'KG6') return 0;
-  const level = getClassLevel(cls);
+  const level = resolveLevel(cls, sid);
   return (KG6_LEVEL_CONFIG[level] || KG6_LEVEL_CONFIG['4']).autoGivenPts;
 }
 // 레벨별 VOC 재시험 기준 점수 (KG6 + G5TFS 공통)
@@ -870,14 +878,14 @@ function getRetestCutoff(cls, sid) {
   return retestThreshold[currentClass];
 }
 // 숙제 최대 점수 (필수 max + 자동부여 = 항상 100pt for KG6)
-function getHwMax(cls) {
-  return getHwItems(cls).reduce((s,h)=>s+(h.max||0),0) + getAutoGivenPts(cls);
+function getHwMax(cls, sid) {
+  return getHwItems(cls, sid).reduce((s,h)=>s+(h.max||0),0) + getAutoGivenPts(cls, sid);
 }
 // 선택 숙제에서 누적된 Market Day Points
 function calcMdpFromHw(sid) {
   const st = (students[currentClass]||[]).find(s=>s.id===sid);
   if (!st || currentClass !== 'KG6') return 0;
-  const level = getClassLevel(st.cls);
+  const level = resolveLevel(st.cls, sid);
   const optKeys = (KG6_LEVEL_CONFIG[level]||{}).optionalHwKeys||[];
   let total = 0;
   Object.values(homework[sid]||{}).forEach(weekData=>{
@@ -1455,11 +1463,11 @@ function renderDashboardHwIncomplete() {
     if(isKG6) {
       const hwTotal=calcHwTotal(s.id,cw,s.cls);
       if(hwTotal===null||hwTotal>=100) return;
-      getHwItems(s.cls).filter(h=>!(hwData[h.key]||{}).done).forEach(h=>{
+      getHwItems(s.cls, s.id).filter(h=>!(hwData[h.key]||{}).done).forEach(h=>{
         itemRows.push({s,cw,itemKey:h.key,itemLabel:h.label,isKG6:true});
       });
     } else {
-      const hwItems=getHwItems(s.cls);
+      const hwItems=getHwItems(s.cls, s.id);
       const incomplete=hwItems.filter(h=>!(hwData[h]||{}).done);
       if(!incomplete.length) return;
       incomplete.forEach(h=>{
@@ -1515,7 +1523,7 @@ function onHwItemStatusChange(sid, week, cls, itemKey) {
 async function markHwItemComplete(sid, week, cls, itemKey, percent) {
   if(!homework[sid]) homework[sid]={};
   if(!homework[sid][week]) homework[sid][week]={};
-  const h=getHwItems(cls).find(x=>x.key===itemKey);
+  const h=getHwItems(cls, sid).find(x=>x.key===itemKey);
   if(h) homework[sid][week][h.key]={done:true,score:h.max||0,late:percent===50};
   const st=(students[currentClass]||[]).find(s=>s.id===sid);
   const total=calcHwTotal(sid,week,cls);
@@ -1560,7 +1568,7 @@ function renderDashboardHwConsult() {
         const total=calcHwTotal(s.id,w,s.cls);
         return total!==null&&total<100;
       } else {
-        return getHwItems(s.cls).some(h=>!(hwData[h]||{}).done);
+        return getHwItems(s.cls, s.id).some(h=>!(hwData[h]||{}).done);
       }
     });
   });
@@ -1765,18 +1773,19 @@ function renderSessionHw() {
 
   ss.forEach(s=>{
     const hw = ((homework[s.id]||{})[week])||{};
+    const sAutoGiven = getAutoGivenPts(s.cls, s.id);
     html += `<tr><td class="hw-label">${s.name}</td>`;
     if(isKG6) {
       hwCfg.forEach(h=>{
         const done=(hw[h.key]||{}).done;
         html+=`<td style="text-align:center"><input type="checkbox" id="hw-${s.id}-${h.key}" ${done?'checked':''} onchange="updateSessionHwTotal('${s.id}','${cls}')"></td>`;
       });
-      if(autoGiven>0) html+=`<td style="text-align:center;background:rgba(74,222,128,.04);font-size:10px;color:var(--green);font-weight:700">+${autoGiven}</td>`;
+      if(autoGiven>0) html+=`<td style="text-align:center;background:rgba(74,222,128,.04);font-size:10px;color:var(--green);font-weight:700">+${sAutoGiven}</td>`;
       optHwCfg.forEach(h=>{
         const done=(hw['opt_'+h.key]||{}).done;
         html+=`<td style="text-align:center;background:rgba(168,85,247,.04)"><input type="checkbox" id="hw-opt-${s.id}-${h.key}" ${done?'checked':''} onchange="updateSessionHwTotal('${s.id}','${cls}')"></td>`;
       });
-      const total = hwCfg.reduce((a,h)=>a+((hw[h.key]||{}).done?(h.max||0):0),0) + autoGiven;
+      const total = hwCfg.reduce((a,h)=>a+((hw[h.key]||{}).done?(h.max||0):0),0) + sAutoGiven;
       html+=`<td style="text-align:center;white-space:nowrap"><span id="sess-hw-total-${s.id}" style="font-family:'DM Mono';font-size:11px;font-weight:700;color:${total>=80?'var(--green)':total>=60?'var(--yellow)':'var(--red)'}">${total}</span> <button class="btn btn-green btn-sm" style="font-size:9px;padding:2px 6px" onclick="setSessHwMax('${s.id}','${cls}')" title="모든 필수 항목 체크 → 100점">💯</button></td>`;
       html+=`<td id="sess-mdp-${s.id}" style="text-align:center;font-family:'DM Mono';font-size:10px;font-weight:700;color:var(--purple)">${getCumulativeMdp(s.id)}</td>`;
     } else {
@@ -1792,23 +1801,23 @@ function renderSessionHw() {
   document.getElementById('session-hw').innerHTML = html;
 }
 function setSessHwMax(sid, cls) {
-  getHwItems(cls).forEach(h=>{
+  getHwItems(cls, sid).forEach(h=>{
     const el = document.getElementById(`hw-${sid}-${h.key}`);
     if(el) el.checked = true;
   });
   updateSessionHwTotal(sid, cls);
 }
 function setSessHwMaxG5(sid, cls) {
-  getHwItems(cls).forEach(h=>{
+  getHwItems(cls, sid).forEach(h=>{
     const el = document.getElementById(`hw-${sid}-${h.replace(/\s/g,'_')}`);
     if(el) el.checked = true;
   });
 }
 function updateSessionHwTotal(sid, cls) {
   const c = cls || sessionContext.cls;
-  const hwCfg = getHwItems(c);
-  const optHwCfg = getOptionalHwItems(c);
-  const autoGiven = getAutoGivenPts(c);
+  const hwCfg = getHwItems(c, sid);
+  const optHwCfg = getOptionalHwItems(c, sid);
+  const autoGiven = getAutoGivenPts(c, sid);
   let total = autoGiven;
   hwCfg.forEach(h=>{ const el=document.getElementById(`hw-${sid}-${h.key}`); if(el&&el.checked) total+=h.max||0; });
   const el = document.getElementById(`sess-hw-total-${sid}`);
@@ -1818,7 +1827,7 @@ function updateSessionHwTotal(sid, cls) {
   if(mdpEl && currentClass==='KG6') {
     const fromScores = (scores[sid]||[]).filter(s=>s.type==='MarketDay Points').reduce((a,s)=>a+(s.score||0),0);
     const st = (students[currentClass]||[]).find(s=>s.id===sid);
-    const level = st ? getClassLevel(st.cls) : null;
+    const level = st ? resolveLevel(st.cls, sid) : null;
     const optKeys = level ? (KG6_LEVEL_CONFIG[level]||{}).optionalHwKeys||[] : [];
     let hwMdp = 0;
     Object.entries(homework[sid]||{}).forEach(([w,wd])=>{
@@ -1844,7 +1853,7 @@ function saveSession() {
   const subjs = getSubjects();
   const isKG6 = currentClass==='KG6';
   ss.forEach(s=>{
-    const hwCfg = getHwItems(s.cls);
+    const hwCfg = getHwItems(s.cls, s.id);
     // scores
     subjs.forEach(subj=>{
       const el = document.getElementById(`sess-score-${s.id}-${subj.replace(/\s/g,'_')}`);
@@ -1864,7 +1873,7 @@ function saveSession() {
         if(el) homework[s.id][week][h.key]={done:el.checked, score:el.checked?(h.max||0):0};
       });
       // 선택 숙제 (opt_ prefix)
-      getOptionalHwItems(s.cls).forEach(h=>{
+      getOptionalHwItems(s.cls, s.id).forEach(h=>{
         const el=document.getElementById(`hw-opt-${s.id}-${h.key}`);
         if(el) homework[s.id][week]['opt_'+h.key]={done:el.checked};
       });
@@ -1973,8 +1982,8 @@ function openStudentDetail(sid) {
   // Hw completion this week
   const cw = currentWeek();
   const hwData = (homework[sid]||{})[cw]||{};
-  const hwCfg = getHwItems(s.cls);
-  const hwMaxPts = getHwMax(s.cls);
+  const hwCfg = getHwItems(s.cls, sid);
+  const hwMaxPts = getHwMax(s.cls, sid);
   const hwDone = currentClass==='KG6'
     ? calcHwTotal(sid, cw, s.cls)
     : hwCfg.filter(h=>(hwData[h]||{}).done).length + '/' + hwCfg.length + ' 완료';
@@ -2043,13 +2052,13 @@ async function addStudent() {
   const grade = grp === 'G5TFS' ? 'G5' : 'G6';
   const id = 'sh_' + cls.replace(/[^a-zA-Z0-9가-힣]/g,'') + '_' + name.replace(/[^a-zA-Z0-9가-힣]/g,'');
   if((students[grp]||[]).find(s=>s.id===id)){showToast('이미 같은 이름의 학생이 있습니다','e');return;}
-  const s = {id, name, cls, grade, phone:''};
+  const s = {id, name, cls, grade};
   if(!students[grp]) students[grp]=[];
   students[grp].push(s);
   scores[id]=[]; attendance[id]={}; homework[id]={}; retests[id]={};
   closeModal('modal-add-student');
   renderStudentList(); renderDashboard();
-  await postToSheets({action:'addStudent', name, cls, grade, phone:''});
+  await postToSheets({action:'addStudent', name, cls, grade});
   showToast(name+' 추가됨 — Sheets 동기화됨','s');
 }
 
@@ -2101,12 +2110,12 @@ function renderScoreEntry() {
 function calcHwTotal(sid, week, cls) {
   const hwData = (homework[sid]||{})[week]||{};
   if(currentClass==='KG6') {
-    const reqPts = getHwItems(cls).reduce((acc,h)=>{
+    const reqPts = getHwItems(cls, sid).reduce((acc,h)=>{
       const item = hwData[h.key]||{};
       if(!item.done) return acc;
       return acc + (item.late ? Math.round((h.max||0)*0.5) : (h.max||0));
     }, 0);
-    return reqPts + getAutoGivenPts(cls);
+    return reqPts + getAutoGivenPts(cls, sid);
   }
   return null;
 }
@@ -2207,12 +2216,12 @@ function hwStatusCell(s, week, date, curStatus) {
   if (currentClass === 'KG6') {
     const hwTotal = calcHwTotal(s.id, week, s.cls);
     if (!hasAny || hwTotal === null) return '<button class="btn btn-ghost btn-sm" ' + openBtn + '>숙제 입력</button>';
-    const incomplete = getHwItems(s.cls).filter(function(h){return !(hwData[h.key]||{}).done;}).map(function(h){return h.label;});
+    const incomplete = getHwItems(s.cls, s.id).filter(function(h){return !(hwData[h.key]||{}).done;}).map(function(h){return h.label;});
     if (!incomplete.length) return '<button class="btn btn-green btn-sm" ' + openBtn + '>완료 (' + hwTotal + '점)</button>';
     return '<button class="btn btn-sm" style="background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.3);font-size:11px;white-space:normal;text-align:left;max-width:200px" ' + openBtn + '>미흡: ' + incomplete.join(' · ') + '</button>';
   } else {
     if (!hasAny) return '<button class="btn btn-ghost btn-sm" ' + openBtn + '>숙제 입력</button>';
-    const incomplete = getHwItems(s.cls).filter(function(h){return !(hwData[h]||{}).done;});
+    const incomplete = getHwItems(s.cls, s.id).filter(function(h){return !(hwData[h]||{}).done;});
     if (!incomplete.length) return '<button class="btn btn-green btn-sm" ' + openBtn + '>완료</button>';
     return '<button class="btn btn-sm" style="background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.3);font-size:11px;white-space:normal;text-align:left;max-width:200px" ' + openBtn + '>미흡: ' + incomplete.join(' · ') + '</button>';
   }
@@ -2410,7 +2419,7 @@ async function saveDashboardRetest(sid, week) {
 function setHwMax(sid) {
   const s = (students[currentClass]||[]).find(st=>st.id===sid);
   if(!s) return;
-  getHwItems(s.cls).forEach(h=>{
+  getHwItems(s.cls, sid).forEach(h=>{
     const el = document.getElementById(`hwm-${sid}-${h.key}`);
     if(el) el.checked = true;
   });
@@ -2419,7 +2428,7 @@ function setHwMax(sid) {
 function setHwMaxG5(sid) {
   const s = (students[currentClass]||[]).find(st=>st.id===sid);
   if(!s) return;
-  getHwItems(s.cls).forEach(h=>{
+  getHwItems(s.cls, sid).forEach(h=>{
     const el = document.getElementById(`hwm-${sid}-${h.replace(/\s/g,'_')}`);
     if(el) el.checked = true;
   });
@@ -2431,9 +2440,9 @@ function openHwModal(sid, week, date) {
   // 저장된 날짜가 현재 선택한 날짜와 다르면 빈 데이터(초기화)로 열기
   const saved = (homework[sid]||{})[week]||{};
   const hwData = (!date || !saved._classDate || saved._classDate === date) ? saved : {};
-  const hwCfg = getHwItems(s.cls);
-  const optHwCfg = getOptionalHwItems(s.cls);
-  const autoGiven = getAutoGivenPts(s.cls);
+  const hwCfg = getHwItems(s.cls, sid);
+  const optHwCfg = getOptionalHwItems(s.cls, sid);
+  const autoGiven = getAutoGivenPts(s.cls, sid);
   const isKG6 = currentClass==='KG6';
   let html = '';
   if(isKG6) {
@@ -2512,9 +2521,9 @@ function openHwModal(sid, week, date) {
 }
 function updateHwTotal(sid) {
   const st = (students[currentClass]||[]).find(s=>s.id===sid);
-  const hwCfg = getHwItems(st?.cls);
-  const optHwCfg = getOptionalHwItems(st?.cls);
-  const autoGiven = getAutoGivenPts(st?.cls);
+  const hwCfg = getHwItems(st?.cls, sid);
+  const optHwCfg = getOptionalHwItems(st?.cls, sid);
+  const autoGiven = getAutoGivenPts(st?.cls, sid);
   let total = autoGiven;
   hwCfg.forEach(h=>{
     const el = document.getElementById(`hwm-${sid}-${h.key}`);
@@ -2543,7 +2552,7 @@ function updateHwTotal(sid) {
     const body = document.getElementById('hw-modal-body');
     const week = body?._week;
     const fromScores = (scores[sid]||[]).filter(s=>s.type==='MarketDay Points').reduce((a,s)=>a+(s.score||0),0);
-    const level = getClassLevel(st.cls);
+    const level = resolveLevel(st.cls, sid);
     const optKeys = (KG6_LEVEL_CONFIG[level]||{}).optionalHwKeys||[];
     let hwMdp = 0;
     Object.entries(homework[sid]||{}).forEach(([w,wd])=>{
@@ -2560,7 +2569,7 @@ function saveHwFromModal() {
   if(!homework[sid][week]) homework[sid][week]={};
   if(date) homework[sid][week]._classDate = date;  // 어느 날짜에 저장했는지 기록
   const st = (students[currentClass]||[]).find(s=>s.id===sid);
-  const hwCfg = getHwItems(st?.cls);
+  const hwCfg = getHwItems(st?.cls, sid);
   const isKG6 = currentClass==='KG6';
   if(isKG6) {
     hwCfg.forEach(h=>{
@@ -2568,7 +2577,7 @@ function saveHwFromModal() {
       if(el) homework[sid][week][h.key] = {done: el.checked, score: el.checked ? (h.max||0) : 0};
     });
     // 선택 숙제 (opt_ prefix)
-    getOptionalHwItems(st?.cls).forEach(h=>{
+    getOptionalHwItems(st?.cls, sid).forEach(h=>{
       const el = document.getElementById(`hwm-opt-${sid}-${h.key}`);
       if(el) homework[sid][week]['opt_'+h.key] = {done: el.checked};
     });
