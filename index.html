@@ -875,8 +875,10 @@ function getRetestCutoff(cls, sid) {
     const st = (students[currentClass]||[]).find(s=>s.id===sid);
     if (st && st.threshold) return st.threshold;
   }
-  const level = resolveLevel(cls, sid);
-  if (level) return retestThreshold['KG6_' + level] || retestThreshold[currentClass];
+  if (currentClass === 'KG6') {
+    const level = resolveLevel(cls, sid);
+    if (level) return retestThreshold['KG6_' + level] || retestThreshold[currentClass];
+  }
   return retestThreshold[currentClass];
 }
 // 숙제 최대 점수 (필수 max + 자동부여 = 항상 100pt for KG6)
