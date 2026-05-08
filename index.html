@@ -875,7 +875,7 @@ function getRetestCutoff(cls, sid) {
     const st = (students[currentClass]||[]).find(s=>s.id===sid);
     if (st && st.threshold) return st.threshold;
   }
-  const level = getClassLevel(cls);
+  const level = resolveLevel(cls, sid);
   if (level) return retestThreshold['KG6_' + level] || retestThreshold[currentClass];
   return retestThreshold[currentClass];
 }
