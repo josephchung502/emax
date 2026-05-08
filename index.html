@@ -747,7 +747,7 @@ async function loadStudentsFromSheets() {
     // 헤더 없으면 열 순서 고정(col 0=반구분, 1=반, 2=학생명), 헤더 있으면 탐색
     let useCls, useName, useGroup, useGrade, useThreshold, usePersonalLevel;
     if (!hasHeader) {
-      useGroup = 0; useCls = 1; useName = 2; useGrade = -1; useThreshold = -1; usePersonalLevel = -1;
+      useGroup = -1; useName = 0; useCls = 1; useGrade = 2; useThreshold = 3; usePersonalLevel = 4;
     } else {
       const header = firstRow;
       function colIdx(names) {
@@ -759,9 +759,9 @@ async function loadStudentsFromSheets() {
       }
       useCls          = colIdx(['반','class']) >= 0 ? colIdx(['반','class']) : 1;
       useName         = colIdx(['학생','이름','name']) >= 0 ? colIdx(['학생','이름','name']) : 2;
-      useGroup        = colIdx(['반구분','group']) >= 0 ? colIdx(['반구분','group']) : 0;
+      useGroup        = colIdx(['반구분','group']);
       useGrade        = colIdx(['학년','grade']);
-      useThreshold    = colIdx(['기준점수','threshold','레벨기준']);
+      useThreshold    = colIdx(['재시험기준','기준점수','threshold','레벨기준']);
       usePersonalLevel = colIdx(['개인레벨','personalLevel','개인 레벨']);
     }
 
