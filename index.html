@@ -61,7 +61,16 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .btn-red{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)}
 .btn-yellow{background:rgba(251,191,36,.15);color:var(--yellow);border:1px solid rgba(251,191,36,.3)}
 
-.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px;width:100%;box-sizing:border-box}
+.content{flex:1;overflow-y:scroll;overflow-x:hidden;padding:24px;width:100%;box-sizing:border-box;min-height:0}
+/* card drag-resize */
+.card-rh{height:8px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;user-select:none;flex-shrink:0;opacity:0;transition:opacity .2s}
+.card-rh::after{content:'▪ ▪ ▪';font-size:7px;letter-spacing:3px;color:var(--text3)}
+.card:hover .card-rh{opacity:1}
+/* attendance card inner layout */
+#att-card{min-height:340px}
+.att-card-body{display:flex;flex-direction:column;height:100%;min-height:inherit}
+.att-scroll-area{flex:1;overflow-y:auto;min-height:120px}
+.att-bogang-footer{flex-shrink:0;background:var(--surface);border-top:2px solid rgba(124,106,247,.2);position:sticky;bottom:0;z-index:5}
 .tab-page{display:none}
 .tab-page.active{display:block;width:100%}
 
@@ -435,8 +444,8 @@ textarea.fi{resize:vertical;min-height:70px}
 
       <!-- ══════════ ATTENDANCE ══════════ -->
       <div class="tab-page" id="tab-attendance">
-        <div class="card" style="width:100%">
-          <div class="card-header">
+        <div class="card att-card-body" id="att-card" style="width:100%;overflow:hidden">
+          <div class="card-header" style="flex-shrink:0">
             <div class="card-title">출석 / 숙제 관리</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <select class="fi fi-sm" id="att-class" onchange="renderAttList()" style="width:auto"></select>
@@ -445,12 +454,16 @@ textarea.fi{resize:vertical;min-height:70px}
               <button class="btn btn-primary btn-sm" onclick="saveAttendance()">💾 저장</button>
             </div>
           </div>
-          <div style="padding:6px 14px;background:rgba(79,156,249,.05);border-bottom:1px solid var(--border);font-size:12px;color:var(--text3)">
+          <div style="padding:6px 14px;background:rgba(79,156,249,.05);border-bottom:1px solid var(--border);font-size:12px;color:var(--text3);flex-shrink:0">
             💡 보강 가는 학생: <b style="color:var(--text2)">보강→</b> 버튼 클릭 → 반 선택 (현재 선택된 날짜로 자동 기록됨)
           </div>
-          <div id="att-student-list" style="width:100%">
-            <div style="color:var(--text3);font-size:13px;padding:16px">반을 선택해주세요.</div>
+          <div id="att-scroll-area" class="att-scroll-area">
+            <div id="att-student-list">
+              <div style="color:var(--text3);font-size:13px;padding:16px">반을 선택해주세요.</div>
+            </div>
           </div>
+          <div id="att-bogang-footer" class="att-bogang-footer"></div>
+          <div class="card-rh" id="att-card-rh"></div>
         </div>
         <!-- HW 상세 모달 아래에서 -->
       </div>
@@ -1019,6 +1032,7 @@ function goTab(id, el) {
   if(id==='attendance') { initAttSelects(); renderAttList(); }
   if(id==='report') initReport();
   if(id==='message') initMessage();
+  setTimeout(addCardResizeHandles, 50);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1030,6 +1044,7 @@ function enterClass(cls) {
   document.getElementById('splash').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   initResizable();
+  setTimeout(addCardResizeHandles, 100);
   document.getElementById('sidebarClass').textContent = cfg().label;
   document.getElementById('footerClass').textContent = cfg().label;
   if(gasUrl) {
@@ -1126,7 +1141,8 @@ async function syncNow() {
 
 async function loadAttendanceFromSheets() {
   if(!gasUrl) return 0;
-  const url = gasUrl + '?action=getAttendance&class=' + encodeURIComponent(currentClass);
+  const clsesA = CLASS_CONFIG[currentClass].classes.map(function(c){return encodeURIComponent(c);}).join(',');
+  const url = gasUrl + '?action=getAttendance&class=' + encodeURIComponent(currentClass) + '&classes=' + clsesA;
   const data = await jsonpFetch(url, 15000);
   console.log('[eMAX] getAttendance raw rows:', Array.isArray(data) ? data.length : data);
   if(!Array.isArray(data) || data.length < 2) return 0;
@@ -1169,7 +1185,8 @@ async function loadAttendanceFromSheets() {
 
 async function loadHomeworkFromSheets() {
   if(!gasUrl) return 0;
-  const url = gasUrl + '?action=getHomework&class=' + encodeURIComponent(currentClass);
+  const clsesH = CLASS_CONFIG[currentClass].classes.map(function(c){return encodeURIComponent(c);}).join(',');
+  const url = gasUrl + '?action=getHomework&class=' + encodeURIComponent(currentClass) + '&classes=' + clsesH;
   const data = await jsonpFetch(url, 15000);
   console.log('[eMAX] getHomework raw rows:', Array.isArray(data) ? data.length : data);
   if(!Array.isArray(data) || data.length < 2) return 0;
@@ -1428,8 +1445,8 @@ function renderDashboardHwIncomplete() {
     // 휴강 주 제외
     const classDate=getCurrentWeekClassDate(s.cls);
     if(classDate && isHoliday(classDate)) return;
-    // 이번 주 수업이 아직 안 일어났으면 제외
-    if(classDate && classDate > today) return;
+    // 당일 수업 포함, 아직 안 일어난 수업이면 제외 (수업 다음 날부터 미완성으로 표시)
+    if(classDate && classDate >= today) return;
     // 결석 제외
     const classEv=scheduleData.find(ev=>ev.cls===s.cls&&dateToWeek(ev.date)===cw);
     const attDate=classEv?classEv.date:classDate;
@@ -2182,6 +2199,24 @@ async function loadAttHwFromSheets() {
     console.error('[eMAX] loadAttHwFromSheets error:', e);
   }
 }
+function hwStatusCell(s, week, date, curStatus) {
+  const openBtn = "onclick=\"openHwModal('" + s.id + "','" + week + "','" + date + "')\"";
+  if (curStatus === 'absent') return '<span style="color:var(--text3);font-size:11px">결석 제외</span>';
+  const hwData = (homework[s.id]||{})[week]||{};
+  const hasAny = Object.keys(hwData).length > 0;
+  if (currentClass === 'KG6') {
+    const hwTotal = calcHwTotal(s.id, week, s.cls);
+    if (!hasAny || hwTotal === null) return '<button class="btn btn-ghost btn-sm" ' + openBtn + '>숙제 입력</button>';
+    const incomplete = getHwItems(s.cls).filter(function(h){return !(hwData[h.key]||{}).done;}).map(function(h){return h.label;});
+    if (!incomplete.length) return '<button class="btn btn-green btn-sm" ' + openBtn + '>완료 (' + hwTotal + '점)</button>';
+    return '<button class="btn btn-sm" style="background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.3);font-size:11px;white-space:normal;text-align:left;max-width:200px" ' + openBtn + '>미흡: ' + incomplete.join(' · ') + '</button>';
+  } else {
+    if (!hasAny) return '<button class="btn btn-ghost btn-sm" ' + openBtn + '>숙제 입력</button>';
+    const incomplete = getHwItems(s.cls).filter(function(h){return !(hwData[h]||{}).done;});
+    if (!incomplete.length) return '<button class="btn btn-green btn-sm" ' + openBtn + '>완료</button>';
+    return '<button class="btn btn-sm" style="background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.3);font-size:11px;white-space:normal;text-align:left;max-width:200px" ' + openBtn + '>미흡: ' + incomplete.join(' · ') + '</button>';
+  }
+}
 function renderAttList() {
   const cls = document.getElementById('att-class')?.value; if(!cls) return;
   const ss = getStudents(cls);
@@ -2219,9 +2254,7 @@ function renderAttList() {
       var retestCell = (isRetest||retestDone)
         ? '<select class="fi fi-sm" style="width:auto" onchange="saveRetestResult(\'' + s.id + '\',\'' + week + '\',this.value)"><option value=""' + (!retestInfo.result?' selected':'') + '>미진행</option><option value="pass"' + (retestInfo.result==='pass'?' selected':'') + '>통과</option><option value="fail"' + (retestInfo.result==='fail'?' selected':'') + '>미통과</option></select>'
         : '—';
-      var hwCell = curStatus==='absent'
-        ? '<span style="color:var(--text3);font-size:11px">결석 제외</span>'
-        : '<button class="btn btn-ghost btn-sm" onclick="openHwModal(\'' + s.id + '\',\'' + week + '\',\'' + date + '\')">숙제 입력' + (hwTotal ? ' (' + hwTotal + '점)' : '') + '</button>';
+      var hwCell = hwStatusCell(s, week, date, curStatus);
       html += '<tr><td style="font-weight:700;color:var(--orange)">' + s.name + '</td>'
         + '<td><span class="badge b-orange">' + s.cls + '</span></td>'
         + '<td style="color:var(--text3);font-size:12px">' + (s.bogangFromDate||'') + '</td>'
@@ -2270,9 +2303,7 @@ function renderAttList() {
     var retestCell = (isRetest||retestDone)
       ? '<select class="fi fi-sm" style="width:auto" onchange="saveRetestResult(\'' + s.id + '\',\'' + week + '\',this.value)"><option value=""' + (!retestInfo.result?' selected':'') + '>미진행</option><option value="pass"' + (retestInfo.result==='pass'?' selected':'') + '>통과</option><option value="fail"' + (retestInfo.result==='fail'?' selected':'') + '>미통과</option></select>'
       : '—';
-    var hwCell = curStatus==='absent'
-      ? '<span style="color:var(--text3);font-size:11px">결석 제외</span>'
-      : '<button class="btn btn-ghost btn-sm" onclick="openHwModal(\'' + s.id + '\',\'' + week + '\',\'' + date + '\')">숙제 입력' + (currentClass==='KG6'&&hwTotal ? ' (' + hwTotal + '점)' : '') + '</button>';
+    var hwCell = hwStatusCell(s, week, date, curStatus);
 
     var nameBadges = '';
     if(currentClass==='KG6'&&mdp) nameBadges += '<span style="font-size:11px;color:var(--purple);margin-left:6px;font-family:\'DM Mono\'">&#127942;' + mdp + '</span>';
@@ -2290,25 +2321,26 @@ function renderAttList() {
   });
   html += '</tbody></table></div>';
 
-  // bogang out summary
-  html += '<div style="border-top:2px solid rgba(124,106,247,.2);margin-top:0">'
-    + '<div style="padding:10px 16px;background:rgba(124,106,247,.05);display:flex;align-items:center">'
+  // bogang out summary → sticky footer
+  var footerHtml = '<div style="padding:10px 16px;background:rgba(124,106,247,.05);display:flex;align-items:center">'
     + '<span style="font-weight:700;color:var(--accent2);font-size:13px">&#128228; 보강 간 학생 <span style="background:rgba(124,106,247,.2);border-radius:10px;padding:1px 8px;font-size:12px">' + bogangOut.length + '명</span></span>'
     + '</div>';
   if(bogangOut.length) {
-    html += '<div style="overflow-x:auto;padding:0 0 4px"><table class="tbl"><thead><tr><th>학생</th><th>보강 가는 반</th><th>보강 날짜</th></tr></thead><tbody>';
+    footerHtml += '<div style="overflow-x:auto;padding:0 0 4px"><table class="tbl"><thead><tr><th>학생</th><th>보강 가는 반</th><th>보강 날짜</th></tr></thead><tbody>';
     bogangOut.forEach(function(item) {
-      html += '<tr><td style="font-weight:600">' + item.s.name + '</td>'
+      footerHtml += '<tr><td style="font-weight:600">' + item.s.name + '</td>'
         + '<td><span class="badge b-blue">' + (item.bogangCls||'반 미지정') + '</span></td>'
         + '<td style="color:var(--text2)">' + (item.bogangDate||'날짜 미지정') + '</td></tr>';
     });
-    html += '</tbody></table></div>';
+    footerHtml += '</tbody></table></div>';
   } else {
-    html += '<div style="padding:10px 16px;color:var(--text3);font-size:13px">이 날 보강 간 학생 없음</div>';
+    footerHtml += '<div style="padding:10px 16px;color:var(--text3);font-size:13px">이 날 보강 간 학생 없음</div>';
   }
-  html += '</div>';
 
   document.getElementById('att-student-list').innerHTML = html;
+  var footer = document.getElementById('att-bogang-footer');
+  if(footer) footer.innerHTML = footerHtml;
+  initCardResize();
 }
 
 async function setAtt(sid, date, status) {
@@ -2354,7 +2386,7 @@ async function saveAttendance() {
   ss.forEach(s => {
     Object.entries(attendance[s.id]||{}).forEach(([date, val]) => {
       const statusStr = typeof val === 'object' ? JSON.stringify(val) : (val||'');
-      if(statusStr) attData.push({name:s.name, cls:s.cls, date, status:statusStr});
+      if(statusStr) attData.push({name:s.name, cls:s.cls, classGroup:currentClass, date, status:statusStr});
     });
   });
   showToast('출석 저장 중...','i');
@@ -2849,6 +2881,44 @@ function showToast(msg,type='i'){
   const t=document.getElementById('toast');
   t.textContent=msg; t.className=`toast show ${type}`;
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+/* ── 카드 드래그 리사이즈 ── */
+function initCardResize() {
+  document.querySelectorAll('.card-rh').forEach(function(rh) {
+    if (rh._rhi) return; rh._rhi = true;
+    var card = rh.closest('.card');
+    if (!card) return;
+    rh.addEventListener('mousedown', function(e) {
+      var sy = e.clientY, sh = card.offsetHeight;
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+      function onMove(e) {
+        var h = Math.max(200, sh + (e.clientY - sy));
+        card.style.height = h + 'px';
+      }
+      function onUp() {
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      e.preventDefault();
+    });
+  });
+}
+function addCardResizeHandles() {
+  document.querySelectorAll('.card').forEach(function(card) {
+    if (!card.querySelector('.card-rh')) {
+      var rh = document.createElement('div');
+      rh.className = 'card-rh';
+      rh.title = '드래그하여 크기 조절';
+      card.appendChild(rh);
+    }
+  });
+  initCardResize();
 }
 </script>
 </body>
