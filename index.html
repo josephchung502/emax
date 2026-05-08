@@ -248,28 +248,43 @@ textarea.fi{resize:vertical;min-height:70px}
   .grid-4,.grid-3{grid-template-columns:repeat(2,1fr);gap:10px}
   .grid-2{grid-template-columns:1fr}
 }
+/* ── 하단 네비게이션 (모바일 전용) ── */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:56px;background:var(--surface);border-top:1px solid var(--border);z-index:200;align-items:stretch}
+.mn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;color:var(--text3);font-size:9px;font-weight:500;padding:4px 2px;border:none;background:transparent;transition:color .15s;-webkit-tap-highlight-color:transparent;font-family:'Noto Sans KR',sans-serif}
+.mn-item.active{color:var(--accent)}
+.mn-item .mn-icon{font-size:20px;line-height:1.1}
+
 @media(max-width:640px){
-  #app{height:auto}
-  .sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap}
-  .main{margin-left:0}
-  .sidebar .nav{display:flex;flex-direction:row;flex-wrap:wrap;padding:6px}
-  .sidebar .nav-section{display:none}
-  .nav-item{padding:6px 8px;font-size:12px}
-  .nav-item .ni{font-size:14px}
-  .logo{padding:12px 14px}
-  .logo-sub{display:none}
-  .nav-footer{display:none}
-  .content{padding:12px}
-  .grid-4,.grid-3,.grid-2{grid-template-columns:1fr;gap:10px}
-  .stat-value{font-size:22px}
-  .modal{padding:18px;width:95vw!important}
-  .topbar{padding:0 14px}
-  .sched-card{min-width:130px}
+  .sidebar{display:none}
+  .mobile-nav{display:flex}
+  #app{height:auto;min-height:100svh;display:flex;flex-direction:column}
+  .main{margin-left:0;height:auto;min-height:calc(100svh - 56px);overflow:visible}
+  .topbar{padding:0 12px;height:48px;flex-shrink:0}
+  .topbar-right{gap:6px}
+  .topbar-right .btn{font-size:11px;padding:5px 9px;min-height:34px}
+  .content{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 10px 72px;min-height:0}
+  .grid-4,.grid-3,.grid-2{grid-template-columns:1fr;gap:8px}
+  .stat-value{font-size:20px}
+  .card{border-radius:8px}
+  .card-title{font-size:13px}
+  .card-body{font-size:13px}
+  .modal-overlay{align-items:flex-end}
+  .modal{width:100vw!important;max-width:100vw!important;border-radius:16px 16px 0 0;max-height:88svh;margin:0;padding:16px 14px;overflow-y:auto}
   .form-row{grid-template-columns:1fr}
   .splash-cards{flex-direction:column}
   .splash-card{min-width:unset;width:200px}
-  .tbl th,.tbl td{padding:7px 8px}
-  .excel-table th,.excel-table td{padding:5px 6px}
+  .tbl{font-size:12px}
+  .tbl th,.tbl td{padding:6px 8px}
+  .excel-table th,.excel-table td{padding:4px 5px;font-size:11px}
+  .hw-table th,.hw-table td{padding:4px 5px;font-size:11px}
+  .badge{font-size:10px;padding:2px 5px}
+  .btn-sm{min-height:30px;font-size:11px;padding:4px 8px}
+  .sched-card{min-width:120px}
+  .tab-nav{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+  .tab-btn{white-space:nowrap;padding:6px 12px;font-size:13px}
+  .score-pill{font-size:11px;min-width:28px}
+  .page-title{font-size:14px;font-weight:600}
+  .nav-footer{display:none}
 }
 /* ── RESIZE HANDLES ── */
 .sb-resizer{position:fixed;top:0;left:var(--sidebar-w);width:5px;height:100vh;cursor:col-resize;z-index:200;background:transparent;transition:background .2s;user-select:none}
@@ -308,20 +323,30 @@ textarea.fi{resize:vertical;min-height:70px}
     </div>
     <nav class="nav">
       <div class="nav-section">메인</div>
-      <div class="nav-item active" onclick="goTab('dashboard',this)"><span class="ni">🏠</span>대시보드</div>
+      <div class="nav-item active" data-tab="dashboard" onclick="goTab('dashboard',this)"><span class="ni">🏠</span>대시보드</div>
       <div class="nav-section">학생</div>
-      <div class="nav-item" onclick="goTab('students',this)"><span class="ni">👤</span>학생 관리</div>
-      <div class="nav-item" onclick="goTab('scores',this)"><span class="ni">📊</span>성적 입력/조회</div>
-      <div class="nav-item" onclick="goTab('attendance',this)"><span class="ni">📅</span>출석/숙제 관리</div>
+      <div class="nav-item" data-tab="students" onclick="goTab('students',this)"><span class="ni">👤</span>학생 관리</div>
+      <div class="nav-item" data-tab="scores" onclick="goTab('scores',this)"><span class="ni">📊</span>성적 입력/조회</div>
+      <div class="nav-item" data-tab="attendance" onclick="goTab('attendance',this)"><span class="ni">📅</span>출석/숙제 관리</div>
       <div class="nav-section">분석</div>
-      <div class="nav-item" onclick="goTab('report',this)"><span class="ni">📋</span>맞춤 리포트</div>
-      <div class="nav-item" onclick="goTab('message',this)"><span class="ni">💬</span>학부모 메시지</div>
+      <div class="nav-item" data-tab="report" onclick="goTab('report',this)"><span class="ni">📋</span>맞춤 리포트</div>
+      <div class="nav-item" data-tab="message" onclick="goTab('message',this)"><span class="ni">💬</span>학부모 메시지</div>
     </nav>
     <div class="nav-footer">
       <span id="footerClass" class="class-badge">—</span>
       <span style="cursor:pointer;font-size:15px" onclick="openSettings()" title="설정">⚙️</span>
     </div>
   </aside>
+
+  <!-- 모바일 하단 네비게이션 -->
+  <nav class="mobile-nav" id="mobile-nav">
+    <div class="mn-item active" data-tab="dashboard" onclick="goTab('dashboard',this)"><span class="mn-icon">🏠</span>홈</div>
+    <div class="mn-item" data-tab="students" onclick="goTab('students',this)"><span class="mn-icon">👤</span>학생</div>
+    <div class="mn-item" data-tab="scores" onclick="goTab('scores',this)"><span class="mn-icon">📊</span>성적</div>
+    <div class="mn-item" data-tab="attendance" onclick="goTab('attendance',this)"><span class="mn-icon">📅</span>출석</div>
+    <div class="mn-item" data-tab="report" onclick="goTab('report',this)"><span class="mn-icon">📋</span>리포트</div>
+    <div class="mn-item" data-tab="message" onclick="goTab('message',this)"><span class="mn-icon">💬</span>메시지</div>
+  </nav>
 
   <div class="main">
     <div class="topbar">
@@ -1032,8 +1057,8 @@ const pageTitles = {dashboard:'대시보드',students:'학생 관리',scores:'�
 function goTab(id, el) {
   document.querySelectorAll('.tab-page').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  if(el) el.classList.add('active');
+  document.querySelectorAll('.nav-item,.mn-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('[data-tab="'+id+'"]').forEach(n=>n.classList.add('active'));
   document.getElementById('pageTitle').textContent = pageTitles[id];
   if(id==='dashboard') renderDashboard();
   if(id==='students') { initStudentFilters(); renderStudentList(); }
