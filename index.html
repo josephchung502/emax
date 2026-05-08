@@ -803,7 +803,9 @@ async function loadStudentsFromSheets() {
     });
 
     if(!loaded.length) {
-      showToast('일치하는 학생 없음 — 반구분 확인 필요 (KG6 또는 G5 TFS)','e');
+      const hdrInfo = 'hasHdr='+hasHeader+' name='+useName+' cls='+useCls+' grp='+useGroup;
+      const firstDataRow = dataRows[0] ? JSON.stringify(dataRows[0].slice(0,5)) : '(없음)';
+      showToast('학생 0명 — 진단: '+hdrInfo+' | 첫행='+firstDataRow,'e');
       return;
     }
 
