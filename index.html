@@ -1922,8 +1922,26 @@ function saveSession() {
   });
   closeModal('modal-session');
   renderDashboard();
-  showToast('수업 내용 저장됨','s');
-  postToSheets({action:'saveSession',cls,date,week,classGroup:currentClass});
+  showToast('수업 내용 저장됨 — Sheets 동기화 중...','s');
+  // 숙제 Sheets 저장 (학생별)
+  ss.forEach(s=>{
+    if(!homework[s.id]||!homework[s.id][week]) return;
+    const total=calcHwTotal(s.id,week,s.cls);
+    postToSheets({action:'saveHw',name:s.name,cls:s.cls,week,total,detail:JSON.stringify(homework[s.id][week])});
+  });
+  // 성적 Sheets 저장 (반 일괄)
+  const scoreItems=[];
+  ss.forEach(s=>{
+    (scores[s.id]||[]).filter(sc=>sc.week===week).forEach(sc=>{
+      scoreItems.push({cls:s.cls,name:s.name,week:sc.week,type:sc.type,score:sc.score,date:sc.date,memo:sc.memo||''});
+    });
+  });
+  if(scoreItems.length) postToSheets({action:'saveScores',cls,week,scoreData:scoreItems});
+  // 재시험 Sheets 저장
+  ss.forEach(s=>{
+    const rt=(retests[s.id]||{})[week];
+    if(rt&&rt.result) postToSheets({action:'saveRetest',name:s.name,cls:s.cls,week,taken:'yes',result:rt.result,score:rt.score||0});
+  });
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -2329,12 +2347,16 @@ function renderAttList() {
       return '<td><button class="btn btn-sm" onclick="setAtt(\'' + s.id + '\',\'' + date + '\',\'' + st + '\')" style="background:' + (active ? cols[i]+'22' : 'transparent') + ';border:1px solid ' + (active ? cols[i] : 'var(--border)') + ';color:' + (active ? cols[i] : 'var(--text3)') + '">' + labels[i] + '</button></td>';
     }).join('');
 
-    var bogangClsOpts = allCls.filter(function(c){return c!==cls;}).map(function(c){
-      return '<option value="' + c + '"' + ((bogangInfo&&bogangInfo.targetCls===c)?' selected':'') + '>' + c + '</option>';
-    }).join('');
+    var curTarget = (bogangInfo&&bogangInfo.targetCls)||'';
+    var ownCls = allCls.filter(function(c){return c!==cls;});
+    var isOtherTeacher = isBogangActive && curTarget && !ownCls.includes(curTarget);
+    var bogangClsOpts = ownCls.map(function(c){
+      return '<option value="' + c + '"' + (curTarget===c?' selected':'') + '>' + c + '</option>';
+    }).join('') + '<option value="__other__"' + (isOtherTeacher?' selected':'') + '>기타 선생님</option>';
     var bogangCell = '<td><div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">'
       + '<button class="btn btn-sm" onclick="toggleBogang(\'' + s.id + '\',\'' + date + '\')" style="background:' + (isBogangActive?'rgba(251,146,60,.22)':'transparent') + ';border:1px solid ' + (isBogangActive?'var(--orange)':'var(--border)') + ';color:' + (isBogangActive?'var(--orange)':'var(--text3)') + '">보강</button>'
-      + (isBogangActive ? '<select class="fi fi-sm" style="width:auto;padding:3px 5px;font-size:12px" onchange="setBogangCls(\'' + s.id + '\',\'' + date + '\',this.value)"><option value="">반 선택</option>' + bogangClsOpts + '</select>' : '')
+      + (isBogangActive ? '<select class="fi fi-sm" style="width:auto;padding:3px 5px;font-size:12px" onchange="onBogangClsChange(\'' + s.id + '\',\'' + date + '\',this)"><option value="">반 선택</option>' + bogangClsOpts + '</select>' : '')
+      + (isBogangActive ? '<input id="bo-other-' + s.id + '" type="text" class="fi fi-sm" placeholder="선생님 이름" value="' + (isOtherTeacher?curTarget:'') + '" style="width:90px;padding:3px 5px;font-size:12px;' + (isOtherTeacher?'':'display:none') + '" onblur="setBogangCls(\'' + s.id + '\',\'' + date + '\',this.value)">' : '')
       + (isBogangActive ? '<input type="date" class="fi fi-sm" style="width:auto;padding:3px 5px;font-size:12px" value="' + (bogangInfo.targetDate||'') + '" onchange="setBogangDate(\'' + s.id + '\',\'' + date + '\',this.value)">' : '')
       + '</div></td>';
 
@@ -2407,6 +2429,15 @@ async function setBogangCls(sid, date, targetCls) {
   renderAttList();
   const st = (students[currentClass]||[]).find(s=>s.id===sid);
   await postToSheets({action:'saveAtt', name:st?.name||'', cls:st?.cls||'', date, status:JSON.stringify(attendance[sid][date])});
+}
+function onBogangClsChange(sid, date, sel) {
+  var input = document.getElementById('bo-other-'+sid);
+  if(sel.value === '__other__') {
+    if(input) { input.style.display='inline-block'; input.focus(); }
+  } else {
+    if(input) input.style.display='none';
+    setBogangCls(sid, date, sel.value);
+  }
 }
 async function setBogangDate(sid, date, targetDate) {
   if(!attendance[sid]) attendance[sid]={};
