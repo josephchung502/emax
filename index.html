@@ -967,6 +967,19 @@ function getPrevWeekClassDate(cls, weeksBack) {
   d.setDate(today.getDate()+(dow-todayDow)-weeksBack*7);
   return d.toISOString().slice(0,10);
 }
+// ISO 주차 문자열 + 반 → 해당 주 수업 날짜
+function weekToClassDate(weekStr, cls) {
+  const dow = getClassDayOfWeek(cls);
+  if(dow<1) return null;
+  const [y, wn] = weekStr.split('-W').map(Number);
+  const jan4 = new Date(y, 0, 4);
+  const jan4dow = jan4.getDay()===0?7:jan4.getDay();
+  const mon = new Date(jan4);
+  mon.setDate(jan4.getDate()-jan4dow+1+(wn-1)*7);
+  const cd = new Date(mon);
+  cd.setDate(mon.getDate()+dow-1);
+  return cd.toISOString().slice(0,10);
+}
 
 function normalizeStr(s) {
   // 전각문자→반각, 공백제거, 대문자 통일
@@ -1041,9 +1054,15 @@ function prevWeek(weekStr) {
 }
 function isRetestCandidate(sid, displayWeek, cls) {
   const subj = cfg().retestSubject;
-  const lastWeek = prevWeek(displayWeek);
-  const sc = (scores[sid]||[]).find(s=>s.week===lastWeek&&s.type===subj);
-  return sc && sc.score < getRetestCutoff(cls, sid);
+  let w = prevWeek(displayWeek);
+  for(let i=0; i<6; i++) {
+    const sc = (scores[sid]||[]).find(s=>s.week===w&&s.type===subj);
+    if(sc) return sc.score < getRetestCutoff(cls, sid);
+    const cd = weekToClassDate(w, cls);
+    if(cd && isHoliday(cd)) { w = prevWeek(w); }
+    else break;
+  }
+  return false;
 }
 function isRetestDone(sid, week) {
   const r = (retests[sid]||{})[week];
@@ -1470,37 +1489,52 @@ function getNextClassDate(cls) {
   return future.length ? future[0].date : null;
 }
 
+// 가장 최근 비휴가·이미 지난 수업 주차를 반환
+function getEffectiveHwWeek(cls) {
+  const today=new Date().toISOString().slice(0,10);
+  const cw=currentWeek();
+  const thisDate=weekToClassDate(cw,cls);
+  if(thisDate && thisDate<today && !isHoliday(thisDate)) return {week:cw,classDate:thisDate};
+  let w=prevWeek(cw);
+  for(let i=0;i<6;i++) {
+    const cd=weekToClassDate(w,cls);
+    if(!cd) break;
+    if(!isHoliday(cd) && cd<today) return {week:w,classDate:cd};
+    w=prevWeek(w);
+  }
+  return {week:cw,classDate:thisDate};
+}
+
 function renderDashboardHwIncomplete() {
   const el=document.getElementById('d-hw-incomplete');
   if(!el) return;
-  const cw=currentWeek();
   const today=new Date().toISOString().slice(0,10);
   const all=students[currentClass]||[];
   const isKG6=currentClass==='KG6';
   const itemRows=[];
   all.forEach(s=>{
-    // 휴강 주 제외
-    const classDate=getCurrentWeekClassDate(s.cls);
-    if(classDate && isHoliday(classDate)) return;
-    // 당일 수업 포함, 아직 안 일어난 수업이면 제외 (수업 다음 날부터 미완성으로 표시)
-    if(classDate && classDate >= today) return;
+    const eff=getEffectiveHwWeek(s.cls);
+    const hwWeek=eff.week;
+    const classDate=eff.classDate;
+    // 아직 수업 안 한 경우 제외
+    if(!classDate || classDate>=today) return;
     // 결석 제외
-    const classEv=scheduleData.find(ev=>ev.cls===s.cls&&dateToWeek(ev.date)===cw);
+    const classEv=scheduleData.find(ev=>ev.cls===s.cls&&dateToWeek(ev.date)===hwWeek);
     const attDate=classEv?classEv.date:classDate;
     if(attDate && getAttStatus(s.id,attDate)==='absent') return;
-    const hwData=(homework[s.id]||{})[cw]||{};
+    const hwData=(homework[s.id]||{})[hwWeek]||{};
     if(isKG6) {
-      const hwTotal=calcHwTotal(s.id,cw,s.cls);
+      const hwTotal=calcHwTotal(s.id,hwWeek,s.cls);
       if(hwTotal===null||hwTotal>=100) return;
       getHwItems(s.cls, s.id).filter(h=>!(hwData[h.key]||{}).done).forEach(h=>{
-        itemRows.push({s,cw,itemKey:h.key,itemLabel:h.label,isKG6:true});
+        itemRows.push({s,cw:hwWeek,itemKey:h.key,itemLabel:h.label,isKG6:true});
       });
     } else {
       const hwItems=getHwItems(s.cls, s.id);
       const incomplete=hwItems.filter(h=>!(hwData[h]||{}).done);
       if(!incomplete.length) return;
       incomplete.forEach(h=>{
-        itemRows.push({s,cw,itemKey:h,itemLabel:h,isKG6:false});
+        itemRows.push({s,cw:hwWeek,itemKey:h,itemLabel:h,isKG6:false});
       });
     }
   });
