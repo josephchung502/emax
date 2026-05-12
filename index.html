@@ -1114,6 +1114,7 @@ function enterClass(cls) {
       await loadScheduleFromSheets();
       await loadConsultationsFromSheets();
       setSyncStatus('synced');
+      renderDashboard(); // 모든 데이터 로드 완료 후 재렌더 (재시험 결과 반영)
     });
   } else {
     renderDashboard();
