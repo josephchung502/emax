@@ -1274,13 +1274,13 @@ async function loadRetestsFromSheets() {
     const data = await jsonpFetch(url, 15000);
     if(!Array.isArray(data) || data.length < 2) return;
     data.slice(1).forEach(function(r) {
-      // 열 순서: 반구분(0), 반(1), 학생명(2), 주차(3), 응시여부(4), 재시험점수(5), 결과(6)
+      // 열 순서: 반구분(0), 반(1), 학생명(2), 주차(3), 응시여부(4), 결과(5), 재시험점수(6)
       const clsName = String(r[1]||'').trim();
       const name    = String(r[2]||'').trim();
       const week    = String(r[3]||'').trim();
       const taken   = String(r[4]||'').trim() === 'yes';
-      const score   = parseInt(r[5])||null;
-      const result  = String(r[6]||'').trim();
+      const result  = String(r[5]||'').trim();
+      const score   = parseInt(r[6])||null;
       if(!name || !week) return;
       const st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
       if(!st) return;
@@ -1548,13 +1548,21 @@ function renderDashboardHwIncomplete() {
     el.innerHTML='<div style="padding:14px 16px;color:var(--text3);font-size:13px">이번 주 미완성 숙제 없음 ✓</div>';
     return;
   }
-  el.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>학생</th><th>반</th><th>미완성 항목</th><th>처리</th></tr></thead><tbody>'
-    +itemRows.map(({s,cw,itemKey,itemLabel,isKG6})=>{
+  // 반별로 그룹핑
+  const byCls={};
+  itemRows.forEach(row=>{
+    const c=row.s.cls;
+    if(!byCls[c]) byCls[c]=[];
+    byCls[c].push(row);
+  });
+  const sortedCls=Object.keys(byCls).sort();
+  el.innerHTML=sortedCls.map((cls,ci)=>{
+    const rows=byCls[cls];
+    const tableRows=rows.map(({s,cw,itemKey,itemLabel,isKG6})=>{
       const sid=s.id; const ek=itemKey.replace(/[^a-zA-Z0-9_]/g,'_');
       if(isKG6) {
         return `<tr>
           <td style="font-weight:600">${s.name}</td>
-          <td><span class="badge b-blue">${s.cls}</span></td>
           <td style="font-size:12px">${itemLabel}</td>
           <td style="white-space:nowrap">
             <select class="fi fi-sm" id="hwi-sel-${sid}-${ek}" style="width:auto" onchange="onHwItemStatusChange('${sid}','${cw}','${s.cls}','${itemKey}')">
@@ -1569,7 +1577,6 @@ function renderDashboardHwIncomplete() {
       } else {
         return `<tr>
           <td style="font-weight:600">${s.name}</td>
-          <td><span class="badge b-blue">${s.cls}</span></td>
           <td style="font-size:12px">${itemLabel}</td>
           <td>
             <select class="fi fi-sm" style="width:auto" onchange="onHwItemG5Change('${sid}','${cw}','${s.cls}','${itemKey}',this.value)">
@@ -1578,7 +1585,19 @@ function renderDashboardHwIncomplete() {
           </td>
         </tr>`;
       }
-    }).join('')+'</tbody></table></div>';
+    }).join('');
+    return `<details${ci===0?' open':''}  style="border-bottom:1px solid var(--border)">
+      <summary style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;list-style:none;-webkit-appearance:none;user-select:none">
+        <span class="badge b-blue">${cls}</span>
+        <span style="font-weight:600;font-size:13px">${[...new Set(rows.map(r=>r.s.name))].join(', ')}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text3)">${rows.length}개 미흡</span>
+      </summary>
+      <div style="overflow-x:auto;padding-bottom:4px">
+        <table class="tbl"><thead><tr><th>학생</th><th>미완성 항목</th><th>처리</th></tr></thead>
+        <tbody>${tableRows}</tbody></table>
+      </div>
+    </details>`;
+  }).join('');
 }
 
 function onHwItemStatusChange(sid, week, cls, itemKey) {
