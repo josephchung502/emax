@@ -835,7 +835,6 @@ async function loadStudentsFromSheets() {
     }
 
     students[currentClass] = loaded;
-    renderDashboard();
     const active = document.querySelector('.tab-page.active');
     if(active) {
       const tabId = active.id.replace('tab-','');
@@ -1079,7 +1078,7 @@ function goTab(id, el) {
   document.querySelectorAll('.nav-item,.mn-item').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('[data-tab="'+id+'"]').forEach(n=>n.classList.add('active'));
   document.getElementById('pageTitle').textContent = pageTitles[id];
-  if(id==='dashboard') renderDashboard();
+  if(id==='dashboard') { if((students[currentClass]||[]).length) renderDashboard(); }
   if(id==='students') { initStudentFilters(); renderStudentList(); }
   if(id==='scores') {
     initScoreSelects(); renderScoreEntry(); renderScoreView();
@@ -1103,19 +1102,31 @@ function enterClass(cls) {
   setTimeout(addCardResizeHandles, 100);
   document.getElementById('sidebarClass').textContent = cfg().label;
   document.getElementById('footerClass').textContent = cfg().label;
+  // 대시보드 로딩 중 상태 표시
+  const hwEl = document.getElementById('d-hw-incomplete');
+  if(hwEl) hwEl.innerHTML = '<div style="padding:14px 16px;color:var(--text3);font-size:13px">⏳ 동기화 중...</div>';
+  const retestCard = document.getElementById('d-retest-card');
+  if(retestCard) retestCard.style.display = 'none';
   if(gasUrl) {
     setSyncStatus('syncing');
-    // 학생 먼저 → 그 뒤 전체 데이터 로드
-    loadStudentsFromSheets().then(async function() {
-      await loadScoresFromSheets(true); // silent — 자동 동기화 시 "데이터 없음" 토스트 억제
+    (async function() {
+      // 학생 로드 — 실패 시 2초 후 1회 자동 재시도
+      await loadStudentsFromSheets();
+      if(!(students[currentClass]||[]).length) {
+        showToast('학생 목록 재시도 중...','i');
+        await new Promise(r => setTimeout(r, 2000));
+        await loadStudentsFromSheets();
+      }
+      // 나머지 데이터 순차 로드
+      await loadScoresFromSheets(true);
       await loadAttendanceFromSheets();
       await loadHomeworkFromSheets();
       await loadRetestsFromSheets();
       await loadScheduleFromSheets();
       await loadConsultationsFromSheets();
       setSyncStatus('synced');
-      renderDashboard(); // 모든 데이터 로드 완료 후 재렌더 (재시험 결과 반영)
-    });
+      renderDashboard(); // 모든 데이터 로드 완료 후 단 한 번 렌더
+    })();
   } else {
     renderDashboard();
   }
