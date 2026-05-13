@@ -936,6 +936,7 @@ const HOLIDAYS = [
   ['2026-10-03','2026-10-09'],
   ['2026-12-21','2026-12-26'],
 ];
+const MAX_HOLIDAY_LOOKBACK = 6;
 function isHoliday(dateStr) {
   return HOLIDAYS.some(function(h){ return dateStr>=h[0]&&dateStr<=h[1]; });
 }
@@ -1054,7 +1055,7 @@ function prevWeek(weekStr) {
 function isRetestCandidate(sid, displayWeek, cls) {
   const subj = cfg().retestSubject;
   let w = prevWeek(displayWeek);
-  for(let i=0; i<6; i++) {
+  for(let i=0; i<MAX_HOLIDAY_LOOKBACK; i++) {
     const sc = (scores[sid]||[]).find(s=>s.week===w&&s.type===subj);
     if(sc) return sc.score < getRetestCutoff(cls, sid);
     const cd = weekToClassDate(w, cls);
@@ -1117,13 +1118,14 @@ function enterClass(cls) {
         await new Promise(r => setTimeout(r, 2000));
         await loadStudentsFromSheets();
       }
-      // 나머지 데이터 순차 로드
-      await loadScoresFromSheets(true);
-      await loadAttendanceFromSheets();
-      await loadHomeworkFromSheets();
-      await loadRetestsFromSheets();
-      await loadScheduleFromSheets();
-      await loadConsultationsFromSheets();
+      await Promise.all([
+        loadScoresFromSheets(true),
+        loadAttendanceFromSheets(),
+        loadHomeworkFromSheets(),
+        loadRetestsFromSheets(),
+        loadScheduleFromSheets(),
+        loadConsultationsFromSheets(),
+      ]);
       setSyncStatus('synced');
       renderDashboard(); // 모든 데이터 로드 완료 후 단 한 번 렌더
     })();
@@ -1511,7 +1513,7 @@ function getEffectiveHwWeek(cls) {
   const thisDate=weekToClassDate(cw,cls);
   if(thisDate && thisDate<today && !isHoliday(thisDate)) return {week:cw,classDate:thisDate};
   let w=prevWeek(cw);
-  for(let i=0;i<6;i++) {
+  for(let i=0;i<MAX_HOLIDAY_LOOKBACK;i++) {
     const cd=weekToClassDate(w,cls);
     if(!cd) break;
     if(!isHoliday(cd) && cd<today) return {week:w,classDate:cd};
@@ -1527,8 +1529,9 @@ function renderDashboardHwIncomplete() {
   const all=students[currentClass]||[];
   const isKG6=currentClass==='KG6';
   const itemRows=[];
+  const effHwCache={};
   all.forEach(s=>{
-    const eff=getEffectiveHwWeek(s.cls);
+    const eff=effHwCache[s.cls]||(effHwCache[s.cls]=getEffectiveHwWeek(s.cls));
     const hwWeek=eff.week;
     const classDate=eff.classDate;
     // 아직 수업 안 한 경우 제외
