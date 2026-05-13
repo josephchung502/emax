@@ -1445,7 +1445,10 @@ function renderDashboard() {
   all.forEach(s=>{
     const triggerWeek = getRetestTriggerWeek(s.id, cw, s.cls);
     if(!triggerWeek) return;
-    if(((retests[s.id]||{})[triggerWeek]||{}).result === 'pass') return;
+    const rt = retests[s.id]||{};
+    if((rt[triggerWeek]||{}).result === 'pass') return;
+    // 휴강으로 trigger week ≠ cw인 경우, 이전에 cw로 저장된 데이터도 인정
+    if(triggerWeek !== cw && (rt[cw]||{}).result === 'pass') return;
     retestCandidates.push({s, triggerWeek});
   });
   document.getElementById('d-retest').textContent = retestCandidates.length;
