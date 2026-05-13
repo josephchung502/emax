@@ -2508,9 +2508,8 @@ async function setBogangDate(sid, date, targetDate) {
   await postToSheets({action:'saveAtt', name:st?.name||'', cls:st?.cls||'', date, status:JSON.stringify(attendance[sid][date])});
 }
 async function saveAttendance() {
-  // 현재 반 전체 출석 데이터를 Sheets에 저장
-  const cls = document.getElementById('att-class')?.value;
-  const ss = cls ? getStudents(cls) : (students[currentClass]||[]);
+  // 반 필터 무관하게 항상 전체 학생 데이터 전송 — 부분 저장 시 다른 반 이력 소실 방지
+  const ss = students[currentClass]||[];
   const attData = [];
   ss.forEach(s => {
     Object.entries(attendance[s.id]||{}).forEach(([date, val]) => {
