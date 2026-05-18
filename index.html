@@ -1456,10 +1456,12 @@ function renderDashboard() {
   if(retestCard) {
     retestCard.style.display = retestCandidates.length ? '' : 'none';
     if(retestCandidates.length) {
-      document.getElementById('d-retest-list').innerHTML = `<table class="tbl"><thead><tr><th>학생</th><th>반</th><th>결과</th><th></th></tr></thead><tbody>` +
+      document.getElementById('d-retest-list').innerHTML = `<table class="tbl"><thead><tr><th>학생</th><th>반</th><th>재시험 일자</th><th>결과</th><th></th></tr></thead><tbody>` +
         retestCandidates.map(({s, triggerWeek})=>{
           const ri = (retests[s.id]||{})[triggerWeek]||{};
+          const nextDate = getNextClassDate(s.cls) || '—';
           return `<tr><td style="font-weight:600">${s.name}</td><td><span class="badge b-blue">${s.cls}</span></td>
+            <td style="font-size:12px;color:var(--text2);white-space:nowrap">${nextDate}</td>
             <td><select id="dash-retest-${s.id}" class="fi fi-sm" style="width:auto">
               <option value=""${!ri.result?' selected':''}>미진행</option>
               <option value="pass"${ri.result==='pass'?' selected':''}>통과</option>
