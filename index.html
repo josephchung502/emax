@@ -1446,9 +1446,9 @@ function renderDashboard() {
     const triggerWeek = getRetestTriggerWeek(s.id, cw, s.cls);
     if(!triggerWeek) return;
     const rt = retests[s.id]||{};
-    if((rt[triggerWeek]||{}).result === 'pass') return;
+    if(['pass','fail'].includes((rt[triggerWeek]||{}).result)) return;
     // 휴강으로 trigger week ≠ cw인 경우, 이전에 cw로 저장된 데이터도 인정
-    if(triggerWeek !== cw && (rt[cw]||{}).result === 'pass') return;
+    if(triggerWeek !== cw && ['pass','fail'].includes((rt[cw]||{}).result)) return;
     retestCandidates.push({s, triggerWeek});
   });
   document.getElementById('d-retest').textContent = retestCandidates.length;
@@ -1584,6 +1584,7 @@ function renderDashboardHwIncomplete() {
   const sortedCls=Object.keys(byCls).sort();
   el.innerHTML=sortedCls.map((cls,ci)=>{
     const rows=byCls[cls];
+    const clsDate=(effHwCache[cls]||{}).classDate||'';
     const tableRows=rows.map(({s,cw,itemKey,itemLabel,isKG6})=>{
       const sid=s.id; const ek=itemKey.replace(/[^a-zA-Z0-9_]/g,'_');
       if(isKG6) {
@@ -1615,6 +1616,7 @@ function renderDashboardHwIncomplete() {
     return `<details${ci===0?' open':''}  style="border-bottom:1px solid var(--border)">
       <summary style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;list-style:none;-webkit-appearance:none;user-select:none">
         <span class="badge b-blue">${cls}</span>
+        ${clsDate?`<span style="font-size:11px;color:var(--text3)">${clsDate}</span>`:''}
         <span style="font-weight:600;font-size:13px">${[...new Set(rows.map(r=>r.s.name))].join(', ')}</span>
         <span style="margin-left:auto;font-size:11px;color:var(--text3)">${rows.length}개 미흡</span>
       </summary>
