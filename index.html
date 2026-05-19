@@ -1068,8 +1068,9 @@ function getRetestTriggerWeek(sid, displayWeek, cls) {
 function isRetestCandidate(sid, displayWeek, cls) {
   return getRetestTriggerWeek(sid, displayWeek, cls) !== null;
 }
-function isRetestDone(sid, week) {
-  const r = (retests[sid]||{})[week];
+function isRetestDone(sid, displayWeek, cls) {
+  const tw = cls ? (getRetestTriggerWeek(sid, displayWeek, cls) || displayWeek) : displayWeek;
+  const r = (retests[sid]||{})[tw];
   return !!(r && r.taken);
 }
 
@@ -1778,7 +1779,7 @@ function renderScheduleCards() {
   // 현재 반 그룹(KG6/G5TFS)에 속하는 반만 필터
   const myClasses = getAllClasses();
   const filtered = scheduleData.filter(function(ev){
-    return myClasses.includes(ev.cls) && !isHoliday(ev.date);
+    return myClasses.includes(ev.cls) && !isHoliday(ev.date) && dateToWeek(ev.date) >= currentWeek();
   });
 
   if(!filtered.length) {
@@ -1788,7 +1789,7 @@ function renderScheduleCards() {
       const d = new Date(today); d.setDate(d.getDate()+i);
       const ds = d.toLocaleDateString('ko-KR',{month:'short',day:'numeric',weekday:'short'});
       const dateStr = d.toISOString().slice(0,10);
-      return `<div class="sched-card ${i===0?'today':''}" onclick="openSession('${cls}','${dateStr}','${currentWeek()}')">
+      return `<div class="sched-card ${i===0?'today':''}" onclick="openSession('${cls}','${dateStr}','${dateToWeek(dateStr)}')">
         <div class="sched-date">${ds}</div>
         <div class="sched-class">${cls}</div>
         <div class="sched-topics" style="color:var(--text3);font-size:10px">클릭하여 수업 입력</div>
@@ -1812,7 +1813,7 @@ function renderScheduleCards() {
     const subjectText = ev.subjects.length
       ? ev.subjects.map(function(s){ return s.length>8?s.slice(0,8)+'..':s; }).join(' · ')
       : '';
-    return `<div class="sched-card ${isToday?'today':''}" onclick="openSession('${ev.cls}','${ev.date}','${currentWeek()}')">
+    return `<div class="sched-card ${isToday?'today':''}" onclick="openSession('${ev.cls}','${ev.date}','${dateToWeek(ev.date)}')">
       <div class="sched-date">${displayDate}</div>
       <div class="sched-class">${ev.cls}</div>
       <div class="sched-topics">${ev.topic?`<span style="color:var(--text)">${ev.topic}</span><br>`:''}
@@ -1848,13 +1849,14 @@ function renderSessionAtt() {
   html += `<table class="tbl"><thead><tr><th>학생</th><th>출석</th><th>지각</th><th>결석</th><th>재시험 결과</th></tr></thead><tbody>`;
   ss.forEach(s=>{
     const cur = (attendance[s.id]||{})[date]||'';
-    const retestDone = isRetestDone(s.id, cw);
+    const retestDone = isRetestDone(s.id, cw, s.cls);
     const isRetest = !retestDone && isRetestCandidate(s.id, cw, s.cls);
-    const retestInfo = (retests[s.id]||{})[cw]||{};
+    const retestTW = getRetestTriggerWeek(s.id, cw, s.cls) || cw;
+    const retestInfo = (retests[s.id]||{})[retestTW]||{};
     html += `<tr>
       <td style="font-weight:600">${s.name}${retestDone?`<span class="badge b-green" style="margin-left:4px;font-size:9px">진행완료</span>`:isRetest?`<span class="retest-badge">재시험</span>`:''}</td>
       ${['present','late','absent'].map(st=>`<td><input type="radio" name="att-${s.id}" value="${st}" ${cur===st?'checked':''} onchange="attendance['${s.id}']={...attendance['${s.id}'],'${date}':'${st}'}"></td>`).join('')}
-      <td>${(isRetest||retestDone)?`<select class="fi fi-sm" id="retest-result-${s.id}" style="width:90px"><option value="">미진행</option><option value="pass" ${retestInfo.result==='pass'?'selected':''}>통과</option><option value="fail" ${retestInfo.result==='fail'?'selected':''}>미통과</option></select>`:'—'}</td>
+      <td>${(isRetest||retestDone)?`<select class="fi fi-sm" id="retest-result-${s.id}" style="width:90px" onchange="saveRetestResult('${s.id}','${cw}',this.value)"><option value="">미진행</option><option value="pass" ${retestInfo.result==='pass'?'selected':''}>통과</option><option value="fail" ${retestInfo.result==='fail'?'selected':''}>미통과</option></select>`:'—'}</td>
     </tr>`;
   });
   html += '</tbody></table>';
@@ -2002,12 +2004,15 @@ function saveSession() {
         if(el) homework[s.id][week][h]={done:el.checked};
       });
     }
-    // retests
+    // retests — trigger week 기준으로 저장
     const retestEl = document.getElementById(`retest-result-${s.id}`);
     if(retestEl) {
-      if(!retests[s.id]) retests[s.id]={};
       const result = retestEl.value;
-      retests[s.id][week] = {taken: result!=='', result, score: null};
+      const retestSaveWeek = getRetestTriggerWeek(s.id, week, s.cls) || week;
+      if(!retests[s.id]) retests[s.id]={};
+      if(!retests[s.id][retestSaveWeek]) retests[s.id][retestSaveWeek]={};
+      retests[s.id][retestSaveWeek].taken = result !== '';
+      retests[s.id][retestSaveWeek].result = result;
     }
   });
   closeModal('modal-session');
@@ -2027,10 +2032,11 @@ function saveSession() {
     });
   });
   if(scoreItems.length) postToSheets({action:'saveScores',cls,week,scoreData:scoreItems});
-  // 재시험 Sheets 저장
+  // 재시험 Sheets 저장 (trigger week 기준)
   ss.forEach(s=>{
-    const rt=(retests[s.id]||{})[week];
-    if(rt&&rt.result) postToSheets({action:'saveRetest',name:s.name,cls:s.cls,week,taken:'yes',result:rt.result,score:rt.score||0});
+    const tw = getRetestTriggerWeek(s.id, week, s.cls) || week;
+    const rt=(retests[s.id]||{})[tw];
+    if(rt&&rt.result) postToSheets({action:'saveRetest',name:s.name,cls:s.cls,week:tw,taken:'yes',result:rt.result,score:rt.score||0});
   });
 }
 
@@ -2050,7 +2056,7 @@ function renderStudentList() {
   document.getElementById('student-table').innerHTML = list.length ? list.map(s=>{
     const a = studentAvg(s.id);
     const ar = attRate(s.id);
-    const retestDone = isRetestDone(s.id, cw);
+    const retestDone = isRetestDone(s.id, cw, s.cls);
     const isRetest = !retestDone && isRetestCandidate(s.id,cw,s.cls);
     const md = getCumulativeMdp(s.id);
     return `<tr>
@@ -2247,7 +2253,7 @@ function renderScoreEntry() {
   ss.forEach(s=>{
     const existing = {};
     (scores[s.id]||[]).filter(sc=>normalizeDate(sc.date)===date).forEach(sc=>{existing[sc.type]=sc.score;});
-    const retestDone = isRetestDone(s.id, week);
+    const retestDone = isRetestDone(s.id, week, s.cls);
     const isRetest = !retestDone && isRetestCandidate(s.id, week, s.cls);
     const hwTotal = calcHwTotal(s.id, week, s.cls);
     const isAbsent = getAttStatus(s.id, date) === 'absent';
@@ -2403,9 +2409,10 @@ function renderAttList() {
       + '</tr></thead><tbody>';
     bogangIn.forEach(function(s) {
       var curStatus = getAttStatus(s.id, date);
-      var retestDone = isRetestDone(s.id, week);
+      var retestTW = getRetestTriggerWeek(s.id, week, s.cls) || week;
+      var retestDone = isRetestDone(s.id, week, s.cls);
       var isRetest = !retestDone && isRetestCandidate(s.id, week, s.cls);
-      var retestInfo = (retests[s.id]||{})[week]||{};
+      var retestInfo = (retests[s.id]||{})[retestTW]||{};
       var hwTotal = calcHwTotal(s.id, week, s.cls);
       var attBtns = ['present','late','absent'].map(function(st, i) {
         var labels = ['출석','지각','결석'];
@@ -2440,9 +2447,10 @@ function renderAttList() {
     var bogangInfo = getAttBogangInfo(s.id, date);
     var isBogangActive = !!bogangInfo;
     if(isBogangActive) bogangOut.push({s:s, bogangCls:bogangInfo.targetCls||'', bogangDate:bogangInfo.targetDate||''});
-    var retestDone = isRetestDone(s.id, week);
+    var retestTW = getRetestTriggerWeek(s.id, week, s.cls) || week;
+    var retestDone = isRetestDone(s.id, week, s.cls);
     var isRetest = !retestDone && isRetestCandidate(s.id, week, s.cls);
-    var retestInfo = (retests[s.id]||{})[week]||{};
+    var retestInfo = (retests[s.id]||{})[retestTW]||{};
     var hwTotal = currentClass==='KG6' ? calcHwTotal(s.id, week, s.cls) : null;
     var mdp = currentClass==='KG6' ? getCumulativeMdp(s.id) : 0;
 
@@ -2567,13 +2575,14 @@ async function saveAttendance() {
   await postToSheets({action:'saveAllAtt', attData});
   showToast('출석 저장됨 ✓','s');
 }
-async function saveRetestResult(sid, week, result) {
-  if(!retests[sid]) retests[sid]={};
-  if(!retests[sid][week]) retests[sid][week]={};
-  retests[sid][week].taken = !!result;
-  retests[sid][week].result = result;
+async function saveRetestResult(sid, displayWeek, result) {
   const st = (students[currentClass]||[]).find(s=>s.id===sid);
-  await postToSheets({action:'saveRetest', name:st?.name||'', cls:st?.cls||'', week, taken:result?'yes':'no', result, score:null});
+  const saveWeek = (st ? getRetestTriggerWeek(sid, displayWeek, st.cls) : null) || displayWeek;
+  if(!retests[sid]) retests[sid]={};
+  if(!retests[sid][saveWeek]) retests[sid][saveWeek]={};
+  retests[sid][saveWeek].taken = !!result;
+  retests[sid][saveWeek].result = result;
+  await postToSheets({action:'saveRetest', name:st?.name||'', cls:st?.cls||'', week:saveWeek, taken:result?'yes':'no', result, score:retests[sid][saveWeek].score||0});
   renderDashboard();
 }
 async function saveDashboardRetest(sid, week) {
