@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -2136,7 +2136,19 @@ function openStudentDetail(sid) {
       <div class="avatar">${s.name[0]}</div>
       <div>
         <div class="profile-name">${s.name}</div>
-        <div class="profile-meta"><span class="badge b-blue">${s.cls}</span> &nbsp; ${s.grade}</div>
+        <div class="profile-meta" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="badge b-blue">${s.cls}</span>
+          <span style="color:var(--text3)">${s.grade}</span>
+          <button class="btn btn-sm" style="font-size:11px;padding:3px 8px" onclick="document.getElementById('move-cls-panel').style.display='flex'">반 이동</button>
+        </div>
+        <div id="move-cls-panel" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px">
+          <span style="font-size:12px;color:var(--text2)">이동할 반:</span>
+          <select class="fi fi-sm" id="move-cls-sel" style="width:auto">
+            ${Object.values(CLASS_CONFIG).flatMap(g=>g.classes).filter(c=>c!==s.cls).map(c=>`<option value="${c}">${c}</option>`).join("")}
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="confirmMoveClass('${sid}')">이동 확인</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('move-cls-panel').style.display='none'">취소</button>
+        </div>
       </div>
       <div style="margin-left:auto;display:flex;gap:20px">
         <div style="text-align:center"><div style="font-size:10px;color:var(--text2)">평균</div><div style="font-size:22px;font-weight:900;font-family:'DM Mono';color:${a?scoreColor(a):'var(--text3)'}">${a||'—'}</div></div>
@@ -2191,6 +2203,36 @@ async function resetStudentMdp(sid) {
   await postToSheets({action:'clearMdp', name:st.name, cls:st.cls});
   showToast('Market Day 포인트 초기화됨','s');
   openStudentDetail(sid);
+}
+async function confirmMoveClass(sid) {
+  const newCls = document.getElementById('move-cls-sel')?.value;
+  if(!newCls) return;
+  const st = (students[currentClass]||[]).find(s=>s.id===sid);
+  if(!st || newCls === st.cls) return;
+  if(!confirm(`${st.name}을(를) ${st.cls} → ${newCls}으로 이동하시겠습니까?`)) return;
+  const oldCls = st.cls;
+  const oldId = sid;
+  const newId = 'sh_' + newCls.replace(/[^a-zA-Z0-9가-힣]/g,'') + '_' + st.name.replace(/[^a-zA-Z0-9가-힣]/g,'');
+  const newGroup = Object.keys(CLASS_CONFIG).find(g=>CLASS_CONFIG[g].classes.includes(newCls)) || currentClass;
+  scores[newId] = scores[oldId] || [];
+  attendance[newId] = attendance[oldId] || {};
+  homework[newId] = homework[oldId] || {};
+  retests[newId] = retests[oldId] || {};
+  delete scores[oldId];
+  delete attendance[oldId];
+  delete homework[oldId];
+  delete retests[oldId];
+  st.cls = newCls;
+  st.id = newId;
+  if(newGroup !== currentClass) {
+    if(!students[newGroup]) students[newGroup] = [];
+    students[newGroup].push(st);
+    students[currentClass] = (students[currentClass]||[]).filter(s=>s.id!==oldId);
+  }
+  await postToSheets({action:'moveStudent', name:st.name, oldCls, newCls});
+  showToast(`${st.name} → ${newCls} 이동됨`, 's');
+  currentClass = newGroup;
+  openStudentDetail(newId);
 }
 function onNsGroupChange() {
   const grp = document.getElementById('ns-group').value;
