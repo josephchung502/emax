@@ -510,6 +510,11 @@ textarea.fi{resize:vertical;min-height:70px}
               <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">포함 과목 선택</div>
               <div id="rpt-subject-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
             </div>
+            <div style="margin-bottom:10px;display:flex;align-items:center;gap:6px">
+              <span style="font-size:11px;color:var(--text2);white-space:nowrap">Anthropic API Key</span>
+              <input type="password" class="fi" id="anthropic-api-key" placeholder="sk-ant-..." style="flex:1;font-size:11px;height:32px">
+              <button class="btn btn-sm btn-ghost" style="white-space:nowrap" onclick="saveApiKey()">저장</button>
+            </div>
             <button class="btn btn-primary" onclick="generateReport()">✨ AI 리포트 생성</button>
           </div>
         </div>
@@ -2836,6 +2841,11 @@ function saveHwFromModal() {
 /* ═══════════════════════════════════════════════════════
    REPORT
 ═══════════════════════════════════════════════════════ */
+function saveApiKey() {
+  const key = document.getElementById('anthropic-api-key').value.trim();
+  if(key) { localStorage.setItem('emax_api_key', key); showToast('API 키 저장됨','s'); }
+}
+function getApiKey() { return localStorage.getItem('emax_api_key') || ''; }
 function initReport() {
   const el = document.getElementById('rpt-class');
   el.innerHTML = getAllClasses().map(c=>`<option>${c}</option>`).join('');
@@ -2847,6 +2857,8 @@ function initReport() {
   const today = new Date().toISOString().slice(0,10);
   document.getElementById('rpt-from').value = today.slice(0,8)+'01';
   document.getElementById('rpt-to').value = today;
+  const savedKey = localStorage.getItem('emax_api_key');
+  if(savedKey) document.getElementById('anthropic-api-key').value = savedKey;
 }
 function updateRptStudents() {
   const cls = document.getElementById('rpt-class').value;
@@ -2876,48 +2888,83 @@ async function generateReport() {
   const hwTotal = currentClass==='KG6' ? calcHwTotal(sid, currentWeek(), s.cls) : null;
   const outputEl = document.getElementById('report-output');
   outputEl.style.display = 'block';
+  // Build vertical bar chart SVG
+  const barChartHtml = (function(){
+    const subjs = selectedSubjs.filter(subj=>studentAvgMap[subj]!==null||classAvgMap[subj]!==null);
+    if(!subjs.length) return '<div style="color:var(--text3);font-size:12px;padding:8px">데이터 없음</div>';
+    const BW=14, BG=3, GRP=Math.max(52, subjs.length>6?44:52);
+    const W=Math.max(320, subjs.length*GRP+70), H=220;
+    const PL=38,PR=12,PT=20,PB=72;
+    const cW=W-PL-PR, cH=H-PT-PB;
+    let rects='', grid='';
+    [0,25,50,75,100].forEach(v=>{
+      const y=PT+cH-(v/100)*cH;
+      grid+=`<line x1="${PL}" y1="${y}" x2="${PL+cW}" y2="${y}" stroke="rgba(148,163,184,.12)" stroke-width="1"/>`;
+      grid+=`<text x="${PL-4}" y="${y+3}" text-anchor="end" font-size="8" fill="#64748b">${v}</text>`;
+    });
+    subjs.forEach((subj,i)=>{
+      const sv=studentAvgMap[subj], cv=classAvgMap[subj];
+      const cx=PL+(cW/subjs.length)*(i+0.5);
+      if(sv!==null){
+        const bh=Math.max(3,(sv/100)*cH), y=PT+cH-bh;
+        const col=sv>=80?'#4ade80':sv>=60?'#fbbf24':'#f87171';
+        rects+=`<rect x="${cx-BW-BG/2}" y="${y}" width="${BW}" height="${bh}" fill="${col}" rx="2" opacity="0.9"/>`;
+        rects+=`<text x="${cx-BW/2-BG/2}" y="${y-3}" text-anchor="middle" font-size="9" fill="${col}" font-weight="600">${sv}</text>`;
+      }
+      if(cv!==null){
+        const bh=Math.max(3,(cv/100)*cH), y=PT+cH-bh;
+        rects+=`<rect x="${cx+BG/2}" y="${y}" width="${BW}" height="${bh}" fill="rgba(148,163,184,.5)" rx="2"/>`;
+        rects+=`<text x="${cx+BW/2+BG/2}" y="${y-3}" text-anchor="middle" font-size="9" fill="#94a3b8">${cv}</text>`;
+      }
+      const lbl=subj.length>9?subj.slice(0,8)+'…':subj;
+      rects+=`<text x="${cx}" y="${PT+cH+12}" text-anchor="end" font-size="9" fill="#94a3b8" transform="rotate(-38 ${cx} ${PT+cH+12})">${lbl}</text>`;
+    });
+    return `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%">${grid}${rects}<line x1="${PL}" y1="${PT}" x2="${PL}" y2="${PT+cH}" stroke="rgba(148,163,184,.25)" stroke-width="1"/><line x1="${PL}" y1="${PT+cH}" x2="${PL+cW}" y2="${PT+cH}" stroke="rgba(148,163,184,.25)" stroke-width="1"/></svg></div><div style="display:flex;gap:12px;font-size:11px;margin-top:4px;color:var(--text2)"><span><span style="color:#4ade80">■</span> 개인</span><span><span style="color:#94a3b8">■</span> 반 평균</span></div>`;
+  })();
   outputEl.innerHTML = `<div class="card"><div class="card-header"><div class="card-title">${s.name}의 성적 리포트 (${from} ~ ${to})</div><button class="btn btn-ghost btn-sm" onclick="copyReport()">📋 복사</button></div><div class="card-body">
-    <div class="report-wrap"><h4>과목별 점수 비교 (개인 vs 반 평균)</h4>
-      ${selectedSubjs.map(subj=>{
-        const sv=studentAvgMap[subj]; const cv=classAvgMap[subj];
-        return `<div class="subject-compare">
-          <div class="subject-compare-label">${subj}</div>
-          <div class="bar-wrap">
-            ${sv!==null?`<div style="display:flex;align-items:center;gap:6px"><div class="bar-track" style="flex:1"><div class="bar-track-fill" style="width:${sv||0}%;background:${scoreColor(sv||0)}"></div></div><span style="font-family:'DM Mono';font-size:11px;color:${scoreColor(sv||0)};min-width:28px">${sv}</span></div>`:'<div style="color:var(--text3);font-size:11px">데이터 없음</div>'}
-            ${cv!==null?`<div style="display:flex;align-items:center;gap:6px"><div class="bar-track" style="flex:1"><div class="bar-track-fill" style="width:${cv||0}%;background:rgba(148,163,184,.5)"></div></div><span style="font-family:'DM Mono';font-size:11px;color:var(--text2);min-width:28px">${cv}</span></div>`:''}
-          </div>
-        </div>`;
-      }).join('')}
-      <div class="bar-legend"><span style="color:var(--accent)">■ 개인</span><span style="color:var(--text2)">■ 반 평균</span></div>
-    </div>
+    <div class="report-wrap"><h4>과목별 점수 비교 (개인 vs 반 평균)</h4>${barChartHtml}</div>
     <div id="rpt-ai-content"><div style="color:var(--text3);padding:16px;text-align:center">AI 분석 생성 중... <span class="loading">...</span></div></div>
   </div></div>`;
   // AI analysis
-  const prompt = `당신은 서울 대치동 eMAX 어학원 영어 강사 정요셉 선생님입니다. 아래 학생 데이터를 바탕으로 리포트를 한국어로 작성하세요.
+  const apiKey = getApiKey();
+  if(!apiKey) {
+    document.getElementById('rpt-ai-content').innerHTML = '<div style="color:var(--yellow);padding:12px">Anthropic API Key를 입력하고 저장해주세요.</div>';
+    return;
+  }
+  const prompt = `당신은 서울 대치동 eMAX 어학원 영어 강사 정요셉 선생님입니다. 아래 학생 데이터를 바탕으로 한국어 리포트를 작성하세요.
 
 학생: ${s.name} (${s.cls}, ${from}~${to})
 출석률: ${ar!==null?ar+'%':'데이터 없음'}
 ${selectedSubjs.map(subj=>{const sv=studentAvgMap[subj];const cv=classAvgMap[subj];return `- ${subj}: 개인 ${sv??'없음'}점 / 반평균 ${cv??'없음'}점`;}).join('\n')}
 
-아래 형식으로 JSON 하나만 출력하세요 (다른 텍스트 없이):
+아래 JSON 형식으로만 출력하세요 (다른 텍스트 없이):
 {
-  "subjectComments": {"과목명": "3-4문장 분석 및 개선방안"},
-  "teacherComment": "전체 성적 추이 분석, 중점 개선 영역과 방법 제시 (150-200자)"
+  "strengths": "강점 2-3문장",
+  "improvements": "개선될 점 2-3문장",
+  "preparation": "향후 준비할 점 2-3문장",
+  "overall": "총평 150-200자"
 }`;
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,messages:[{role:'user',content:prompt}]})});
+    const res = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1200,messages:[{role:'user',content:prompt}]})});
     const data = await res.json();
+    if(data.error) throw new Error(data.error.message);
     const text = data.content?.map(b=>b.text||'').join('') || '';
     const json = JSON.parse(text.replace(/```json|```/g,'').trim());
-    let aiHtml = `<div class="report-wrap"><h4>영역별 분석</h4>`;
-    (selectedSubjs).forEach(subj=>{
-      const c = json.subjectComments?.[subj];
-      if(c) aiHtml += `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px">${subj}</div><div style="font-size:12.5px;line-height:1.8;color:var(--text2)">${c}</div></div>`;
+    const sections = [
+      {key:'strengths',label:'💪 강점',color:'#4ade80'},
+      {key:'improvements',label:'📈 개선될 점',color:'#fbbf24'},
+      {key:'preparation',label:'🎯 향후 준비할 점',color:'#818cf8'},
+      {key:'overall',label:'📝 총평',color:'var(--text)'},
+    ];
+    let aiHtml = '<div class="report-wrap">';
+    sections.forEach(sec=>{
+      const c=json[sec.key];
+      if(c) aiHtml+=`<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:${sec.color};margin-bottom:4px">${sec.label}</div><div style="font-size:12.5px;line-height:1.8;color:var(--text2)">${c}</div></div>`;
     });
-    aiHtml += `</div><div class="report-wrap"><h4>Teacher's Comment</h4><div class="comment-box">${json.teacherComment||''}</div></div>`;
+    aiHtml += '</div>';
     document.getElementById('rpt-ai-content').innerHTML = aiHtml;
   } catch(e) {
-    document.getElementById('rpt-ai-content').innerHTML = '<div style="color:var(--red);padding:12px">AI 분석 생성 실패. 데이터를 확인해주세요.</div>';
+    document.getElementById('rpt-ai-content').innerHTML = `<div style="color:var(--red);padding:12px">AI 분석 실패: ${e.message||'오류'}</div>`;
   }
 }
 function copyReport() { navigator.clipboard.writeText(document.getElementById('report-output').innerText).then(()=>showToast('복사됨','s')); }
@@ -2939,7 +2986,8 @@ function setMsgMode(mode, btn) {
   btn.classList.add('active');
   document.getElementById('msg-student-group').style.display = mode==='individual'?'block':'none';
   if(mode==='individual') updateMsgStudents();
-  const types = mode==='class'?MSG_TYPES_CLASS:MSG_TYPES_INDIVIDUAL;
+  const classTypes = currentClass==='G5TFS' ? MSG_TYPES_CLASS.filter(t=>t!=='시험 대비') : MSG_TYPES_CLASS;
+  const types = mode==='class' ? classTypes : MSG_TYPES_INDIVIDUAL;
   selectedMsgType = types[0];
   document.getElementById('msg-type-chips').innerHTML = types.map((t,i)=>`<span class="chip ${i===0?'sel':''}" onclick="selMsgType(this,'${t}')">${t}</span>`).join('');
 }
@@ -2966,7 +3014,7 @@ async function generateMessage() {
     const a = studentAvg(sid);
     const ar = attRate(sid);
     const cw = currentWeek();
-    const retestFlag = isRetestCandidate(sid,cw);
+    const retestFlag = isRetestCandidate(sid,cw,s.cls);
     context = `학생: ${s.name} (${cls})\n평균점수: ${a??'없음'}\n출석률: ${ar??'없음'}%\n이번주 재시험 대상: ${retestFlag?'예':'아니오'}\n`;
   } else {
     const ss = getStudents(cls);
@@ -2974,11 +3022,14 @@ async function generateMessage() {
     context = `반: ${cls}\n학생수: ${ss.length}\n반 평균: ${avg(avgs)??'없음'}\n`;
   }
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:`당신은 서울 대치동 eMAX 어학원 영어 강사 정요셉 선생님입니다.\n\n${context}\n메시지 유형: ${selectedMsgType}\n추가 메모: ${note||'없음'}\n\n학부모(${msgMode==='class'?'반 전체':'개인'})께 카카오톡 메시지를 한국어로 작성하세요.\n- 친근하고 전문적인 톤\n- 이모지 적절히 사용\n- 200-280자\n- "정요셉 드림"으로 마무리\n- 메시지 내용만 출력 (설명 없이)`}]})});
+    const msgApiKey = getApiKey();
+    if(!msgApiKey) { out.style.color='var(--yellow)'; out.textContent='Anthropic API Key를 리포트 탭에서 먼저 저장해주세요.'; return; }
+    const res = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':msgApiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:800,messages:[{role:'user',content:`당신은 서울 대치동 eMAX 어학원 영어 강사 정요셉 선생님입니다.\n\n${context}\n메시지 유형: ${selectedMsgType}\n추가 메모: ${note||'없음'}\n\n학부모(${msgMode==='class'?'반 전체':'개인'})께 카카오톡 메시지를 한국어로 작성하세요.\n- 친근하고 전문적인 톤\n- 이모지 적절히 사용\n- 200-280자\n- "정요셉 드림"으로 마무리\n- 메시지 내용만 출력 (설명 없이)`}]})});
     const data = await res.json();
+    if(data.error) throw new Error(data.error.message);
     out.style.color = 'var(--text)';
     out.textContent = data.content?.map(b=>b.text||'').join('')||'오류';
-  } catch(e){ out.style.color='var(--red)'; out.textContent='오류 발생'; }
+  } catch(e){ out.style.color='var(--red)'; out.textContent='오류: '+(e.message||'알 수 없는 오류'); }
 }
 function copyMessage() { navigator.clipboard.writeText(document.getElementById('msg-output').textContent).then(()=>showToast('복사됨','s')); }
 function saveMsgToLib() {
