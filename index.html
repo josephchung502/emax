@@ -1340,11 +1340,12 @@ async function loadScoresFromSheets(silent) {
         const score = parseInt(r[5]);
         const date = normalizeDate(r[6]);
         const memo = String(r[7]||'');
-        const st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
+        let st = (students[currentClass]||[]).find(s=>s.name===name && s.cls===clsName);
+        if(!st) st = (students[currentClass]||[]).find(s=>s.name===name); // 반 이동 학생 fallback
         if(!st || isNaN(score)) return;
         if(!scores[st.id]) scores[st.id]=[];
         const existing = scores[st.id].findIndex(sc=>sc.week===week && sc.type===type);
-        const entry = {week, type, score, date, memo, fromSheets:true};
+        const entry = {week, type, score, date, memo, cls:clsName, fromSheets:true};
         if(existing >= 0) scores[st.id][existing] = entry;
         else scores[st.id].push(entry);
       });
@@ -1987,8 +1988,8 @@ function saveSession() {
       const val = parseInt(el.value);
       if(!scores[s.id]) scores[s.id]=[];
       const existing = scores[s.id].findIndex(sc=>sc.week===week&&sc.type===subj);
-      if(existing>=0) { scores[s.id][existing].score=val; scores[s.id][existing].date=date; }
-      else scores[s.id].push({week,type:subj,score:val,date,memo:''});
+      if(existing>=0) { scores[s.id][existing].score=val; scores[s.id][existing].date=date; scores[s.id][existing].cls=s.cls; }
+      else scores[s.id].push({week,type:subj,score:val,date,cls:s.cls,memo:''});
     });
     // hw
     if(!homework[s.id]) homework[s.id]={};
@@ -2085,6 +2086,7 @@ function openStudentDetail(sid) {
   const ar = attRate(sid);
   const a = studentAvg(sid);
   const weeks = [...new Set(sc.map(x=>x.week))].sort().reverse();
+  const scoreDates = [...new Set(sc.filter(x=>x.date).map(x=>x.date))].sort().reverse();
   const subjs = getSubjects();
   const md = getCumulativeMdp(sid);
   // Weekly attendance section
@@ -2174,19 +2176,20 @@ function openStudentDetail(sid) {
       </div></div>
     </div>
     <div class="card"><div class="card-header">
-      <div class="card-title">주차별 성적 조회</div>
-      <select class="fi fi-sm" id="detail-week-sel" onchange="renderDetailWeekScores('${sid}')" style="width:auto">${weeks.map(w=>`<option>${w}</option>`).join('')}</select>
+      <div class="card-title">날짜별 성적 조회</div>
+      <select class="fi fi-sm" id="detail-date-sel" onchange="renderDetailDateScores('${sid}')" style="width:auto">${scoreDates.length?scoreDates.map(d=>`<option>${d}</option>`).join(''):`<option>날짜 없음</option>`}</select>
     </div><div id="detail-week-scores" style="overflow-x:auto"></div></div>
     <div class="card"><div class="card-header"><div class="card-title">주차별 출석 여부</div></div>${attHtml}</div>`;
-  renderDetailWeekScores(sid);
+  renderDetailDateScores(sid);
 }
-function renderDetailWeekScores(sid) {
-  const w = document.getElementById('detail-week-sel')?.value;
-  if(!w) return;
-  const sc = (scores[sid]||[]).filter(x=>x.week===w);
+function renderDetailDateScores(sid) {
+  const d = document.getElementById('detail-date-sel')?.value;
+  const el = document.getElementById('detail-week-scores');
+  if(!d||d==='날짜 없음') { el.innerHTML='<div style="color:var(--text3);padding:12px;font-size:12px">성적 없음</div>'; return; }
+  const sc = (scores[sid]||[]).filter(x=>x.date===d);
   const subjs = getSubjects();
   const map = {}; sc.forEach(x=>{map[x.type]=x.score;});
-  document.getElementById('detail-week-scores').innerHTML = `<table class="tbl"><thead><tr><th>과목</th><th class="num">점수</th></tr></thead><tbody>${subjs.map(s=>`<tr><td>${s}</td><td class="num">${map[s]!==undefined?`<span class="score-pill" style="color:${scoreColor(map[s])};background:${scoreColor(map[s])}22">${map[s]}</span>`:'—'}</td></tr>`).join('')}</tbody></table>`;
+  el.innerHTML = `<table class="tbl"><thead><tr><th>과목</th><th class="num">점수</th></tr></thead><tbody>${subjs.map(s=>`<tr><td>${s}</td><td class="num">${map[s]!==undefined?`<span class="score-pill" style="color:${scoreColor(map[s])};background:${scoreColor(map[s])}22">${map[s]}</span>`:'—'}</td></tr>`).join('')}</tbody></table>`;
 }
 async function deleteStudent(id) {
   if(!confirm('삭제하시겠습니까?')) return;
@@ -2359,13 +2362,18 @@ function renderScoreView() {
   const cls = document.getElementById('sc-view-class')?.value; if(!cls) return;
   const from = document.getElementById('sc-view-from')?.value || '';
   const to = document.getElementById('sc-view-to')?.value || '';
-  const ss = getStudents(cls);
   const subjs = getSubjects();
   const tbl = document.getElementById('score-view-table');
+  const allStudents = students[currentClass] || [];
+  const ss = allStudents.filter(s=>{
+    if(s.cls===cls) return true;
+    return (scores[s.id]||[]).some(x=>(x.cls||s.cls)===cls && (!from||x.date>=from) && (!to||x.date<=to));
+  }).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   const dateSet = new Set();
   ss.forEach(s=>{
     (scores[s.id]||[]).forEach(sc=>{
-      if(sc.date && (!from||sc.date>=from) && (!to||sc.date<=to)) dateSet.add(sc.date);
+      const scCls=sc.cls||s.cls;
+      if(scCls===cls && sc.date && (!from||sc.date>=from) && (!to||sc.date<=to)) dateSet.add(sc.date);
     });
   });
   const dates = [...dateSet].sort().reverse().slice(0,8);
@@ -2379,10 +2387,11 @@ function renderScoreView() {
   ss.forEach(s=>{
     const sc = scores[s.id]||[];
     const map = {};
-    sc.forEach(x=>{ if(x.date) map[x.date+'|'+x.type]=x.score; });
-    const filteredVals = sc.filter(x=>x.date&&(!from||x.date>=from)&&(!to||x.date<=to)).map(x=>x.score).filter(v=>!isNaN(v));
+    sc.forEach(x=>{ const xCls=x.cls||s.cls; if(xCls===cls && x.date) map[x.date+'|'+x.type]=x.score; });
+    const filteredVals = sc.filter(x=>{const xCls=x.cls||s.cls;return xCls===cls&&x.date&&(!from||x.date>=from)&&(!to||x.date<=to);}).map(x=>x.score).filter(v=>!isNaN(v));
     const a = avg(filteredVals);
-    html += `<tr><td class="student-name">${s.name}</td>`;
+    const isTransferred = s.cls!==cls;
+    html += `<tr><td class="student-name">${s.name}${isTransferred?'<span class="badge" style="font-size:9px;background:rgba(99,102,241,.15);color:#818cf8;margin-left:4px">이동</span>':''}</td>`;
     dates.forEach(d=>{ subjs.forEach(subj=>{ const v=map[d+'|'+subj]; html+=v!==undefined?`<td style="text-align:center"><span class="score-pill" style="color:${scoreColor(v)};background:${scoreColor(v)}22;font-size:10px">${v}</span></td>`:`<td style="text-align:center;color:var(--text3);font-size:10px">—</td>`; }); });
     html += `<td style="text-align:center"><span class="score-pill" style="color:${a?scoreColor(a):'var(--text3)'};background:${a?scoreColor(a)+'22':'transparent'};font-weight:700">${a||'—'}</span></td></tr>`;
   });
