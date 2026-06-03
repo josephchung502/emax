@@ -2371,9 +2371,11 @@ function renderScoreView() {
   }).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   const dateSet = new Set();
   ss.forEach(s=>{
+    const isCurrent = s.cls===cls;
     (scores[s.id]||[]).forEach(sc=>{
-      const scCls=sc.cls||s.cls;
-      if(scCls===cls && sc.date && (!from||sc.date>=from) && (!to||sc.date<=to)) dateSet.add(sc.date);
+      const scCls = sc.cls || s.cls;
+      const clsOk = isCurrent ? true : scCls===cls;
+      if(clsOk && sc.date && (!from||sc.date>=from) && (!to||sc.date<=to)) dateSet.add(sc.date);
     });
   });
   const dates = [...dateSet].sort().reverse().slice(0,8);
@@ -2387,8 +2389,9 @@ function renderScoreView() {
   ss.forEach(s=>{
     const sc = scores[s.id]||[];
     const map = {};
-    sc.forEach(x=>{ const xCls=x.cls||s.cls; if(xCls===cls && x.date) map[x.date+'|'+x.type]=x.score; });
-    const filteredVals = sc.filter(x=>{const xCls=x.cls||s.cls;return xCls===cls&&x.date&&(!from||x.date>=from)&&(!to||x.date<=to);}).map(x=>x.score).filter(v=>!isNaN(v));
+    const isCurrent2 = s.cls===cls;
+    sc.forEach(x=>{ const xCls=x.cls||s.cls; const ok=isCurrent2?true:xCls===cls; if(ok && x.date) map[x.date+'|'+x.type]=x.score; });
+    const filteredVals = sc.filter(x=>{const xCls=x.cls||s.cls;const ok=isCurrent2?true:xCls===cls;return ok&&x.date&&(!from||x.date>=from)&&(!to||x.date<=to);}).map(x=>x.score).filter(v=>!isNaN(v));
     const a = avg(filteredVals);
     const isTransferred = s.cls!==cls;
     html += `<tr><td class="student-name">${s.name}${isTransferred?'<span class="badge" style="font-size:9px;background:rgba(99,102,241,.15);color:#818cf8;margin-left:4px">이동</span>':''}</td>`;
