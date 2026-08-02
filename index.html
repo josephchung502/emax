@@ -1038,7 +1038,7 @@ function scoreColor(n) {
 function avg(arr) { return arr.length?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length):null; }
 function studentAvg(sid) {
   const sc = scores[sid]||[];
-  const vals = sc.map(s=>s.score).filter(v=>!isNaN(v)&&v!==null);
+  const vals = sc.filter(s=>s.type!=='MarketDay Points').map(s=>s.score).filter(v=>!isNaN(v)&&v!==null);
   return avg(vals);
 }
 function resolveAttStatus(val) {
