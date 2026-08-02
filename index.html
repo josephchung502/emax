@@ -1180,10 +1180,12 @@ function enterClass(cls) {
       ]);
       setSyncStatus('synced');
       // 반 목록 드롭다운 일괄 초기화
-      ['sc-class','sc-view-class','att-class','msg-class','rpt-class','batch-fb-class'].forEach(function(id){
+      ['sc-class','sc-view-class','att-class','msg-class','rpt-class'].forEach(function(id){
         const el=document.getElementById(id); if(!el||el.options.length) return;
         el.innerHTML=getAllClasses().map(c=>'<option>'+c+'</option>').join('');
       });
+      const bfcEl=document.getElementById('batch-fb-class');
+      if(bfcEl) bfcEl.innerHTML=getAllClasses().map(c=>'<option>'+c+'</option>').join('');
       renderDashboard(); // 모든 데이터 로드 완료 후 단 한 번 렌더
     })();
   } else {
@@ -3294,6 +3296,7 @@ function deleteLibItem(id) {
 }
 async function generateBatchFeedback() {
   const cls = document.getElementById('batch-fb-class')?.value;
+  if(!cls) { showToast('반을 선택해주세요','e'); return; }
   const topic = document.getElementById('batch-fb-topic')?.value || '';
   const ss = getStudents(cls);
   if(!ss.length) { showToast('학생 없음','e'); return; }
