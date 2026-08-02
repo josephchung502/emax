@@ -365,7 +365,7 @@ textarea.fi{resize:vertical;min-height:70px}
       <!-- ══════════ DASHBOARD ══════════ -->
       <div class="tab-page active" id="tab-dashboard">
         <div class="grid-4">
-          <div class="stat-card"><div class="stat-label">총 학생</div><div class="stat-value" style="color:var(--accent)" id="d-total">—</div></div>
+          <div class="stat-card"><div class="stat-label">총 학생</div><div class="stat-value" style="color:var(--accent)" id="d-total">—</div><div style="font-size:11px;color:var(--text3);margin-top:2px" id="d-total-sub"></div></div>
           <div class="stat-card"><div class="stat-label">이번 주 평균</div><div class="stat-value" style="color:var(--green)" id="d-avg">—</div></div>
           <div class="stat-card"><div class="stat-label">출석률</div><div class="stat-value" style="color:var(--yellow)" id="d-att">—</div></div>
           <div class="stat-card"><div class="stat-label">VOC 재시험 대상</div><div class="stat-value" style="color:var(--red)" id="d-retest">—</div></div>
@@ -1249,8 +1249,8 @@ function postToSheets(payload) {
   const json = JSON.stringify({...payload, classGroup:currentClass});
   const url = gasUrl + '?writeData=' + encodeURIComponent(json);
   return jsonpFetch(url, 15000)
-    .then(function() { setSyncStatus('synced'); })
-    .catch(function() { setSyncStatus('synced'); });
+    .then(function(res) { setSyncStatus('synced'); return res; })
+    .catch(function() { setSyncStatus('synced'); return null; });
 }
 
 async function syncNow() {
@@ -1536,7 +1536,11 @@ function saveRetestThreshold() {
 ═══════════════════════════════════════════════════════ */
 function renderDashboard() {
   const all = getStudents(null);
+  const allWithInactive = getStudents(null, true);
+  const inactiveCount = allWithInactive.filter(s=>s.active===false).length;
   document.getElementById('d-total').textContent = all.length;
+  const subEl = document.getElementById('d-total-sub');
+  if(subEl) subEl.textContent = inactiveCount > 0 ? `비활성 ${inactiveCount}명 포함 전체 ${allWithInactive.length}명` : '';
   const allScores = all.flatMap(s=>(scores[s.id]||[]).map(sc=>sc.score));
   document.getElementById('d-avg').textContent = avg(allScores)||'—';
   const attAll = all.flatMap(s=>Object.values(attendance[s.id]||{}).map(resolveAttStatus));
@@ -2309,8 +2313,9 @@ async function hideStudent(id) {
   st.active = false;
   renderStudentList();
   renderDashboard();
-  await postToSheets({action:'setStudentStatus', name:st.name, cls:st.cls, status:'inactive'});
-  showToast(`${st.name} 숨김 처리됨 — 비활성 포함 체크박스로 복원 가능`,'s');
+  const res = await postToSheets({action:'setStudentStatus', name:st.name, cls:st.cls, status:'inactive'});
+  if(res && res.ok === false) showToast('시트 저장 실패: '+(res.error||'오류'),'e');
+  else showToast(`${st.name} 숨김 처리됨 — 비활성 포함 체크박스로 복원 가능`,'s');
 }
 async function restoreStudent(id) {
   const st = (students[currentClass]||[]).find(s=>s.id===id);
@@ -2318,8 +2323,9 @@ async function restoreStudent(id) {
   st.active = true;
   renderStudentList();
   renderDashboard();
-  await postToSheets({action:'setStudentStatus', name:st.name, cls:st.cls, status:'active'});
-  showToast(`${st.name} 복원됨`,'s');
+  const res = await postToSheets({action:'setStudentStatus', name:st.name, cls:st.cls, status:'active'});
+  if(res && res.ok === false) showToast('시트 저장 실패: '+(res.error||'오류'),'e');
+  else showToast(`${st.name} 복원됨`,'s');
 }
 async function deleteStudent(id) {
   if(!confirm('정말 삭제하시겠습니까?\n데이터가 완전히 사라집니다. 숨기기를 사용하면 나중에 복원할 수 있습니다.')) return;
