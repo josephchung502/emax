@@ -561,6 +561,17 @@ textarea.fi{resize:vertical;min-height:70px}
           </div>
         </div>
       </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-header">
+      <div class="card-title">📋 이번 주 피드백 일괄 생성</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <select class="fi fi-sm" id="batch-fb-class" style="width:auto"></select>
+        <input type="text" class="fi fi-sm" id="batch-fb-topic" placeholder="이번 주 수업 내용 (공통층 — 예: 문법L13, RE3 Unit5)" style="min-width:200px">
+        <button class="btn btn-primary btn-sm" onclick="generateBatchFeedback()">✨ 일괄 생성</button>
+      </div>
+    </div>
+    <div id="batch-fb-output" style="padding:14px;color:var(--text3);font-size:12px">반과 이번 주 수업 내용을 입력 후 생성 버튼을 눌러주세요.<br><span style="font-size:10px">💡 관찰 태그(출석/숙제 탭 S/W 번호 입력)가 있으면 개인 피드백에 반영됩니다.</span></div>
+  </div>
 
     </div><!-- /content -->
   </div><!-- /main -->
@@ -606,10 +617,14 @@ textarea.fi{resize:vertical;min-height:70px}
       Sheet명: <code style="color:var(--accent)">Schedule</code> | 열 순서: <code style="color:var(--accent)">날짜 | 반 | 수업내용 | 과목1 | 과목2 | 과목3</code><br><br>
       <strong style="color:var(--text)">VOC 재시험 기준 점수:</strong>
       <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
-        <span>G5 TFS:</span> <input type="number" class="fi" id="retest-g5" value="80" style="width:55px">
-        <span>KG6 Lv2:</span> <input type="number" class="fi" id="retest-kg6-2" value="84" style="width:50px">
-        <span>Lv3:</span> <input type="number" class="fi" id="retest-kg6-3" value="80" style="width:50px">
-        <span>Lv4:</span> <input type="number" class="fi" id="retest-kg6-4" value="76" style="width:50px">
+        <span style="font-size:11px;font-weight:600;color:var(--text2)">G5TFS</span>
+        <span style="font-size:10px;color:var(--text3)">Lv2:</span><input type="number" class="fi" id="retest-g5-2" value="92" style="width:46px">
+        <span style="font-size:10px;color:var(--text3)">Lv3:</span><input type="number" class="fi" id="retest-g5-3" value="88" style="width:46px">
+        <span style="font-size:10px;color:var(--text3)">Lv4:</span><input type="number" class="fi" id="retest-g5-4" value="84" style="width:46px">
+        <span style="font-size:11px;font-weight:600;color:var(--text2);margin-left:6px">KG6</span>
+        <span style="font-size:10px;color:var(--text3)">Lv2:</span><input type="number" class="fi" id="retest-kg6-2" value="88" style="width:46px">
+        <span style="font-size:10px;color:var(--text3)">Lv3:</span><input type="number" class="fi" id="retest-kg6-3" value="84" style="width:46px">
+        <span style="font-size:10px;color:var(--text3)">Lv4:</span><input type="number" class="fi" id="retest-kg6-4" value="80" style="width:46px">
         <button class="btn btn-ghost btn-sm" onclick="saveRetestThreshold()">저장</button>
       </div>
     </div>
@@ -730,13 +745,29 @@ const KG6_LEVEL_CONFIG = {
   },
 };
 
+// ── 관찰 태그 정의 ──────────────────────────────────
+const OBS_TAGS_KG6 = {
+  strength: ['문법개념정확','오답교정력','독해정확도','암기력우수','단어암기우수','숙제완성도','수업집중','질문적극','서술형논리','시간내완수','응용력','내신기출숙달','꼼꼼함(필기충실)','개선속도','자기주도','성실태도','독해속도','문장구조·어법정확','복습철저','적극참여'],
+  weakness: ['문법개념혼동','반복오답','독해미숙','암기유지약함','단어미암기','숙제미완성','집중부족','소극적','서술형취약','시간초과','실수잦음','기출적응부족','덤벙댐(필기부실)','개선더딤','의존적','태도불성실','독해속도느림','문장구조·어법약함','복습부족','소극참여'],
+  attitude: ['집중도','성실도','참여도','Root수업집중도'],
+};
+const OBS_TAGS_G5TFS = {
+  strength: ['전달력','구성','요약력','내용이해','VOC활용','시간관리','개선의지','논리연결','근거제시','발음명료','유창성','표현다양','주제집중','자기수정','적극성'],
+  weakness: ['VOC누락','미완성','시간초과','시간부족','근거부족','발음불명','구조흐트러짐','내용얕음','2회미반영','주제이탈','암기의존','자신감부족','속도문제','반복표현','연결어부족'],
+  posPeer: ['배려','리더십','협력','분위기메이커','경청','격려','중재','양보','친화력','모범'],
+  negPeer: ['위축','갈등','산만유발','비협조','독점','소외','무관심','과경쟁','장난과다','의존'],
+  attitude: ['집중도','성실도','참여도'],
+};
+function getObsTags() { return currentClass==='KG6' ? OBS_TAGS_KG6 : OBS_TAGS_G5TFS; }
+
 let currentClass = 'KG6';
 let students = {};
 let scores = {};      // {studentId: [{week, type, score, date, memo}]}
 let attendance = {};  // {studentId: {date: 'present'|'absent'|'late'}}
 let homework = {};    // {studentId: {week: {hwKey: {done, score}}}}
 let retests = {};     // {studentId: {week: {taken:bool, score:int}}}
-let retestThreshold = {G5TFS:80, KG6:80, KG6_2:84, KG6_3:80, KG6_4:76};
+let obsTags = {};   // {studentId: {week: {strength:[], weakness:[], attitude:{}}}}
+let retestThreshold = {G5TFS:84, G5TFS_2:92, G5TFS_3:88, G5TFS_4:84, KG6:80, KG6_2:88, KG6_3:84, KG6_4:80};
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxA_mTN6NBguxniGtsRaQI2uLTRaMgAKOP_surkIpbG1tRtDtkLZgAtPU-mL7LQRfddeg/exec';
 let gasUrl = localStorage.getItem('emax_gas_url') || DEFAULT_GAS_URL;
 let gasScheduleUrl = localStorage.getItem('emax_gas_schedule_url') || '';
@@ -906,7 +937,11 @@ function getRetestCutoff(cls, sid) {
   }
   if (currentClass === 'KG6') {
     const level = resolveLevel(cls, sid);
-    if (level) return retestThreshold['KG6_' + level] || retestThreshold[currentClass];
+    if (level) return retestThreshold['KG6_' + level] || retestThreshold.KG6;
+  }
+  if (currentClass === 'G5TFS') {
+    const level = resolveLevel(cls, sid);
+    if (level) return retestThreshold['G5TFS_' + level] || retestThreshold.G5TFS;
   }
   return retestThreshold[currentClass];
 }
@@ -1135,6 +1170,7 @@ function enterClass(cls) {
         loadRetestsFromSheets(),
         loadScheduleFromSheets(),
         loadConsultationsFromSheets(),
+        loadObsTagsFromSheets(),
       ]);
       setSyncStatus('synced');
       renderDashboard(); // 모든 데이터 로드 완료 후 단 한 번 렌더
@@ -1315,6 +1351,45 @@ async function loadRetestsFromSheets() {
   } catch(e) { console.warn('재시험 불러오기 실패:', e.message); }
 }
 
+async function loadObsTagsFromSheets() {
+  if(!gasUrl) return;
+  try {
+    const url = gasUrl+'?action=getObsTags&class='+encodeURIComponent(currentClass);
+    const data = await jsonpFetch(url, 12000);
+    if(!Array.isArray(data)||data.length<2) return;
+    data.slice(1).forEach(r=>{
+      const clsName=String(r[1]||'').trim(), name=String(r[2]||'').trim();
+      const week=String(r[3]||'').trim();
+      if(!name||!week) return;
+      let st=(students[currentClass]||[]).find(s=>s.name===name&&s.cls===clsName);
+      if(!st) st=(students[currentClass]||[]).find(s=>s.name===name);
+      if(!st) return;
+      if(!obsTags[st.id]) obsTags[st.id]={};
+      try {
+        obsTags[st.id][week]={
+          strength:JSON.parse(r[4]||'[]'),
+          weakness:JSON.parse(r[5]||'[]'),
+          attitude:JSON.parse(r[6]||'{}'),
+        };
+      } catch(e){}
+    });
+  } catch(e){console.warn('관찰 태그 로드 실패:',e.message);}
+}
+function saveObsTagEl(el) {
+  saveObsTag(el.dataset.sid, el.dataset.week, el.dataset.field, el.value);
+}
+function saveObsTag(sid, week, field, value) {
+  if(!obsTags[sid]) obsTags[sid]={};
+  if(!obsTags[sid][week]) obsTags[sid][week]={};
+  const nums = value.split(',').map(n=>parseInt(n.trim())).filter(n=>!isNaN(n)&&n>0);
+  obsTags[sid][week][field] = nums;
+  const st=(students[currentClass]||[]).find(s=>s.id===sid);
+  const obs=obsTags[sid][week];
+  postToSheets({action:'saveObsTags', name:st?.name||'', cls:st?.cls||'', week,
+    strength:JSON.stringify(obs.strength||[]),
+    weakness:JSON.stringify(obs.weakness||[]),
+    attitude:JSON.stringify(obs.attitude||{})});
+}
 function normalizeDate(raw) {
   const s = String(raw || '');
   if (s.length > 10 && s.includes('T')) {
@@ -1419,10 +1494,14 @@ function saveGasUrl() {
   gasScheduleUrl = document.getElementById('gas-schedule-url-input').value.trim();
   localStorage.setItem('emax_gas_url', gasUrl);
   localStorage.setItem('emax_gas_schedule_url', gasScheduleUrl);
-  retestThreshold.G5TFS = parseInt(document.getElementById('retest-g5').value)||80;
-  retestThreshold.KG6_2 = parseInt(document.getElementById('retest-kg6-2').value)||84;
-  retestThreshold.KG6_3 = parseInt(document.getElementById('retest-kg6-3').value)||80;
-  retestThreshold.KG6_4 = parseInt(document.getElementById('retest-kg6-4').value)||76;
+  retestThreshold.G5TFS_2 = parseInt(document.getElementById('retest-g5-2').value)||92;
+  retestThreshold.G5TFS_3 = parseInt(document.getElementById('retest-g5-3').value)||88;
+  retestThreshold.G5TFS_4 = parseInt(document.getElementById('retest-g5-4').value)||84;
+  retestThreshold.G5TFS = retestThreshold.G5TFS_4;
+  retestThreshold.KG6_2 = parseInt(document.getElementById('retest-kg6-2').value)||88;
+  retestThreshold.KG6_3 = parseInt(document.getElementById('retest-kg6-3').value)||84;
+  retestThreshold.KG6_4 = parseInt(document.getElementById('retest-kg6-4').value)||80;
+  retestThreshold.KG6 = retestThreshold.KG6_4;
   const ok = !!gasUrl;
   document.getElementById('settings-banner').className = 'settings-banner '+(ok?'on':'off');
   document.getElementById('settings-banner').textContent = ok?'✅ Google Sheets 연결됨':'🔴 URL을 입력해주세요';
@@ -1430,10 +1509,14 @@ function saveGasUrl() {
   showToast(ok?'설정 저장됨':'URL이 비어있습니다', ok?'s':'e');
 }
 function saveRetestThreshold() {
-  retestThreshold.G5TFS = parseInt(document.getElementById('retest-g5').value)||80;
-  retestThreshold.KG6_2 = parseInt(document.getElementById('retest-kg6-2').value)||84;
-  retestThreshold.KG6_3 = parseInt(document.getElementById('retest-kg6-3').value)||80;
-  retestThreshold.KG6_4 = parseInt(document.getElementById('retest-kg6-4').value)||76;
+  retestThreshold.G5TFS_2 = parseInt(document.getElementById('retest-g5-2').value)||92;
+  retestThreshold.G5TFS_3 = parseInt(document.getElementById('retest-g5-3').value)||88;
+  retestThreshold.G5TFS_4 = parseInt(document.getElementById('retest-g5-4').value)||84;
+  retestThreshold.G5TFS = retestThreshold.G5TFS_4;
+  retestThreshold.KG6_2 = parseInt(document.getElementById('retest-kg6-2').value)||88;
+  retestThreshold.KG6_3 = parseInt(document.getElementById('retest-kg6-3').value)||84;
+  retestThreshold.KG6_4 = parseInt(document.getElementById('retest-kg6-4').value)||80;
+  retestThreshold.KG6 = retestThreshold.KG6_4;
   showToast('재시험 기준 저장됨','s');
 }
 
@@ -1463,7 +1546,7 @@ function renderDashboard() {
   if(retestCard) {
     retestCard.style.display = retestCandidates.length ? '' : 'none';
     if(retestCandidates.length) {
-      document.getElementById('d-retest-list').innerHTML = `<table class="tbl"><thead><tr><th>학생</th><th>반</th><th>시험 날짜</th><th>결과</th><th></th></tr></thead><tbody>` +
+      document.getElementById('d-retest-list').innerHTML = `<table class="tbl"><thead><tr><th>학생</th><th>반</th><th>시험 날짜</th><th>결과</th><th>재시험 문자</th><th></th></tr></thead><tbody>` +
         retestCandidates.map(({s, triggerWeek})=>{
           const ri = (retests[s.id]||{})[triggerWeek]||{};
           const failedSc = (scores[s.id]||[]).find(sc=>sc.week===triggerWeek&&sc.type===cfg().retestSubject);
@@ -1475,6 +1558,7 @@ function renderDashboard() {
               <option value="pass"${ri.result==='pass'?' selected':''}>통과</option>
               <option value="fail"${ri.result==='fail'?' selected':''}>미통과</option>
             </select></td>
+            <td><button class="btn btn-ghost btn-sm" style="font-size:10px;white-space:nowrap" onclick="navigator.clipboard.writeText(generateRetestMsg('${s.id}','${triggerWeek}')).then(()=>showToast('재시험 안내 문자 복사됨','s'))">📋 문자 복사</button></td>
             <td><button class="btn btn-primary btn-sm" onclick="saveDashboardRetest('${s.id}','${triggerWeek}')">저장</button></td></tr>`;
         }).join('') + `</tbody></table>`;
     }
@@ -2544,8 +2628,17 @@ function renderAttList() {
     else if(isRetest) nameBadges += '<span class="retest-badge">재시험</span>';
     if(isBogangActive) nameBadges += '<span class="badge b-orange" style="margin-left:4px">&rarr;' + (bogangInfo.targetCls||'?') + (bogangInfo.targetDate?' ('+bogangInfo.targetDate+')':'') + '</span>';
 
+    var curObs = ((obsTags[s.id]||{})[week])||{};
+    var strVal = (curObs.strength||[]).join(',');
+    var wkVal = (curObs.weakness||[]).join(',');
+    var obsCell = '<div style="display:flex;gap:3px;margin-top:4px;align-items:center;flex-wrap:wrap">'
+      + '<span style="font-size:9px;font-weight:700;color:var(--green)">S</span>'
+      + '<input class="fi" type="text" data-sid="' + s.id + '" data-week="' + week + '" data-field="strength" value="' + strVal + '" placeholder="번호" style="width:44px;padding:1px 3px;font-size:10px" onblur="saveObsTagEl(this)" title="강점 번호 입력 (예: 2,7)">'
+      + '<span style="font-size:9px;font-weight:700;color:var(--red);margin-left:2px">W</span>'
+      + '<input class="fi" type="text" data-sid="' + s.id + '" data-week="' + week + '" data-field="weakness" value="' + wkVal + '" placeholder="번호" style="width:44px;padding:1px 3px;font-size:10px" onblur="saveObsTagEl(this)" title="약점 번호 입력 (예: 5)">'
+      + '</div>';
     html += '<tr' + (isBogangActive?' style="opacity:0.55"':'') + '>'
-      + '<td style="font-weight:600">' + s.name + nameBadges + '</td>'
+      + '<td style="font-weight:600;min-width:110px">' + s.name + nameBadges + obsCell + '</td>'
       + attBtns
       + bogangCell
       + '<td>' + retestCell + '</td>'
@@ -2980,17 +3073,55 @@ ${selectedSubjs.map(subj=>{const sv=studentAvgMap[subj];const cv=classAvgMap[sub
   }
 }
 function copyReport() { navigator.clipboard.writeText(document.getElementById('report-output').innerText).then(()=>showToast('복사됨','s')); }
+function generateRetestMsg(sid, triggerWeek) {
+  const st=(students[currentClass]||[]).find(s=>s.id===sid);
+  if(!st) return '';
+  const wkNum=(triggerWeek.match(/W(\d+)/)||[])[1]||triggerWeek;
+  const failedSc=(scores[sid]||[]).find(sc=>sc.week===triggerWeek&&sc.type===cfg().retestSubject);
+  const testDate=failedSc?.date||'';
+  if(currentClass==='KG6') {
+    return `[[ 단어 재시험 안내 ]]
+안녕하세요 어머님!
+안타깝게도 아이가 WK${wkNum} 단어 시험에 불통하게 되어 재시험 대상자로 확인되어 아래와 같이 6학년 재시험 안내드립니다!
+▶장소 : 304호실
+▶시간 : 오후 3:30분 또는 오후 6:40
+▶소요시간 : 20분
+▶내용 : 재시험 진행 및 간단한 단어 시험 클리닉 진행`;
+  }
+  // G5TFS — 다음 주 목/금/토 자동 계산
+  let thu='목',fri='금',sat='토';
+  if(testDate) {
+    const d=new Date(testDate);
+    const dow=d.getDay()===0?7:d.getDay();
+    const mon=new Date(d); mon.setDate(d.getDate()-dow+1+7); // next week Monday
+    const th=new Date(mon); th.setDate(mon.getDate()+3);
+    const fr=new Date(mon); fr.setDate(mon.getDate()+4);
+    const sa=new Date(mon); sa.setDate(mon.getDate()+5);
+    const fmt=x=>`${x.getMonth()+1}/${x.getDate()}(${['일','월','화','수','목','금','토'][x.getDay()]})`;
+    thu=fmt(th); fri=fmt(fr); sat=fmt(sa);
+  }
+  return `[[ 단어 재시험 안내 ]]
+안녕하세요 어머님!
+안타깝게도 아이가 WK${wkNum} 단어 시험에 불통하게 되어 재시험 대상자로 확인되어 아래와 같이 5학년 재시험 안내드립니다!
+▶장소 : 304호실
+▶날짜 : ${thu}, ${fri}, ${sat}
+▶시간 : 오후 3:30분(목, 금요일) 또는 오전 9:30 or 오후 4:10 (토요일)
+▶소요시간 : 20분
+▶내용 : 재시험 진행 및 간단한 단어 시험 클리닉 진행`;
+}
 
 /* ═══════════════════════════════════════════════════════
    MESSAGE
 ═══════════════════════════════════════════════════════ */
 const MSG_TYPES_CLASS = ['시험 대비','수업 내용 안내'];
-const MSG_TYPES_INDIVIDUAL = ['월간 성적 안내','숙제 미제출','성적 향상 칭찬','결석 확인','클리닉 안내','어휘 재시험 대상자 안내'];
+const MSG_TYPES_INDIVIDUAL = ['주별 종합 피드백','월간 성적 안내','숙제 미제출','성적 향상 칭찬','결석 확인','클리닉 안내','어휘 재시험 대상자 안내'];
 function initMessage() {
   const el = document.getElementById('msg-class');
   el.innerHTML = getAllClasses().map(c=>`<option>${c}</option>`).join('');
   setMsgMode('class', document.getElementById('msg-type-btn-class'));
   renderMsgLibPreview();
+  const bc = document.getElementById('batch-fb-class');
+  if(bc) bc.innerHTML = getAllClasses().map(c=>`<option>${c}</option>`).join('');
 }
 function setMsgMode(mode, btn) {
   msgMode = mode;
@@ -3027,7 +3158,19 @@ async function generateMessage() {
     const ar = attRate(sid);
     const cw = currentWeek();
     const retestFlag = isRetestCandidate(sid,cw,s.cls);
-    context = `학생: ${s.name} (${cls})\n평균점수: ${a??'없음'}\n출석률: ${ar??'없음'}%\n이번주 재시험 대상: ${retestFlag?'예':'아니오'}\n`;
+    if(selectedMsgType==='주별 종합 피드백') {
+      const tags=getObsTags();
+      const obs=(obsTags[sid]||{})[cw]||{};
+      const sNames=(obs.strength||[]).map(n=>tags.strength[n-1]).filter(Boolean);
+      const wNames=(obs.weakness||[]).map(n=>tags.weakness[n-1]).filter(Boolean);
+      const triggerW=getRetestTriggerWeek(sid,cw,s.cls);
+      const vocSc=(scores[sid]||[]).find(sc=>sc.week===cw&&sc.type===cfg().retestSubject);
+      const schedEv=scheduleData.find(ev=>ev.cls===s.cls&&dateToWeek(ev.date)===cw);
+      const schedInfo=schedEv?[schedEv.topic,...schedEv.subjects].filter(Boolean).join(', '):'(미입력)';
+      context = `학생: ${s.name} (${s.cls})\n이번주수업: ${schedInfo}\n강점태그: ${sNames.join(', ')||'없음'}\n약점태그: ${wNames.join(', ')||'없음'}\n어휘시험: ${vocSc?vocSc.score+'점':'미입력'}${triggerW?' (재시험 대상)':' (통과)'}\n추가메모: ${note||'없음'}`;
+    } else {
+      context = `학생: ${s.name} (${cls})\n평균점수: ${a??'없음'}\n출석률: ${ar??'없음'}%\n이번주 재시험 대상: ${retestFlag?'예':'아니오'}\n`;
+    }
   } else {
     const ss = getStudents(cls);
     const avgs = ss.map(s=>studentAvg(s.id)).filter(Boolean);
@@ -3036,7 +3179,9 @@ async function generateMessage() {
   try {
     const msgApiKey = getApiKey();
     if(!msgApiKey) { out.style.color='var(--yellow)'; out.textContent='Anthropic API Key를 리포트 탭에서 먼저 저장해주세요.'; return; }
-    const res = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':msgApiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:800,messages:[{role:'user',content:`당신은 서울 대치동 eMAX 어학원 영어 강사 정요셉 선생님입니다.\n\n${context}\n메시지 유형: ${selectedMsgType}\n추가 메모: ${note||'없음'}\n\n학부모(${msgMode==='class'?'반 전체':'개인'})께 카카오톡 메시지를 한국어로 작성하세요.\n- 친근하고 전문적인 톤\n- 이모지 적절히 사용\n- 200-280자\n- "정요셉 드림"으로 마무리\n- 메시지 내용만 출력 (설명 없이)`}]})});
+    const res = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':msgApiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:800,messages:[{role:'user',content:selectedMsgType==='주별 종합 피드백'
+      ? `당신은 eMAX 어학원 정요셉 선생님입니다.\n\n${context}\n\n위 정보를 바탕으로 학부모용 카카오톡 피드백 메시지를 작성하세요.\n형식:\n안녕하세요 어머님!\n[[ 이번 주 수업 ]]\n· (이번주수업 내용 요약)\n[[ ${(students[currentClass]||[]).find(st=>st.id===document.getElementById('msg-student').value)?.name||'학생'} 이번 주 ]]\n· (강점 태그 문장화, 없으면 생략)\n· (약점 태그 순화 문장, 없으면 생략)\n· (어휘시험 통과/재시험 안내)\n감사합니다!\n정요셉 드림\n\n메시지 내용만 출력.`
+      : `당신은 서울 대치동 eMAX 어학원 영어 강사 정요셉 선생님입니다.\n\n${context}\n메시지 유형: ${selectedMsgType}\n추가 메모: ${note||'없음'}\n\n학부모(${msgMode==='class'?'반 전체':'개인'})께 카카오톡 메시지를 한국어로 작성하세요.\n- 친근하고 전문적인 톤\n- 이모지 적절히 사용\n- 200-280자\n- "정요셉 드림"으로 마무리\n- 메시지 내용만 출력 (설명 없이)`}]})});
     const data = await res.json();
     if(data.error) throw new Error(data.error.message);
     out.style.color = 'var(--text)';
@@ -3095,6 +3240,68 @@ function deleteLibItem(id) {
   localStorage.setItem('emax_msg_lib',JSON.stringify(msgLibrary));
   openMsgLibModal(); renderMsgLibPreview();
 }
+async function generateBatchFeedback() {
+  const cls = document.getElementById('batch-fb-class')?.value;
+  const topic = document.getElementById('batch-fb-topic')?.value || '';
+  const ss = getStudents(cls);
+  if(!ss.length) { showToast('학생 없음','e'); return; }
+  const apiKey = getApiKey();
+  if(!apiKey) { showToast('API Key 필요 (리포트 탭에서 저장)','e'); return; }
+  const out = document.getElementById('batch-fb-output');
+  out.innerHTML = '<div style="color:var(--text3);padding:8px">⏳ 생성 중... ('+ss.length+'명)</div>';
+  const cw = currentWeek();
+  const tags = getObsTags();
+  const cards = await Promise.all(ss.map(async s=>{
+    const obs=(obsTags[s.id]||{})[cw]||{};
+    const sNames=(obs.strength||[]).map(n=>tags.strength[n-1]).filter(Boolean);
+    const wNames=(obs.weakness||[]).map(n=>tags.weakness[n-1]).filter(Boolean);
+    const triggerW=getRetestTriggerWeek(s.id,cw,s.cls);
+    const vocSc=(scores[s.id]||[]).find(sc=>sc.week===cw&&sc.type===cfg().retestSubject);
+    const ctx=`학생: ${s.name} (${s.cls})
+이번주수업: ${topic||'(미입력)'}
+강점태그: ${sNames.join(', ')||'없음'}
+약점태그: ${wNames.join(', ')||'없음'}
+어휘시험: ${vocSc?vocSc.score+'점':'미입력'}${triggerW?' (재시험 대상)':''}`;
+    try {
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,messages:[{role:'user',content:`당신은 eMAX 어학원 정요셉 선생님입니다.
+
+${ctx}
+
+위 정보로 학부모 카카오톡 피드백을 작성하세요.
+형식:
+안녕하세요 어머님!
+[[ 이번 주 수업 ]]
+· (수업내용)
+[[ ${s.name} 이번 주 ]]
+· (강점 — 없으면 생략)
+· (약점 순화 — 없으면 생략)
+· (어휘시험 안내)
+감사합니다!
+정요셉 드림
+
+메시지만 출력.`}]})
+      });
+      const data=await res.json();
+      if(data.error) throw new Error(data.error.message);
+      return {s, text:data.content?.map(b=>b.text||'').join('')||'오류', ok:true};
+    } catch(e){ return {s, text:'생성 실패: '+e.message, ok:false}; }
+  }));
+  out.innerHTML = cards.map(({s,text,ok})=>`
+    <div style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-weight:700">${s.name} <span class="badge b-blue" style="font-size:10px">${s.cls}</span></span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="this.closest('div[style]').querySelector('.fb-txt').style.display=this.closest('div[style]').querySelector('.fb-txt').style.display==='none'?'block':'none'" style="font-size:10px">표시/숨김</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:10px" onclick="navigator.clipboard.writeText(this.closest('div[style]').querySelector('.fb-txt').textContent.trim()).then(()=>showToast('${s.name} 메시지 복사됨','s'))">📋 복사</button>
+        </div>
+      </div>
+      <pre class="fb-txt comment-box" style="font-size:12px;white-space:pre-wrap;${ok?'':'color:var(--red)'}">${text}</pre>
+    </div>
+  `).join('');
+}
 
 /* ═══════════════════════════════════════════════════════
    UTILS
@@ -3103,10 +3310,12 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 function openSettings() {
   document.getElementById('gas-url-input').value = gasUrl;
   document.getElementById('gas-schedule-url-input').value = gasScheduleUrl;
-  document.getElementById('retest-g5').value = retestThreshold.G5TFS;
-  document.getElementById('retest-kg6-2').value = retestThreshold.KG6_2;
-  document.getElementById('retest-kg6-3').value = retestThreshold.KG6_3;
-  document.getElementById('retest-kg6-4').value = retestThreshold.KG6_4;
+  document.getElementById('retest-g5-2').value = retestThreshold.G5TFS_2||92;
+  document.getElementById('retest-g5-3').value = retestThreshold.G5TFS_3||88;
+  document.getElementById('retest-g5-4').value = retestThreshold.G5TFS_4||84;
+  document.getElementById('retest-kg6-2').value = retestThreshold.KG6_2||88;
+  document.getElementById('retest-kg6-3').value = retestThreshold.KG6_3||84;
+  document.getElementById('retest-kg6-4').value = retestThreshold.KG6_4||80;
   const on = !!gasUrl;
   document.getElementById('settings-banner').className = 'settings-banner '+(on?'on':'off');
   document.getElementById('settings-banner').textContent = on?'✅ Google Sheets 연결됨':'🔴 URL을 입력해주세요';
