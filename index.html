@@ -421,6 +421,9 @@ textarea.fi{resize:vertical;min-height:70px}
                 <select class="fi fi-sm" id="stu-class-filter" onchange="renderStudentList()" style="width:auto">
                   <option value="">전체</option>
                 </select>
+                <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap">
+                  <input type="checkbox" id="show-inactive-stu" onchange="renderStudentList()"> 비활성 포함
+                </label>
               </div>
             </div>
             <div style="overflow-x:auto">
@@ -854,9 +857,11 @@ async function loadStudentsFromSheets() {
       const grade         = useGrade>=0         ? String(r[useGrade]||'').trim()         : (currentClass==='KG6'?'G6':'G5');
       const threshold     = useThreshold>=0     ? parseInt(r[useThreshold])||null         : null;
       const personalLevel = usePersonalLevel>=0 ? String(r[usePersonalLevel]||'').trim() || null : null;
+      const useActive = colIdx(['상태','active','활성']);
+      const active = useActive>=0 ? String(r[useActive]||'').trim().toLowerCase() !== 'inactive' : true;
       const id = 'sh_' + cls.replace(/[^a-zA-Z0-9가-힣]/g,'') + '_' + name.replace(/[^a-zA-Z0-9가-힣]/g,'');
 
-      loaded.push({id:id, name:name, cls:cls, grade:grade, threshold:threshold, personalLevel:personalLevel});
+      loaded.push({id:id, name:name, cls:cls, grade:grade, threshold:threshold, personalLevel:personalLevel, active:active});
       if(!scores[id])     scores[id]     = [];
       if(!attendance[id]) attendance[id] = {};
       if(!homework[id])   homework[id]   = {};
@@ -885,9 +890,10 @@ async function loadStudentsFromSheets() {
 }
 
 
-function getStudents(cls) {
+function getStudents(cls, includeInactive) {
   const all = students[currentClass] || [];
-  const filtered = cls ? all.filter(s=>s.cls===cls) : all;
+  let filtered = includeInactive ? all : all.filter(s=>s.active!==false);
+  if(cls) filtered = filtered.filter(s=>s.cls===cls);
   return filtered.slice().sort((a,b)=>a.name.localeCompare(b.name,'ko'));
 }
 function getAllClasses() { return CLASS_CONFIG[currentClass].classes; }
@@ -1054,7 +1060,7 @@ function getAttBogangCls(sid, date) {
 }
 function getBogangStudentsForClass(cls, date) {
   const result = [];
-  (students[currentClass]||[]).forEach(s => {
+  (students[currentClass]||[]).filter(s=>s.active!==false).forEach(s => {
     if(s.cls === cls) return;
     for(const [srcDate, val] of Object.entries(attendance[s.id]||{})) {
       if(typeof val === 'object' && val && val.status === 'bogang' && val.targetCls === cls && val.targetDate === date) {
@@ -1529,7 +1535,7 @@ function saveRetestThreshold() {
    DASHBOARD
 ═══════════════════════════════════════════════════════ */
 function renderDashboard() {
-  const all = students[currentClass]||[];
+  const all = getStudents(null);
   document.getElementById('d-total').textContent = all.length;
   const allScores = all.flatMap(s=>(scores[s.id]||[]).map(sc=>sc.score));
   document.getElementById('d-avg').textContent = avg(allScores)||'—';
@@ -1636,7 +1642,7 @@ function renderDashboardHwIncomplete() {
   const el=document.getElementById('d-hw-incomplete');
   if(!el) return;
   const today=new Date().toISOString().slice(0,10);
-  const all=students[currentClass]||[];
+  const all=getStudents(null);
   const isKG6=currentClass==='KG6';
   const itemRows=[];
   const effHwCache={};
@@ -1764,7 +1770,7 @@ function renderDashboardHwConsult() {
   if(!el) return;
   const cw=currentWeek();
   const pw1=prevWeek(cw),pw2=prevWeek(pw1),pw3=prevWeek(pw2);
-  const all=students[currentClass]||[];
+  const all=getStudents(null);
   const isKG6=currentClass==='KG6';
   const consultList=all.filter(s=>{
     const weeksBack=[1,2,3];
@@ -2146,24 +2152,41 @@ function renderStudentList() {
   document.getElementById('student-detail-view').style.display='none';
   document.getElementById('student-list-view').style.display='block';
   const filter = document.getElementById('stu-class-filter').value;
-  const list = getStudents(filter);
+  const showInactive = document.getElementById('show-inactive-stu')?.checked;
   const cw = currentWeek();
-  document.getElementById('student-table').innerHTML = list.length ? list.map(s=>{
-    const a = studentAvg(s.id);
-    const ar = attRate(s.id);
-    const retestDone = isRetestDone(s.id, cw, s.cls);
-    const isRetest = !retestDone && isRetestCandidate(s.id,cw,s.cls);
-    const md = getCumulativeMdp(s.id);
-    return `<tr>
+  const list = getStudents(filter);
+  const inactiveList = showInactive
+    ? (students[currentClass]||[]).filter(s=>s.active===false&&(!filter||s.cls===filter)).sort((a,b)=>a.name.localeCompare(b.name,'ko'))
+    : [];
+  const makeRow = (s, inactive) => {
+    const a = inactive ? null : studentAvg(s.id);
+    const ar = inactive ? null : attRate(s.id);
+    const retestDone = !inactive && isRetestDone(s.id, cw, s.cls);
+    const isRetest = !inactive && !retestDone && isRetestCandidate(s.id,cw,s.cls);
+    const md = inactive ? null : getCumulativeMdp(s.id);
+    return `<tr style="${inactive?'opacity:0.45':''}">
       <td style="font-weight:600;cursor:pointer;color:var(--accent)" onclick="openStudentDetail('${s.id}')">${s.name}</td>
       <td><span class="badge b-blue">${s.cls}</span></td>
       <td>${ar!==null?ar+'%':'—'}</td>
       <td class="num" style="color:${a?scoreColor(a):'var(--text3)'}">${a||'—'}</td>
-      <td>${retestDone?`<span class="badge b-green">재시험 진행완료</span>`:isRetest?`<span class="badge b-red">재시험 대상</span>`:'<span class="badge b-gray">해당없음</span>'}</td>
-      <td class="num" style="color:var(--purple)">${md||0}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="deleteStudent('${s.id}')">삭제</button></td>
+      <td>${inactive?'<span class="badge b-gray">비활성</span>':retestDone?`<span class="badge b-green">재시험 진행완료</span>`:isRetest?`<span class="badge b-red">재시험 대상</span>`:'<span class="badge b-gray">해당없음</span>'}</td>
+      <td class="num" style="color:var(--purple)">${md!==null?md||0:'—'}</td>
+      <td style="display:flex;gap:4px">
+        ${inactive
+          ? `<button class="btn btn-green btn-sm" onclick="restoreStudent('${s.id}')">복원</button>`
+          : `<button class="btn btn-yellow btn-sm" onclick="hideStudent('${s.id}')">숨기기</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="deleteStudent('${s.id}')">삭제</button>
+      </td>
     </tr>`;
-  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">학생 없음</td></tr>';
+  };
+  let html = list.length
+    ? list.map(s=>makeRow(s,false)).join('')
+    : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">학생 없음</td></tr>';
+  if(inactiveList.length) {
+    html += `<tr><td colspan="7" style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--text3);background:var(--surface2)">숨긴 학생 (${inactiveList.length}명)</td></tr>`;
+    html += inactiveList.map(s=>makeRow(s,true)).join('');
+  }
+  document.getElementById('student-table').innerHTML = html;
 }
 function openStudentDetail(sid) {
   const s = (students[currentClass]||[]).find(st=>st.id===sid);
@@ -2280,8 +2303,26 @@ function renderDetailDateScores(sid) {
   const map = {}; sc.forEach(x=>{map[x.type]=x.score;});
   el.innerHTML = `<table class="tbl"><thead><tr><th>과목</th><th class="num">점수</th></tr></thead><tbody>${subjs.map(s=>`<tr><td>${s}</td><td class="num">${map[s]!==undefined?`<span class="score-pill" style="color:${scoreColor(map[s])};background:${scoreColor(map[s])}22">${map[s]}</span>`:'—'}</td></tr>`).join('')}</tbody></table>`;
 }
+async function hideStudent(id) {
+  const st = (students[currentClass]||[]).find(s=>s.id===id);
+  if(!st) return;
+  st.active = false;
+  renderStudentList();
+  renderDashboard();
+  await postToSheets({action:'setStudentStatus', name:st.name, cls:st.cls, status:'inactive'});
+  showToast(`${st.name} 숨김 처리됨 — 비활성 포함 체크박스로 복원 가능`,'s');
+}
+async function restoreStudent(id) {
+  const st = (students[currentClass]||[]).find(s=>s.id===id);
+  if(!st) return;
+  st.active = true;
+  renderStudentList();
+  renderDashboard();
+  await postToSheets({action:'setStudentStatus', name:st.name, cls:st.cls, status:'active'});
+  showToast(`${st.name} 복원됨`,'s');
+}
 async function deleteStudent(id) {
-  if(!confirm('삭제하시겠습니까?')) return;
+  if(!confirm('정말 삭제하시겠습니까?\n데이터가 완전히 사라집니다. 숨기기를 사용하면 나중에 복원할 수 있습니다.')) return;
   const st = (students[currentClass]||[]).find(s=>s.id===id);
   if(!st) return;
   students[currentClass] = (students[currentClass]||[]).filter(s=>s.id!==id);
@@ -2453,7 +2494,7 @@ function renderScoreView() {
   const to = document.getElementById('sc-view-to')?.value || '';
   const subjs = getSubjects();
   const tbl = document.getElementById('score-view-table');
-  const allStudents = students[currentClass] || [];
+  const allStudents = (students[currentClass] || []).filter(s=>s.active!==false);
   const ss = allStudents.filter(s=>{
     if(s.cls===cls) return true;
     return (scores[s.id]||[]).some(x=>(x.cls||s.cls)===cls && (!from||x.date>=from) && (!to||x.date<=to));
