@@ -808,7 +808,7 @@ async function loadStudentsFromSheets() {
     // 헤더 없으면 열 순서 고정(col 0=반구분, 1=반, 2=학생명), 헤더 있으면 탐색
     let useCls, useName, useGroup, useGrade, useThreshold, usePersonalLevel, useRegDate;
     if (!hasHeader) {
-      useGroup = -1; useName = 0; useCls = 1; useGrade = 2; useThreshold = 3; usePersonalLevel = 4; useRegDate = -1;
+      useGroup = -1; useName = 0; useCls = 1; useGrade = 2; useThreshold = 3; usePersonalLevel = 4; useRegDate = 5;
     } else {
       const header = firstRow;
       function colIdx(names) {
@@ -2428,7 +2428,7 @@ function setRegDate(sid, date) {
   localStorage.setItem('emax_regdates', JSON.stringify(local));
   const s = Object.values(students).flat().find(st=>st.id===sid);
   if(s) s.regDate = date;
-  postToSheets({action:'setRegDate', id:sid, regDate:date});
+  postToSheets({action:'setRegDate', id:sid, name:s?s.name:'', cls:s?s.cls:'', regDate:date});
 }
 
 /* ═══════════════════════════════════════════════════════
