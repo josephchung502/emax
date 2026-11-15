@@ -860,7 +860,7 @@ textarea.rts-tpl{font-size:13px;line-height:1.6;min-height:280px;font-family:inh
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -1918,23 +1918,23 @@ function renderDashboard() {
     const triggerWeek = getRetestTriggerWeek(s.id, cw, s.cls);
     if(!triggerWeek) return;
     const rt = retests[s.id]||{};
-    if(['pass','fail'].includes((rt[triggerWeek]||{}).result)) return;
-    // 휴강으로 trigger week ≠ cw인 경우, 이전에 cw로 저장된 데이터도 인정
-    if(triggerWeek !== cw && ['pass','fail'].includes((rt[cw]||{}).result)) return;
-    retestCandidates.push({s, triggerWeek});
+    // 결과는 시험 본 주로 저장. 예전에 이번 주(cw)로 저장된 결과도 인정
+    let ri = rt[triggerWeek]||{};
+    if(!['pass','fail'].includes(ri.result) && triggerWeek !== cw && ['pass','fail'].includes((rt[cw]||{}).result)) ri = rt[cw];
+    retestCandidates.push({s, triggerWeek, ri, done:['pass','fail'].includes(ri.result)});
   });
-  document.getElementById('d-retest').textContent = retestCandidates.length;
+  retestCandidates.sort((a,b)=>(a.done?1:0)-(b.done?1:0));
+  document.getElementById('d-retest').textContent = retestCandidates.filter(x=>!x.done).length;
   const retestCard = document.getElementById('d-retest-card');
   if(retestCard) {
     retestCard.style.display = retestCandidates.length ? '' : 'none';
     if(retestCandidates.length) {
-      document.getElementById('d-retest-list').innerHTML = retestCandidates.map(({s, triggerWeek})=>{
-          const ri = (retests[s.id]||{})[triggerWeek]||{};
+      document.getElementById('d-retest-list').innerHTML = retestCandidates.map(({s, triggerWeek, ri, done})=>{
           const failedSc = (scores[s.id]||[]).find(sc=>sc.week===triggerWeek&&sc.type===cfg().retestSubject);
           const testDate = failedSc?.date || triggerWeek;
           const scorePill = failedSc ? `<span class="score-pill" style="color:${scoreColor(failedSc.score)};background:${scoreColor(failedSc.score)}22">${failedSc.score}</span>` : '';
-          return `<div class="rt-row">
-            <div class="rt-who"><span class="rt-name">${s.name}</span><span class="badge b-blue">${s.cls}</span>${scorePill}<span class="rt-date">${testDate}</span></div>
+          return `<div class="rt-row${done?' sent':''}">
+            <div class="rt-who"><span class="rt-name">${s.name}</span><span class="badge b-blue">${s.cls}</span>${scorePill}<span class="rt-date">${testDate}</span>${done?`<span class="badge ${ri.result==='pass'?'b-green':'b-red'}">✓ ${ri.result==='pass'?'통과':'미통과'} 저장됨</span>`:''}</div>
             <div class="rt-actions">
               <select id="dash-retest-${s.id}" class="fi fi-sm" style="width:auto">
                 <option value=""${!ri.result?' selected':''}>미진행</option>
@@ -3196,20 +3196,22 @@ async function saveAttendance() {
   }
   if(!fail) showToast('출석 저장됨 ✓','s');
 }
-async function saveRetestResult(sid, displayWeek, result) {
+// displayWeek = 재시험을 보는 주(출석·수업 화면). 대시보드처럼 이미 '시험 본 주'를 알면 isTriggerWeek=true
+// (예전엔 대시보드도 한 주 더 거슬러 올라가 저장해서, 2주 연속 미통과 학생은 결과가 엉뚱한 주에 저장됐음)
+async function saveRetestResult(sid, displayWeek, result, isTriggerWeek) {
   const st = (students[currentClass]||[]).find(s=>s.id===sid);
-  const saveWeek = (st ? getRetestTriggerWeek(sid, displayWeek, st.cls) : null) || displayWeek;
+  const saveWeek = isTriggerWeek ? displayWeek : ((st ? getRetestTriggerWeek(sid, displayWeek, st.cls) : null) || displayWeek);
   if(!retests[sid]) retests[sid]={};
   if(!retests[sid][saveWeek]) retests[sid][saveWeek]={};
   retests[sid][saveWeek].taken = !!result;
   retests[sid][saveWeek].result = result;
-  await postToSheets({action:'saveRetest', name:st?.name||'', cls:st?.cls||'', week:saveWeek, taken:result?'yes':'no', result, score:retests[sid][saveWeek].score||0});
   renderDashboard();
+  return postToSheets({action:'saveRetest', name:st?.name||'', cls:st?.cls||'', week:saveWeek, taken:result?'yes':'no', result, score:retests[sid][saveWeek].score||0});
 }
 async function saveDashboardRetest(sid, week) {
   const result = document.getElementById('dash-retest-'+sid)?.value || '';
-  await saveRetestResult(sid, week, result);
-  showToast('재시험 결과 저장됨','s');
+  const res = await saveRetestResult(sid, week, result, true);
+  if(res && res.ok) showToast('재시험 결과 저장됨 ✓','s');
 }
 function setHwMax(sid) {
   const s = (students[currentClass]||[]).find(st=>st.id===sid);
