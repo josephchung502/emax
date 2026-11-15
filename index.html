@@ -316,6 +316,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 .sc-cls{font-size:12px;color:var(--text2);min-width:44px}
 .sc-t{font-size:13px;flex:1;min-width:120px}
 .sc-act{display:flex;gap:4px;margin-left:auto}
+.obs-chip{display:block;margin-top:4px;max-width:220px;text-align:left;font-size:11px;line-height:1.4;padding:3px 8px;border:1px solid var(--border);border-radius:12px;background:transparent;color:var(--text2);cursor:pointer;font-family:inherit;white-space:normal}
 .nav-flash{outline:2px solid var(--accent);outline-offset:-2px;border-radius:9px;background:rgba(79,156,249,.08)}
 /* 반 비서 판정 */
 .jd-item{padding:10px 16px;border-top:1px solid var(--border);cursor:pointer}
@@ -938,6 +939,15 @@ tr.changed td{background:rgba(79,156,249,.08)}
   </div>
 </div>
 
+<!-- 관찰 태그 -->
+<div class="modal-overlay" id="modal-obs">
+  <div class="modal wide">
+    <div class="modal-title">🏷 관찰 태그 <span id="obs-title" class="wk-sub" style="font-weight:400"></span></div>
+    <div id="obs-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-obs')">닫기</button><button class="btn btn-primary" onclick="saveObsPicker()">저장</button></div>
+  </div>
+</div>
+
 <!-- 일정 추가/고치기 -->
 <div class="modal-overlay" id="modal-sched">
   <div class="modal wide">
@@ -1023,7 +1033,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.8.1';
+const APP_VERSION = '1.8.2';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -1926,6 +1936,49 @@ function saveObsTag(sid, week, field, value) {
     strength:JSON.stringify(obs.strength||[]),
     weakness:JSON.stringify(obs.weakness||[]),
     attitude:JSON.stringify(obs.attitude||{})});
+}
+// 관찰 태그: 이름 아래 🏷 버튼 → 강점·약점 버튼으로 고르고 저장 (번호는 시트에 그대로 1부터)
+function obsNames(sid, week, k) { const t = getObsTags()[k] || [], o = ((obsTags[sid]||{})[week]) || {}; return (o[k]||[]).map(function(n){ return t[n-1]; }).filter(Boolean); }
+function obsChipHtml(sid, week) {
+  const sN = obsNames(sid, week, 'strength'), wN = obsNames(sid, week, 'weakness');
+  const inner = (sN.length || wN.length)
+    ? (sN.length ? '<span style="color:var(--green)">＋' + escHtml(sN.join('·')) + '</span>' : '') + (wN.length ? (sN.length ? ' ' : '') + '<span style="color:var(--red)">－' + escHtml(wN.join('·')) + '</span>' : '')
+    : '<span style="color:var(--text3)">관찰 태그</span>';
+  return '<button type="button" class="obs-chip" id="obs-' + sid + '" onclick="openObsPicker(\'' + sid + '\',\'' + week + '\')">🏷 ' + inner + '</button>';
+}
+let obsDraft = null;
+function openObsPicker(sid, week) {
+  const o = ((obsTags[sid]||{})[week]) || {};
+  obsDraft = {sid: sid, week: week, strength: (o.strength||[]).slice(), weakness: (o.weakness||[]).slice()};
+  renderObsPicker();
+  document.getElementById('modal-obs').classList.add('open');
+}
+function toggleObs(k, n) {
+  const a = obsDraft[k], i = a.indexOf(n);
+  if(i >= 0) a.splice(i, 1); else a.push(n);
+  renderObsPicker();
+}
+function renderObsPicker() {
+  const d = obsDraft, t = getObsTags(), st = getStudents(null, true).find(function(s){ return s.id === d.sid; }) || {};
+  document.getElementById('obs-title').textContent = (st.name || '') + ' · ' + weekRangeLabel(d.week);
+  const group = function(k, label, color){
+    return '<div class="rts-sec"><div class="rts-title" style="color:var(--' + color + ')">' + label + ' <span class="wk-sub" style="font-weight:400">' + d[k].length + '개</span></div><div class="rt-pick" style="flex-wrap:wrap;gap:6px">'
+      + (t[k]||[]).map(function(nm, i){ const on = d[k].includes(i+1); return '<button type="button" class="stage' + (on ? ' on' : '') + '"' + (on ? ' style="border-color:var(--' + color + ');color:var(--' + color + ');background:transparent"' : '') + ' onclick="toggleObs(\'' + k + '\',' + (i+1) + ')">' + escHtml(nm) + '</button>'; }).join('')
+      + '</div></div>';
+  };
+  document.getElementById('obs-body').innerHTML = group('strength', '강점', 'green') + group('weakness', '약점', 'red')
+    + '<div class="rts-help" style="margin-top:0">누를 때마다 넣고 빼기 → [저장]. 이번 주 학부모 피드백·학생 판정(같은 약점 3주, 태도 약점 2주)에 쓰여요.</div>';
+}
+async function saveObsPicker() {
+  const d = obsDraft, st = getStudents(null, true).find(function(s){ return s.id === d.sid; });
+  if(!st) return;
+  if(!obsTags[d.sid]) obsTags[d.sid] = {};
+  const o = obsTags[d.sid][d.week] = Object.assign({}, obsTags[d.sid][d.week] || {}, {strength: d.strength.slice().sort(function(a,b){ return a-b; }), weakness: d.weakness.slice().sort(function(a,b){ return a-b; })});
+  closeModal('modal-obs');
+  const chip = document.getElementById('obs-' + d.sid); if(chip) chip.outerHTML = obsChipHtml(d.sid, d.week);
+  const res = await postToSheets({action:'saveObsTags', name:st.name, cls:st.cls, week:d.week,
+    strength:JSON.stringify(o.strength||[]), weakness:JSON.stringify(o.weakness||[]), attitude:JSON.stringify(o.attitude||{})});
+  if(res && res.ok !== false) showToast(st.name + ' 관찰 태그 저장됨', 's');
 }
 function normalizeDate(raw) {
   const s = String(raw || '');
@@ -3228,15 +3281,7 @@ function renderAttList() {
     else if(isRetest) nameBadges += '<span class="retest-badge">재시험</span>';
     if(isBogangActive) nameBadges += '<span class="badge b-orange" style="margin-left:4px">&rarr;' + (bogangInfo.targetCls||'?') + (bogangInfo.targetDate?' ('+bogangInfo.targetDate+')':'') + '</span>';
 
-    var curObs = ((obsTags[s.id]||{})[week])||{};
-    var strVal = (curObs.strength||[]).join(',');
-    var wkVal = (curObs.weakness||[]).join(',');
-    var obsCell = '<div style="display:flex;gap:3px;margin-top:4px;align-items:center;flex-wrap:nowrap">'
-      + '<span style="font-size:9px;font-weight:700;color:var(--green)">S</span>'
-      + '<input class="fi" type="text" data-sid="' + s.id + '" data-week="' + week + '" data-field="strength" value="' + strVal + '" placeholder="번호" style="width:44px;padding:1px 3px;font-size:10px" onblur="saveObsTagEl(this)" title="강점 번호 입력 (예: 2,7)">'
-      + '<span style="font-size:9px;font-weight:700;color:var(--red);margin-left:2px">W</span>'
-      + '<input class="fi" type="text" data-sid="' + s.id + '" data-week="' + week + '" data-field="weakness" value="' + wkVal + '" placeholder="번호" style="width:44px;padding:1px 3px;font-size:10px" onblur="saveObsTagEl(this)" title="약점 번호 입력 (예: 5)">'
-      + '</div>';
+    var obsCell = obsChipHtml(s.id, week);
     html += '<tr id="attrow-' + s.id + '"' + (isBogangActive?' style="opacity:0.55"':'') + '>'
       + '<td style="font-weight:600;min-width:110px">' + s.name + nameBadges + obsCell + '</td>'
       + attBtns
