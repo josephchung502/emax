@@ -20,6 +20,18 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 /* ── SPLASH ── */
 #splash{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:40px}
 .splash-title{font-size:32px;font-weight:900;color:var(--accent);letter-spacing:-1px}
+#login-screen{position:fixed;inset:0;background:var(--bg);z-index:10000;display:flex;align-items:center;justify-content:center;padding:max(24px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));overflow-y:auto}
+.login-card{width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 24px;display:flex;flex-direction:column}
+.login-logo{font-size:32px;font-weight:900;color:var(--accent);letter-spacing:-1px;text-align:center}
+.login-sub{font-size:14px;color:var(--text2);text-align:center;margin:6px 0 24px}
+.login-note{font-size:13px;color:var(--text2);line-height:1.6;background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:14px}
+.login-label{font-size:13px;color:var(--text2);margin:0 0 6px}
+.login-input{height:46px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;padding:0 14px;margin-bottom:14px;outline:none;width:100%;box-sizing:border-box}
+.login-input:focus{border-color:var(--accent)}
+.login-msg{min-height:20px;font-size:13px;color:var(--red);margin:-4px 0 10px}
+.login-btn{height:48px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+.login-btn:disabled{opacity:.6;cursor:default}
+.login-link{background:none;border:none;color:var(--text2);font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline}
 .splash-sub{font-size:14px;color:var(--text2);text-align:center}
 .splash-cards{display:flex;gap:24px}
 .splash-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 40px;cursor:pointer;text-align:center;transition:all .2s;min-width:180px}
@@ -294,6 +306,30 @@ textarea.fi{resize:vertical;min-height:70px}
 </style>
 </head>
 <body>
+
+<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+<div id="login-screen" style="display:none">
+  <form class="login-card" id="login-form" onsubmit="submitLogin(event)" autocomplete="on">
+    <div class="login-logo">eMAX</div>
+    <div class="login-sub" id="login-sub">학생 관리 시스템</div>
+    <div id="login-setup-fields" style="display:none">
+      <div class="login-note">처음 한 번만 설정해요. Apps Script에서 만든 접속 키로 본인 확인 후 아이디와 비밀번호를 등록합니다.</div>
+      <label class="login-label" for="login-setupkey">접속 키</label>
+      <input class="login-input" id="login-setupkey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <label class="login-label" for="login-id">아이디</label>
+    <input class="login-input" id="login-id" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+    <label class="login-label" for="login-pw">비밀번호</label>
+    <input class="login-input" id="login-pw" name="password" type="password" autocomplete="current-password" required>
+    <div id="login-pw2-wrap" style="display:none">
+      <label class="login-label" for="login-pw2">비밀번호 확인</label>
+      <input class="login-input" id="login-pw2" type="password" autocomplete="new-password">
+    </div>
+    <div class="login-msg" id="login-msg"></div>
+    <button class="login-btn" id="login-btn" type="submit">로그인</button>
+    <button class="login-link" id="login-mode-btn" type="button" onclick="toggleLoginMode()" style="display:none">처음 설정하기</button>
+  </form>
+</div>
 
 <!-- ═══════════════ SPLASH SCREEN ═══════════════ -->
 <div id="splash">
@@ -610,11 +646,10 @@ textarea.fi{resize:vertical;min-height:70px}
         <label>Google Apps Script URL (수업 일정 Schedule)</label>
         <input class="fi" id="gas-schedule-url-input" placeholder="https://script.google.com/macros/s/.../exec">
       </div>
-      <div class="form-group" style="margin-bottom:10px">
-        <label>접속 키 (Apps Script 실행 로그의 키)</label>
-        <input class="fi" id="app-key-input" type="password" autocomplete="off" placeholder="접속 키 붙여넣기">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="saveGasUrl()">저장 + 연결 테스트</button>
+        <button class="btn btn-ghost btn-sm" onclick="logout()">로그아웃</button>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="saveGasUrl()">저장 + 연결 테스트</button>
     </div>
     <div style="background:var(--surface2);border-radius:8px;padding:14px;font-size:12px;color:var(--text2);line-height:1.9">
       <strong style="color:var(--text)">수업 일정 Google Sheets 구조:</strong><br>
@@ -772,10 +807,10 @@ let homework = {};    // {studentId: {week: {hwKey: {done, score}}}}
 let retests = {};     // {studentId: {week: {taken:bool, score:int}}}
 let obsTags = {};   // {studentId: {week: {strength:[], weakness:[], attitude:{}}}}
 let retestThreshold = {G5TFS:80, G5TFS_2:88, G5TFS_3:84, G5TFS_4:80, KG6:80, KG6_2:88, KG6_3:84, KG6_4:80};
-const DEFAULT_GAS_URL = ''; // 연결 주소는 코드에 두지 않고 설정에서 입력 (기기마다 한 번)
-let gasUrl = localStorage.getItem('emax_gas_url') || DEFAULT_GAS_URL;
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbw7bCI5H8VZXjgPtLWcvdXswLJ0uAa348lB04m8xdoa8DmSh8r2-_gxhjR3lIdfmUq70Q/exec'; // 로그인해야만 읽기·쓰기 가능 (v3.14)
+let gasUrl = localStorage.getItem('emax_gas_url_v2') || DEFAULT_GAS_URL;
 let gasScheduleUrl = localStorage.getItem('emax_gas_schedule_url') || '';
-let appKey = localStorage.getItem('emax_app_key') || ''; // 접속 키 — 이 기기 브라우저에만 저장
+let appKey = localStorage.getItem('emax_app_token') || ''; // 로그인 토큰 — 이 기기 브라우저에만 저장 (90일)
 let msgMode = 'class';
 let selectedMsgType = '';
 let msgLibrary = JSON.parse(localStorage.getItem('emax_msg_lib') || '[]');
@@ -1257,12 +1292,106 @@ function jsonpFetch(url, timeoutMs) {
   });
 }
 
+/* ═══════════════════════════════════════════════════════
+   LOGIN (v3.14) — 아이디·비밀번호는 서버(Apps Script)에서만 확인
+═══════════════════════════════════════════════════════ */
+let loginMode = 'login'; // 'login' | 'setup'
+const LOGIN_ERRORS = {
+  login_failed: '아이디 또는 비밀번호가 맞지 않습니다.',
+  locked: '로그인 시도가 너무 많습니다. 10분 뒤에 다시 시도해주세요.',
+  bad_setup_key: '접속 키가 맞지 않습니다.',
+  weak: '아이디는 3자 이상, 비밀번호는 8자 이상으로 정해주세요.',
+  already_configured: '이미 설정되어 있습니다. 로그인해주세요.',
+  not_configured: '아직 아이디가 등록되지 않았습니다. 처음 설정을 해주세요.'
+};
+function setLoginMode(mode) {
+  loginMode = mode;
+  const setup = mode === 'setup';
+  document.getElementById('login-setup-fields').style.display = setup ? 'block' : 'none';
+  document.getElementById('login-pw2-wrap').style.display = setup ? 'block' : 'none';
+  document.getElementById('login-pw').setAttribute('autocomplete', setup ? 'new-password' : 'current-password');
+  document.getElementById('login-btn').textContent = setup ? '설정하고 시작하기' : '로그인';
+  document.getElementById('login-sub').textContent = setup ? '처음 설정' : '학생 관리 시스템';
+  document.getElementById('login-mode-btn').textContent = setup ? '로그인 화면으로' : '처음 설정하기';
+  document.getElementById('login-msg').textContent = '';
+}
+function toggleLoginMode() { setLoginMode(loginMode === 'setup' ? 'login' : 'setup'); }
+function showLogin(msg) {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-msg').textContent = msg || '';
+  jsonpFetch(gasUrl + '?action=authStatus', 10000).then(function(r) {
+    const configured = !!(r && r.configured);
+    document.getElementById('login-mode-btn').style.display = configured ? 'none' : 'inline';
+    if(!configured) setLoginMode('setup');
+  }).catch(function() {
+    document.getElementById('login-msg').textContent = '서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요.';
+  });
+}
+function hideLogin() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('login-pw').value = '';
+  document.getElementById('login-pw2').value = '';
+  document.getElementById('login-setupkey').value = '';
+}
+async function submitLogin(ev) {
+  if(ev) ev.preventDefault();
+  const id = document.getElementById('login-id').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  const msgEl = document.getElementById('login-msg');
+  const btn = document.getElementById('login-btn');
+  if(!id || !pw) { msgEl.textContent = '아이디와 비밀번호를 입력해주세요.'; return; }
+  let url = gasUrl + '?action=' + (loginMode === 'setup' ? 'setupLogin' : 'login') +
+    '&id=' + encodeURIComponent(id) + '&pw=' + encodeURIComponent(pw);
+  if(loginMode === 'setup') {
+    const sk = document.getElementById('login-setupkey').value.trim();
+    const pw2 = document.getElementById('login-pw2').value;
+    if(!sk) { msgEl.textContent = '접속 키를 입력해주세요.'; return; }
+    if(pw !== pw2) { msgEl.textContent = '비밀번호 확인이 일치하지 않습니다.'; return; }
+    url += '&setupKey=' + encodeURIComponent(sk);
+  }
+  btn.disabled = true; msgEl.textContent = '';
+  try {
+    const r = await jsonpFetch(url, 15000);
+    if(r && r.ok && r.token) {
+      appKey = r.token;
+      localStorage.setItem('emax_app_token', appKey);
+      hideLogin();
+      showToast('로그인되었습니다','s');
+      if(document.getElementById('app').style.display === 'flex') syncNow();
+    } else {
+      const err = r && r.error;
+      if(err === 'not_configured') setLoginMode('setup');
+      if(err === 'already_configured') setLoginMode('login');
+      msgEl.textContent = LOGIN_ERRORS[err] || '로그인에 실패했습니다. 다시 시도해주세요.';
+    }
+  } catch(e) {
+    msgEl.textContent = '서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+function logout() {
+  const t = appKey;
+  appKey = '';
+  localStorage.removeItem('emax_app_token');
+  if(t && gasUrl) jsonpFetch(gasUrl + '?action=logout&key=' + encodeURIComponent(t), 8000).catch(function(){});
+  closeModal('modal-settings');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('splash').style.display = 'flex';
+  showLogin();
+}
+document.addEventListener('DOMContentLoaded', function() {
+  if(!appKey) showLogin();
+});
+
 // 접속 키가 없거나 틀렸을 때 — 한 번만 안내
 let _unauthNotified = false;
 function notifyUnauthorized() {
+  appKey = '';
+  localStorage.removeItem('emax_app_token');
   if(_unauthNotified) return;
   _unauthNotified = true;
-  showToast('접속 키가 맞지 않습니다 — 설정(⚙️)에서 접속 키를 확인해주세요','e');
+  showLogin('로그인이 만료되었습니다. 다시 로그인해주세요.');
   setTimeout(function(){ _unauthNotified = false; }, 8000);
 }
 
@@ -1526,10 +1655,8 @@ async function loadScheduleFromSheets() {
 function saveGasUrl() {
   gasUrl = document.getElementById('gas-url-input').value.trim();
   gasScheduleUrl = document.getElementById('gas-schedule-url-input').value.trim();
-  localStorage.setItem('emax_gas_url', gasUrl);
+  localStorage.setItem('emax_gas_url_v2', gasUrl);
   localStorage.setItem('emax_gas_schedule_url', gasScheduleUrl);
-  appKey = document.getElementById('app-key-input').value.trim();
-  localStorage.setItem('emax_app_key', appKey);
   retestThreshold.G5TFS_2 = parseInt(document.getElementById('retest-g5-2').value)||88;
   retestThreshold.G5TFS_3 = parseInt(document.getElementById('retest-g5-3').value)||84;
   retestThreshold.G5TFS_4 = parseInt(document.getElementById('retest-g5-4').value)||80;
@@ -3676,7 +3803,6 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 function openSettings() {
   document.getElementById('gas-url-input').value = gasUrl;
   document.getElementById('gas-schedule-url-input').value = gasScheduleUrl;
-  document.getElementById('app-key-input').value = appKey;
   document.getElementById('retest-g5-2').value = retestThreshold.G5TFS_2||88;
   document.getElementById('retest-g5-3').value = retestThreshold.G5TFS_3||84;
   document.getElementById('retest-g5-4').value = retestThreshold.G5TFS_4||80;
