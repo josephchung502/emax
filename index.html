@@ -309,6 +309,13 @@ textarea.rts-tpl{font-size:13px;line-height:1.6;min-height:280px;font-family:inh
 .rt-row.changed.sent{opacity:1}
 tr.changed td{background:rgba(79,156,249,.08)}
 .rt-pick{display:flex;gap:4px;flex-wrap:nowrap}
+/* 일정 · 월내문 */
+.sc-day{font-size:12px;font-weight:700;color:var(--text2);margin:10px 0 2px}
+.sc-item{display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--border)}
+.sc-item.past{opacity:.5}
+.sc-cls{font-size:12px;color:var(--text2);min-width:44px}
+.sc-t{font-size:13px;flex:1;min-width:120px}
+.sc-act{display:flex;gap:4px;margin-left:auto}
 /* 반 비서 판정 */
 .jd-item{padding:10px 16px;border-top:1px solid var(--border);cursor:pointer}
 .jd-item:hover{background:rgba(255,255,255,.02)}
@@ -603,6 +610,8 @@ tr.changed td{background:rgba(79,156,249,.08)}
 
       <!-- ══════════ WORK (보고서 현황 + 전달함) ══════════ -->
       <div class="tab-page" id="tab-work">
+        <div id="sched-card"></div>
+        <div id="mnm-card"></div>
         <div class="card">
           <div class="card-header"><div class="card-title">✅ 확인 대기함 <span class="wk-sub" id="cw-count" style="font-weight:400"></span></div><span class="wk-sub">마감 빠른 순</span></div>
           <div id="cw-list"></div>
@@ -928,6 +937,24 @@ tr.changed td{background:rgba(79,156,249,.08)}
   </div>
 </div>
 
+<!-- 일정 추가/고치기 -->
+<div class="modal-overlay" id="modal-sched">
+  <div class="modal wide">
+    <div class="modal-title">📅 일정</div>
+    <div id="sched-edit-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-sched')">닫기</button><button class="btn btn-primary" onclick="saveSchedEdit()">저장</button></div>
+  </div>
+</div>
+
+<!-- 월내문 회차 -->
+<div class="modal-overlay" id="modal-mnm">
+  <div class="modal wide">
+    <div class="modal-title">📝 <span id="mnm-title">월내문</span> <span class="class-badge" style="vertical-align:middle">KG6</span></div>
+    <div id="mnm-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-mnm');renderMnmCard()">닫기</button></div>
+  </div>
+</div>
+
 <!-- CLASS SETTINGS (반 설정) -->
 <div class="modal-overlay" id="modal-class-settings">
   <div class="modal wide">
@@ -995,7 +1022,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -1322,7 +1349,7 @@ const HOLIDAYS = [
 ];
 const MAX_HOLIDAY_LOOKBACK = 6;
 function isHoliday(dateStr) {
-  return HOLIDAYS.some(function(h){ return dateStr>=h[0]&&dateStr<=h[1]; });
+  return HOLIDAYS.some(function(h){ return dateStr>=h[0]&&dateStr<=h[1]; }) || dynHoliday(dateStr);
 }
 // 반 요일 (1=월...6=토) — 반 설정에 적힌 요일 우선, 없으면 반 이름 끝 글자로 추정
 function getClassDayOfWeek(cls) {
@@ -1449,7 +1476,7 @@ function getRetestTriggerWeek(sid, displayWeek, cls) {
     const sc = (scores[sid]||[]).find(s=>s.week===w&&s.type===subj);
     if(sc) return sc.score < getRetestCutoff(cls, sid) ? w : null;
     const cd = weekToClassDate(w, cls);
-    if(cd && isHoliday(cd)) { w = prevWeek(w); }
+    if(cd && isClassOff(cls, cd)) { w = prevWeek(w); }
     else break;
   }
   return null;
@@ -2098,10 +2125,10 @@ function getNextClassDate(cls) {
     for(let i=1;i<=21;i++){
       d.setDate(d.getDate()+1);
       const dStr=ymd(d);
-      if((d.getDay()===0?7:d.getDay())===dow && !isHoliday(dStr)) return dStr;
+      if((d.getDay()===0?7:d.getDay())===dow && !isClassOff(cls, dStr)) return dStr;
     }
   }
-  const future=scheduleData.filter(ev=>ev.cls===cls&&ev.date>today&&!isHoliday(ev.date)).sort((a,b)=>a.date.localeCompare(b.date));
+  const future=scheduleData.filter(ev=>ev.cls===cls&&ev.date>today&&!isClassOff(cls, ev.date)).sort((a,b)=>a.date.localeCompare(b.date));
   return future.length ? future[0].date : null;
 }
 
@@ -2110,12 +2137,12 @@ function getEffectiveHwWeek(cls) {
   const today=todayYmd();
   const cw=currentWeek();
   const thisDate=weekToClassDate(cw,cls);
-  if(thisDate && thisDate<today && !isHoliday(thisDate)) return {week:cw,classDate:thisDate};
+  if(thisDate && thisDate<today && !isClassOff(cls, thisDate)) return {week:cw,classDate:thisDate};
   let w=prevWeek(cw);
   for(let i=0;i<MAX_HOLIDAY_LOOKBACK;i++) {
     const cd=weekToClassDate(w,cls);
     if(!cd) break;
-    if(!isHoliday(cd) && cd<today) return {week:w,classDate:cd};
+    if(!isClassOff(cls, cd) && cd<today) return {week:w,classDate:cd};
     w=prevWeek(w);
   }
   return {week:cw,classDate:thisDate};
@@ -2256,13 +2283,13 @@ function renderDashboardHwConsult() {
     const weeksBack=[1,2,3];
     const nonHolidayWeeks=weeksBack.filter(n=>{
       const d=getPrevWeekClassDate(s.cls,n);
-      return d && !isHoliday(d);
+      return d && !isClassOff(s.cls, d);
     });
     if(nonHolidayWeeks.length<3) return false;
     const checkWeeks=[pw1,pw2,pw3];
     return checkWeeks.every((w,i)=>{
       const d=getPrevWeekClassDate(s.cls,i+1);
-      if(d && isHoliday(d)) return false;
+      if(d && isClassOff(s.cls, d)) return false;
       const hwData=(homework[s.id]||{})[w];
       if(!hwData||Object.keys(hwData).filter(k=>!k.startsWith('_')).length===0) return false;
       if(isKG6) {
@@ -2360,14 +2387,14 @@ function renderScheduleCards() {
   // 현재 반 그룹(KG6/G5TFS)에 속하는 반만 필터
   const myClasses = getAllClasses();
   const filtered = scheduleData.filter(function(ev){
-    return myClasses.includes(ev.cls) && !isHoliday(ev.date) && dateToWeek(ev.date) >= currentWeek();
+    return myClasses.includes(ev.cls) && !isClassOff(ev.cls, ev.date) && dateToWeek(ev.date) >= currentWeek();
   });
 
   if(!filtered.length) {
     // Sheets 일정이 없을 때 — 반 이름의 요일(M/T/W/TH/F/S)로 이번 주 수업 날짜를 계산해 표시
     const todayStr = todayYmd();
     const cards = myClasses.map(function(cls){ return {cls:cls, date:getCurrentWeekClassDate(cls)}; })
-      .filter(function(x){ return x.date && !isHoliday(x.date); })
+      .filter(function(x){ return x.date && !isClassOff(x.cls, x.date); })
       .sort(function(a,b){ return a.date.localeCompare(b.date); });
     row.innerHTML = cards.length ? cards.map(function(x){
       const ds = parseYmd(x.date).toLocaleDateString('ko-KR',{month:'short',day:'numeric',weekday:'short'});
@@ -2376,7 +2403,7 @@ function renderScheduleCards() {
         <div class="sched-class">${x.cls}</div>
         <div class="sched-topics" style="color:var(--text3);font-size:10px">클릭하여 수업 입력</div>
       </div>`;
-    }).join('') : '<div style="color:var(--text3);font-size:12px;padding:8px">이번 주 수업 없음 (휴강)</div>';
+    }).join('') + makeupCardsHtml() : (makeupCardsHtml() || '<div style="color:var(--text3);font-size:12px;padding:8px">이번 주 수업 없음 (휴강)</div>');
     return;
   }
 
@@ -2401,7 +2428,7 @@ function renderScheduleCards() {
       <div class="sched-topics">${ev.topic?`<span style="color:var(--text)">${ev.topic}</span><br>`:''}
         <span style="color:var(--text3);font-size:10px">${subjectText}</span></div>
     </div>`;
-  }).join('');
+  }).join('') + makeupCardsHtml();
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -2414,10 +2441,13 @@ function setSessionAtt(sid, date, st) {
   sessionAttDirty.add(sid);
 }
 function openSession(cls, date, week) {
+  const sw = scoreWeekFor(cls, date);
+  if(sw.block) { showToast(sw.block, 'e'); return; }
+  week = sw.week;
   sessionContext = {cls, date, week};
   sessionAttDirty = new Set();
   rtDrafts.sess = {};
-  document.getElementById('session-title').textContent = `${cls} — ${date} (${week})`;
+  document.getElementById('session-title').textContent = `${cls} — ${date} (${week})` + (sw.makeup ? ' · 보강' : '');
   renderSessionAtt();
   renderSessionScores();
   renderSessionHw();
@@ -2935,7 +2965,12 @@ function initScoreSelects() {
 function renderScoreEntry() {
   const cls = document.getElementById('sc-class')?.value; if(!cls) return;
   const date = document.getElementById('sc-date')?.value || todayYmd();
-  const week = dateToWeek(date);
+  const sw = scoreWeekFor(cls, date);
+  const week = sw.week;
+  if(sw.block) {
+    document.getElementById('score-entry-table').innerHTML = '<tbody><tr><td style="padding:14px;color:var(--yellow);text-align:left">🚫 ' + escHtml(sw.block) + '</td></tr></tbody>';
+    return;
+  }
   const ss = getStudents(cls);
   const subjs = getSubjects();
   const tbl = document.getElementById('score-entry-table');
@@ -2955,6 +2990,7 @@ function renderScoreEntry() {
     </tr>`;
   });
   html += '</tbody>';
+  if(sw.makeup) html = '<caption style="caption-side:top;text-align:left;padding:6px 0;color:var(--green);font-size:12px">보강 수업 — ' + week + ' 주 점수로 들어가요</caption>' + html;
   tbl.innerHTML = html;
 }
 function calcHwTotal(sid, week, cls) {
@@ -2972,7 +3008,9 @@ function calcHwTotal(sid, week, cls) {
 async function saveScores() {
   const cls = document.getElementById('sc-class')?.value;
   const date = document.getElementById('sc-date')?.value || todayYmd();
-  const week = dateToWeek(date);
+  const sw = scoreWeekFor(cls, date);
+  if(sw.block) { showToast(sw.block, 'e'); return; }
+  const week = sw.week;
   const ss = getStudents(cls);
   const subjs = getSubjects();
   ss.forEach(s=>{
@@ -4183,6 +4221,8 @@ async function loadWorkTables() {
   const res = await Promise.all([loadTable('studentLog'), loadTable('reports'), loadTable('inbox'), loadTable('appSettings')]);
   studentLog = res[0]; reportItems = res[1]; inboxItems = res[2];
   appSettings = {}; res[3].forEach(function(r){ appSettings[r.id] = r['값']; });
+  rebuildSched(); renderSchedCard(); renderMnmCard();
+  if(typeof renderScheduleCards === 'function' && document.getElementById('scheduleRow')) renderScheduleCards();
   judgeRules = null;
   if(document.getElementById('tab-work').classList.contains('active')) renderWork();
   if(orgActive()) renderOrg();
@@ -4620,6 +4660,7 @@ async function openRetestSender(week) {
   try {
     const res = await Promise.all([loadTable('appSettings'), loadTable('sendLog')]);
     appSettings = {}; res[0].forEach(function(r){ appSettings[r.id] = r['값']; });
+    rebuildSched();
     sendLogRows = res[1];
   } catch(e) { /* 못 불러와도 기본값으로 진행 */ }
   rts = {weeks: weeks};
@@ -4636,13 +4677,16 @@ function setupRetestWeek(week) {
     [...new Set(rts.targets.map(function(t){ return t.s.cls; }))].forEach(function(cls){
       const row = classSettings.find(function(r){ return r['반'] === cls; }) || {};
       let d = weekToClassDate(week, cls);
-      if(d) { d = addDays(d, 7); for(let g=0; g<6 && isHoliday(d); g++) d = addDays(d, 7); }
-      rts.classRows[cls] = {date: d || '', time: minus20(row['시작']), place: row['재시험장소'] || '304호실'};
+      let pushed = 0;
+      if(d) { d = addDays(d, 7); for(let g=0; g<6 && isClassOff(cls, d); g++) { d = addDays(d, 7); pushed++; } }
+      rts.classRows[cls] = {date: d || '', time: minus20(row['시작']), place: row['재시험장소'] || '304호실', pushed: pushed};
     });
   } else {
     // G5 TFS: 다음 주 목·금·토 중 편한 때 (전원 같은 문구)
-    const ws = weekStartYmd(week);
-    rts.g5 = {place: appSettings['place|retest|G5TFS'] || '304호실', d1: addDays(ws,11), d2: addDays(ws,12), d3: addDays(ws,13)};
+    // 그 주 목·금·토 중 하루라도 휴원이면 한 주 뒤로
+    let ws = addDays(weekStartYmd(week), 7), pushed = 0;
+    for(let g=0; g<6 && [4,5,6].some(function(k){ return isHoliday(addDays(ws,k)); }); g++) { ws = addDays(ws, 7); pushed++; }
+    rts.g5 = {place: appSettings['place|retest|G5TFS'] || '304호실', d1: addDays(ws,4), d2: addDays(ws,5), d3: addDays(ws,6), pushed: pushed};
   }
   renderRetestSender();
 }
@@ -4683,12 +4727,14 @@ function renderRetestSender() {
         + '<input type="time" class="fi fi-sm" value="' + c.time + '" onchange="rts.classRows[\'' + cls + '\'].time=this.value;rtsChanged()"' + (c.time ? '' : ' style="border-color:var(--yellow)"') + '>'
         + '<input class="fi fi-sm" style="width:96px" value="' + escHtml(c.place) + '" placeholder="장소" oninput="rts.classRows[\'' + cls + '\'].place=this.value;rtsChanged()">'
         + (c.time ? '' : '<span class="wk-sub" style="color:var(--yellow)">시간을 적어주세요</span>')
+        + (c.pushed ? '<span class="badge b-orange">휴원 → ' + c.pushed + '주 뒤로</span>' : '')
         + '</div>';
     });
   } else {
     h += '<div class="rts-help" style="margin-top:0">시험 다음 주 목·금·토로 자동 계산했습니다. 시간대는 아래 문구에서 고치면 돼요.</div>'
       + '<div class="rts-row"><span class="cs-lbl">장소</span><input class="fi fi-sm" style="width:96px" value="' + escHtml(rts.g5.place) + '" oninput="rts.g5.place=this.value;rtsChanged()">'
       + ['d1','d2','d3'].map(function(k, i){ return '<span class="cs-lbl">' + ['목','금','토'][i] + '</span><input type="date" class="fi fi-sm" value="' + rts.g5[k] + '" onchange="rts.g5.' + k + '=this.value;rtsChanged()">'; }).join('')
+      + (rts.g5.pushed ? '<span class="badge b-orange">휴원 → ' + rts.g5.pushed + '주 뒤로</span>' : '')
       + '</div>';
   }
   h += '</div><div class="rts-sec"><div class="rts-title">② 문구 확인 <span class="wk-sub" style="font-weight:400">— 고치면 대상 전원에게 똑같이 적용</span></div>'
@@ -5043,7 +5089,7 @@ async function postJson(payload) {
 const OWNER_RULES = [
   ['KG6 R&D',    ['월내문','클리닉','워크북','리딩코어','Reading Core','통합 PDF','통합PDF','추가자료','서술형','개념노트','오답노트','단어시험지','재시험지','RC ']],
   ['G5 TFS R&D', ['과학','Science','science','티치백','Teachback','토플','TOEFL','Review+','리뷰플러스','HTML','일러스트','Novel','노블']],
-  ['업무',       ['회의','원장','보고서','성적 업로드','성적표','분반','상담 요청','학부모 상담','공지','행정','안건']],
+  ['업무',       ['회의','원장','보고서','성적 업로드','성적표','분반','상담 요청','학부모 상담','공지','행정','안건','숙제장','휴원','휴강','보강','학사일정','연간 일정','쉬는 날','일정 등록']],
   ['개인',       ['개인','병원','은행','약속','운동','헬스','가족','여행','휴가','자기계발','독서','치과']],
   ['R&D 총괄',   ['문법책','특강','QR','채점','교재']],
   ['KG6 반',     ['KG6','G6-','6학년']],
@@ -5209,6 +5255,382 @@ document.addEventListener('keydown', function(e){
   if((e.ctrlKey || e.metaKey) && e.key === 'Enter' && document.getElementById('modal-compose').classList.contains('open')) { e.preventDefault(); sendCompose(); }
 });
 
+/* ═══════════════════════════════════════════════════════
+   일정 (숙제장 · 휴원 · 보강) + 월내문 단계 (6단계)
+   - 일정은 앱설정 시트에 sched|… 로 저장 (AI가 숙제장·휴원 공지를 읽어 자동 등록, 직접 추가도 가능)
+   - 휴원: 그 반 수업 날이면 점수 입력 막음(보강 등록 시 허용), 재시험은 한 주 뒤로
+   - 월내문: 회차 → 클리닉 대상(기준 이하, 경계 표시) → 안내 문자 → 참석 체크 → 불참자 숙제 안내 → 제출 체크
+═══════════════════════════════════════════════════════ */
+const SCHED_KINDS = ['휴원','보강','시험','월내문','숙제','행사','기타'];
+const SCHED_BADGE = {'휴원':'b-red','보강':'b-green','시험':'b-orange','월내문':'b-purple','숙제':'b-blue','행사':'b-gray','기타':'b-gray'};
+var schedRows = [];  // var: isHoliday()가 스크립트 앞부분에서 불려도 안전
+function rebuildSched() {
+  schedRows = Object.keys(appSettings).filter(function(k){ return k.indexOf('sched|') === 0; }).map(function(k){
+    try { const o = JSON.parse(appSettings[k]); o.id = k; return o; } catch(e) { return null; }
+  }).filter(function(o){ return o && /^\d{4}-\d{2}-\d{2}$/.test(o.d || ''); })
+    .sort(function(a, b){ return a.d.localeCompare(b.d) || String(a.cls||'').localeCompare(String(b.cls||'')); });
+}
+function schedMine(r) { return !r.g || r.g === '공통' || r.g === currentClass; }
+function schedCovers(r, ds) { return ds >= r.d && ds <= (r.e || r.d); }
+// 학원 전체 휴원 (반 = 전체) — isHoliday()가 같이 봄
+function dynHoliday(ds) {
+  return (schedRows || []).some(function(r){ return r.k === '휴원' && (!r.cls || r.cls === '전체') && schedMine(r) && schedCovers(r, ds); });
+}
+// 그 반만 쉬는 날까지 포함
+function isClassOff(cls, ds) {
+  if(!ds) return false;
+  if(isHoliday(ds)) return true;
+  return (schedRows || []).some(function(r){ return r.k === '휴원' && r.cls === cls && schedMine(r) && schedCovers(r, ds); });
+}
+// 그 주에 이 반 보강이 등록돼 있으면 보강 날짜
+function makeupFor(cls, week) {
+  const r = schedRows.find(function(x){ return x.k === '보강' && (x.cls === cls || x.cls === '전체') && schedMine(x) && x.m && dateToWeek(x.m) === week; });
+  return r ? r.d : '';
+}
+// 휴원 주인데 보강이 없으면 점수 입력 막음 → 이유 문구, 아니면 ''
+function scoreBlockMsg(cls, week) {
+  const cd = weekToClassDate(week, cls);
+  if(!cd || !isClassOff(cls, cd)) return '';
+  if(makeupFor(cls, week)) return '';
+  return cls + ' ' + mdLabel(cd, true) + '은 휴원이라 점수를 넣을 수 없어요. 보강했다면 📅 일정에 보강을 먼저 등록해 주세요.';
+}
+// 점수 넣을 날짜 → 들어갈 주 + 막힘 여부 (보강 날이면 원래 수업 주로)
+function scoreWeekFor(cls, date) {
+  const mk = (schedRows || []).find(function(r){ return r.k === '보강' && r.d === date && r.m && (r.cls === cls || r.cls === '전체') && schedMine(r); });
+  const week = mk ? dateToWeek(mk.m) : dateToWeek(date);
+  let block = mk ? '' : scoreBlockMsg(cls, week);
+  if(!mk && !block && isClassOff(cls, date)) {
+    const m = makeupFor(cls, week);
+    block = cls + ' ' + mdLabel(date, true) + '은 휴원이에요.' + (m ? ' 보강한 날 ' + mdLabel(m, true) + ' 날짜로 넣어주세요.' : '');
+  }
+  return {week: week, makeup: !!mk, block: block};
+}
+// 이번 주 보강 카드 (대시보드 수업 카드 줄)
+function makeupCardsHtml() {
+  const cw = currentWeek(), mine = getAllClasses(), today = todayYmd();
+  return (schedRows || []).filter(function(r){ return r.k === '보강' && r.m && mine.includes(r.cls) && schedMine(r) && dateToWeek(r.d) === cw; })
+    .map(function(r){
+      const ds = parseYmd(r.d).toLocaleDateString('ko-KR',{month:'short',day:'numeric',weekday:'short'});
+      return '<div class="sched-card' + (r.d === today ? ' today' : '') + '" onclick="openSession(\'' + r.cls + '\',\'' + r.d + '\',\'' + dateToWeek(r.m) + '\')">'
+        + '<div class="sched-date">' + ds + '</div><div class="sched-class">' + escHtml(r.cls) + ' <span class="badge b-green">보강</span></div>'
+        + '<div class="sched-topics" style="color:var(--text3);font-size:10px">' + mdLabel(r.m, true) + ' 수업 보강</div></div>';
+    }).join('');
+}
+function schedItemsOn(ds) { return schedRows.filter(function(r){ return schedMine(r) && schedCovers(r, ds); }); }
+function schedLine(r) {
+  return '[' + r.k + '] ' + (r.cls && r.cls !== '전체' ? r.cls + ' · ' : '') + (r.t || '') + (r.k === '보강' && r.m ? ' (' + mdLabel(r.m, true) + ' 수업 보강)' : '');
+}
+
+/* ── 📅 일정 카드 (업무 탭) ── */
+let schedShowAll = false;
+function renderSchedCard() {
+  const el = document.getElementById('sched-card'); if(!el) return;
+  const today = todayYmd(), until = addDays(today, schedShowAll ? 400 : 45);
+  const rows = schedRows.filter(function(r){ return schedMine(r) && (r.e || r.d) >= addDays(today, -7) && r.d <= until; });
+  let h = '<div class="card"><div class="card-header"><div class="card-title">📅 일정 <span class="wk-sub" style="font-weight:400">숙제장 · 휴원 · 보강 · 시험</span></div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="schedShowAll=!schedShowAll;renderSchedCard()">' + (schedShowAll ? '45일만' : '1년 전체') + '</button>'
+    + '<button class="btn btn-primary btn-sm" onclick="openSchedEdit()">＋ 일정 추가</button></div></div>'
+    + '<div class="card-body" style="padding:10px 16px 12px"><div class="rts-help" style="margin:0 0 8px">숙제장·휴원 공지는 📥 메인 비서에게 파일로 보내면 AI가 읽어서 여기에 자동 등록해요 (5분 안). 휴원인 반은 그날 점수를 넣을 수 없고, 단어 재시험은 한 주 뒤로 계산돼요.</div>';
+  if(!rows.length) h += '<div class="wk-empty">등록된 일정이 없어요</div>';
+  let last = '';
+  rows.forEach(function(r){
+    if(r.d !== last) { h += '<div class="sc-day">' + mdLabel(r.d, true) + (r.e && r.e !== r.d ? ' ~ ' + mdLabel(r.e, true) : '') + (r.d === today ? ' · 오늘' : '') + '</div>'; last = r.d; }
+    h += '<div class="sc-item' + ((r.e || r.d) < today ? ' past' : '') + '"><span class="badge ' + (SCHED_BADGE[r.k] || 'b-gray') + '">' + escHtml(r.k) + '</span>'
+      + '<span class="sc-cls">' + escHtml(r.cls && r.cls !== '전체' ? r.cls : (r.g === '공통' ? '전체 (두 트랙)' : '전체')) + '</span>'
+      + '<span class="sc-t">' + escHtml(r.t || '') + (r.k === '보강' && r.m ? ' <span class="wk-sub">(' + mdLabel(r.m, true) + ' 수업 보강)</span>' : '') + '</span>'
+      + '<span class="sc-act"><button class="btn btn-ghost btn-sm" onclick="openSchedEdit(\'' + r.id + '\')">고치기</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="deleteSched(\'' + r.id + '\')">삭제</button></span></div>';
+  });
+  el.innerHTML = h + '</div></div>';
+}
+let schedDraft = null;
+function openSchedEdit(id) {
+  const r = id ? schedRows.find(function(x){ return x.id === id; }) : null;
+  schedDraft = r ? Object.assign({}, r) : {id:'', d:todayYmd(), e:'', g:currentClass, cls:'전체', k:'휴원', t:'', m:'', src:'직접'};
+  renderSchedEdit();
+  document.getElementById('modal-sched').classList.add('open');
+}
+function schedPick(field, v) { schedDraft[field] = v; renderSchedEdit(); }
+function renderSchedEdit() {
+  const s = schedDraft, btn = function(field, v, label){ return '<button class="stage' + (s[field] === v ? ' on' : '') + '" onclick="schedPick(\'' + field + '\',\'' + String(v).replace(/'/g, "\\'") + '\')">' + escHtml(label || v) + '</button>'; };
+  let h = '<div class="rts-sec"><div class="rts-row"><span class="cs-lbl">날짜</span><input type="date" class="fi fi-sm" value="' + s.d + '" onchange="schedDraft.d=this.value">'
+    + '<span class="cs-lbl">끝 날짜</span><input type="date" class="fi fi-sm" value="' + (s.e || '') + '" onchange="schedDraft.e=this.value"><span class="wk-sub">여러 날이면</span></div></div>'
+    + '<div class="rts-sec"><div class="rts-title">종류</div><div class="rt-pick" style="flex-wrap:wrap">' + SCHED_KINDS.map(function(k){ return btn('k', k); }).join('') + '</div></div>'
+    + '<div class="rts-sec"><div class="rts-title">트랙</div><div class="rt-pick" style="flex-wrap:wrap">' + btn('g', currentClass, cfg().label) + btn('g', '공통', '두 트랙 공통') + '</div></div>'
+    + '<div class="rts-sec"><div class="rts-title">반</div><div class="rt-pick" style="flex-wrap:wrap">' + btn('cls', '전체') + getAllClasses().map(function(c){ return btn('cls', c); }).join('') + '</div></div>';
+  if(s.k === '보강') h += '<div class="rts-sec"><div class="rts-row"><span class="cs-lbl">원래 수업 날짜</span><input type="date" class="fi fi-sm" value="' + (s.m || '') + '" onchange="schedDraft.m=this.value"><span class="wk-sub">휴원으로 빠진 날 — 이 주 점수를 보강일에 넣을 수 있게 돼요</span></div></div>';
+  h += '<div class="rts-sec"><div class="rts-title">내용</div><input class="fi" value="' + escHtml(s.t) + '" placeholder="예: 설 연휴 / 3월 월내문 / WK5 숙제장 시작" oninput="schedDraft.t=this.value"></div>';
+  document.getElementById('sched-edit-body').innerHTML = h;
+}
+async function saveSchedEdit() {
+  const s = schedDraft;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s.d || '')) { showToast('날짜를 골라주세요', 'e'); return; }
+  if(s.e && s.e < s.d) s.e = '';
+  if(s.k === '보강' && !s.m) { showToast('보강은 원래 수업 날짜를 넣어주세요', 'e'); return; }
+  const id = s.id || ('sched|' + newId('S'));
+  const val = JSON.stringify({d:s.d, e:s.e || '', g:s.g, cls:s.cls || '전체', k:s.k, t:s.t || '', m:s.k === '보강' ? s.m : '', src:s.src || '직접'});
+  appSettings[id] = val; rebuildSched();
+  closeModal('modal-sched'); renderSchedCard(); renderBriefCard();
+  const res = await saveRecord('appSettings', {id:id, '반구분':'', '값':val, '수정':nowStamp()});
+  if(res && res.ok) showToast('일정 저장됨', 's');
+}
+async function deleteSched(id) {
+  const r = schedRows.find(function(x){ return x.id === id; }); if(!r) return;
+  if(!confirm(mdLabel(r.d, true) + ' ' + schedLine(r) + '\n이 일정을 지울까요?')) return;
+  delete appSettings[id]; rebuildSched(); renderSchedCard(); renderBriefCard();
+  await removeRecord('appSettings', id);
+}
+
+/* ── 📝 월내문 (KG6) ── */
+const MNM_TPL_A = '어머님 안녕하세요!\n{월}월 월내문 클리닉 일정을 다시 한번 안내드립니다.\n■ 일시 : {날짜}({요일}) {시작}~{끝} ({시간})\n■ 내용 : 이번 시험 범위 문법 {영역 수}영역({문법 영역})과 독해 {지문 수}지문을 클리닉 문제집으로 정리합니다.\n클리닉 시간 안에 개념정리부터 문제풀이까지 마칠 수 있도록 구성했으니, 늦지 않게 참석할 수 있도록 지도 부탁드립니다.\n일정상 참여가 어려운 경우, 클리닉 자료를 문자로 보내드리겠습니다. 자료를 인쇄하여 다음 수업 전까지 끝까지 풀어 올 수 있도록 가정에서도 지도 부탁드립니다. 감사합니다^^';
+const MNM_TPL_B = '어머님 안녕하세요!\n이번 {월}월 월내문 클리닉 숙제 자료 보내드립니다.\n다음 내신영어 수업 전까지 전체를 풀고, 답지를 보고 채점까지 마쳐서 제출할 수 있도록 지도 부탁드립니다. 감사합니다^^';
+function mnmList() {
+  return Object.keys(appSettings).filter(function(k){ return k.indexOf('mnm|') === 0; }).map(function(k){
+    try { const o = JSON.parse(appSettings[k]); o.id = k; o.sel = o.sel || {}; o.att = o.att || {}; o.sub = o.sub || {}; return o; } catch(e) { return null; }
+  }).filter(Boolean).sort(function(a, b){ return String(b.exam||'').localeCompare(String(a.exam||'')); });
+}
+function mnmGet(id) { return mnmList().find(function(x){ return x.id === id; }); }
+async function mnmSave(o, msg) {
+  const c = Object.assign({}, o); delete c.id;
+  appSettings[o.id] = JSON.stringify(c);
+  const res = await saveRecord('appSettings', {id:o.id, '반구분':'KG6', '값':appSettings[o.id], '수정':nowStamp()});
+  if(res && res.ok && msg) showToast(msg, 's');
+  renderMnmCard(); renderBriefCard();
+}
+// 그 회차 월내문 점수: 시험일이 든 주(없으면 앞뒤 한 주)의 '월내문' 점수
+function mnmScores(o) {
+  const w0 = o.exam ? dateToWeek(o.exam) : '';
+  return getStudents(null).map(function(s){
+    const list = (scores[s.id] || []).filter(function(x){ return x.type === '월내문'; });
+    let sc = list.find(function(x){ return x.week === w0; });
+    if(!sc && o.exam) sc = list.find(function(x){ return x.date && Math.abs(parseYmd(x.date) - parseYmd(o.exam)) <= 7 * 864e5; });
+    return {s:s, score: sc ? sc.score : null};
+  });
+}
+function mnmTargets(o) {
+  return mnmScores(o).filter(function(x){ return x.score !== null && (o.sel[x.s.id] !== undefined ? o.sel[x.s.id] : x.score <= (o.cut || 60)); });
+}
+function mnmDur(o) {
+  if(!/^\d{1,2}:\d{2}$/.test(o.start||'') || !/^\d{1,2}:\d{2}$/.test(o.end||'')) return '';
+  const a = o.start.split(':').map(Number), b = o.end.split(':').map(Number), m = (b[0]*60+b[1]) - (a[0]*60+a[1]);
+  if(m <= 0) return '';
+  return (Math.floor(m/60) ? Math.floor(m/60) + '시간' : '') + (m%60 ? (Math.floor(m/60) ? ' ' : '') + (m%60) + '분' : '');
+}
+function mnmVars(o) {
+  const d = o.clinic ? parseYmd(o.clinic) : null;
+  return {'월': o.exam ? String(parseYmd(o.exam).getMonth()+1) : (d ? String(d.getMonth()+1) : '?'),
+    '날짜': d ? (d.getMonth()+1) + '/' + d.getDate() : '(날짜)', '요일': d ? DOW_KO[d.getDay()] : '?',
+    '시작': koTime(o.start) || '(시작)', '끝': koTime(o.end) || '(끝)', '시간': mnmDur(o) || '(시간)',
+    '영역 수': o.gramN || '?', '문법 영역': o.gram || '(문법 영역)', '지문 수': o.readN || '?'};
+}
+function mnmStage(o) {
+  const t = mnmTargets(o), sentA = t.filter(function(x){ return mnmIsSent(o, 'A', x.s); }).length;
+  const abs = t.filter(function(x){ return o.att[x.s.id] === 'X'; }), sentB = abs.filter(function(x){ return mnmIsSent(o, 'B', x.s); }).length;
+  const subOk = abs.filter(function(x){ return o.sub[x.s.id] === 'O'; }).length;
+  return {t:t, sentA:sentA, abs:abs, sentB:sentB, subOk:subOk, attDone:t.filter(function(x){ return o.att[x.s.id]; }).length};
+}
+function renderMnmCard() {
+  const el = document.getElementById('mnm-card'); if(!el) return;
+  if(currentClass !== 'KG6') { el.innerHTML = ''; return; }
+  const list = mnmList(), linked = list.map(function(o){ return o.exam; });
+  const fromSched = schedRows.filter(function(r){ return r.k === '월내문' && schedMine(r) && !linked.includes(r.d) && r.d >= addDays(todayYmd(), -30); });
+  let h = '<div class="card"><div class="card-header"><div class="card-title">📝 월내문 · 클리닉</div><button class="btn btn-primary btn-sm" onclick="newMnm()">＋ 새 회차</button></div>'
+    + '<div class="card-body" style="padding:10px 16px 12px"><div class="rts-help" style="margin:0 0 8px">회차 → 클리닉 대상(기준 점수 이하, 경계 표시) → 전날 밤 안내 → 참석 체크 → 불참자 숙제 안내 → 제출 체크. 시험지 검수·성적분석리포트·클리닉 자료는 회차 안에서 AI 비서에게 맡겨요.</div>';
+  fromSched.forEach(function(r){ h += '<div class="sc-item"><span class="badge b-purple">일정</span><span class="sc-t">' + mdLabel(r.d, true) + ' ' + escHtml(r.t || '월내문') + '</span><span class="sc-act"><button class="btn btn-ghost btn-sm" onclick="newMnm(\'' + r.d + '\',\'' + escHtml(String(r.t||'').replace(/'/g,'')) + '\')">회차 만들기</button></span></div>'; });
+  if(!list.length && !fromSched.length) h += '<div class="wk-empty">아직 회차가 없어요</div>';
+  list.slice(0, 6).forEach(function(o){
+    const st = mnmStage(o);
+    h += '<div class="sc-item" style="cursor:pointer" onclick="openMnm(\'' + o.id + '\')"><span class="badge b-purple">' + escHtml(o.name || '월내문') + '</span>'
+      + '<span class="sc-t">시험 ' + (o.exam ? mdLabel(o.exam, true) : '?') + ' · 클리닉 ' + (o.clinic ? mdLabel(o.clinic, true) : '미정') + '</span>'
+      + '<span class="wk-sub">대상 ' + st.t.length + '명 · 안내 ' + st.sentA + '/' + st.t.length + ' · 참석 체크 ' + st.attDone + ' · 불참 숙제 안내 ' + st.sentB + '/' + st.abs.length + ' · 제출 ' + st.subOk + '/' + st.abs.length + '</span></div>';
+  });
+  el.innerHTML = h + '</div></div>';
+}
+async function newMnm(exam, name) {
+  const d = exam || todayYmd();
+  const o = {id:'mnm|' + newId('M'), name: name || ((parseYmd(d).getMonth()+1) + '월 월내문'), exam:d, clinic:'', start:'', end:'', gram:'', gramN:'', readN:'', cut:60, sel:{}, att:{}, sub:{}, tplA:'', tplB:''};
+  await mnmSave(o);
+  openMnm(o.id);
+}
+let mnm = null; // 열린 회차 화면 상태
+async function openMnm(id) {
+  document.getElementById('mnm-body').innerHTML = '<div class="wk-empty">불러오는 중...</div>';
+  document.getElementById('modal-mnm').classList.add('open');
+  try { sendLogRows = await loadTable('sendLog'); } catch(e) {}
+  const o = mnmGet(id); if(!o) return;
+  mnm = {o:o, confA:false, confB:false};
+  renderMnm();
+}
+function mnmSet(field, v) { mnm.o[field] = v; if(field === 'tplA') mnm.confA = false; if(field === 'tplB') mnm.confB = false; }
+function mnmSentId(o, kind, s) { return 'mnm|' + o.id.slice(4) + '|' + kind + '|' + s.cls + '|' + s.name; }
+function mnmIsSent(o, kind, s) { const id = mnmSentId(o, kind, s); return sendLogRows.some(function(r){ return r.id === id && r['상태'] === '보냄'; }); }
+function mnmMsg(kind) { return fillTpl(kind === 'A' ? (mnm.o.tplA || MNM_TPL_A) : (mnm.o.tplB || MNM_TPL_B), mnmVars(mnm.o)); }
+function renderMnm() {
+  const o = mnm.o, sc = mnmScores(o), withScore = sc.filter(function(x){ return x.score !== null; }).sort(function(a, b){ return a.score - b.score; });
+  const cut = o.cut || 60, t = mnmTargets(o), share = rtsCanShare();
+  const pick = function(map, sid, v, label){ return '<button class="stage' + (map === v ? ' on' : '') + '" onclick="mnmPick(\'' + sid + '\',' + JSON.stringify(v).replace(/"/g, '&quot;') + ')">' + label + '</button>'; };
+  let h = '<div class="rts-sec"><div class="rts-title">① 회차 정보</div>'
+    + '<div class="rts-row"><span class="cs-lbl">이름</span><input class="fi fi-sm" style="width:130px" value="' + escHtml(o.name) + '" oninput="mnmSet(\'name\',this.value)">'
+    + '<span class="cs-lbl">시험일</span><input type="date" class="fi fi-sm" value="' + (o.exam||'') + '" onchange="mnmSet(\'exam\',this.value);renderMnm()">'
+    + '<span class="cs-lbl">기준</span><input type="number" class="fi fi-sm" style="width:64px" value="' + cut + '" onchange="mnmSet(\'cut\',parseInt(this.value)||60);mnm.o.sel={};renderMnm()"><span class="wk-sub">점 이하</span></div>'
+    + '<div class="rts-row" style="margin-top:6px"><span class="cs-lbl">클리닉</span><input type="date" class="fi fi-sm" value="' + (o.clinic||'') + '" onchange="mnmSet(\'clinic\',this.value);mnm.confA=false;renderMnm()">'
+    + '<input type="time" class="fi fi-sm" value="' + (o.start||'') + '" onchange="mnmSet(\'start\',this.value);mnm.confA=false;renderMnm()"><span class="wk-sub">~</span>'
+    + '<input type="time" class="fi fi-sm" value="' + (o.end||'') + '" onchange="mnmSet(\'end\',this.value);mnm.confA=false;renderMnm()"><span class="wk-sub">수·토 중 하루, 안내는 전날(화·금) 밤</span></div>'
+    + '<div class="rts-row" style="margin-top:6px"><span class="cs-lbl">문법</span><input type="number" class="fi fi-sm" style="width:56px" value="' + escHtml(o.gramN) + '" placeholder="영역 수" oninput="mnmSet(\'gramN\',this.value);mnm.confA=false">'
+    + '<input class="fi fi-sm" style="width:200px" value="' + escHtml(o.gram) + '" placeholder="영역 (예: 부정사·동명사·분사)" oninput="mnmSet(\'gram\',this.value);mnm.confA=false">'
+    + '<span class="cs-lbl">독해</span><input type="number" class="fi fi-sm" style="width:56px" value="' + escHtml(o.readN) + '" placeholder="지문" oninput="mnmSet(\'readN\',this.value);mnm.confA=false">'
+    + '<button class="btn btn-primary btn-sm" onclick="mnmSave(mnm.o,\'회차 저장됨\')">저장</button></div></div>';
+  // ② 대상
+  h += '<div class="rts-sec"><div class="rts-title">② 클리닉 대상 <span class="wk-sub" style="font-weight:400">— ' + cut + '점 이하 자동, ' + (cut-5) + '~' + (cut+5) + '점은 경계 (버튼으로 넣고 빼기)</span></div>';
+  if(!withScore.length) h += '<div class="wk-empty">이 회차 월내문 점수가 아직 없어요 — 성적 입력에서 \'월내문\' 점수를 넣으면 여기 떠요</div>';
+  else {
+    h += '<div class="wk-sub" style="margin-bottom:6px">대상 ' + t.length + '명 / 점수 ' + withScore.length + '명 · 점수 없음 ' + (sc.length - withScore.length) + '명</div>';
+    withScore.filter(function(x){ return x.score <= cut + 5; }).forEach(function(x){
+      const inT = o.sel[x.s.id] !== undefined ? o.sel[x.s.id] : x.score <= cut, edge = Math.abs(x.score - cut) <= 5;
+      h += '<div class="rt-row"><div class="rt-who"><span class="rt-name">' + escHtml(x.s.name) + '</span><span class="badge b-blue">' + escHtml(x.s.cls) + '</span>'
+        + '<span class="score-pill" style="color:' + scoreColor(x.score) + ';background:' + scoreColor(x.score) + '22">' + x.score + '</span>' + (edge ? '<span class="badge b-orange">경계</span>' : '') + '</div>'
+        + '<div class="rt-actions"><span class="rt-pick">' + pick(inT, x.s.id, true, '대상') + pick(inT, x.s.id, false, '제외') + '</span></div></div>';
+    });
+    h += '<div class="rts-row" style="margin-top:6px"><button class="btn btn-primary btn-sm" onclick="mnmSave(mnm.o,\'대상 저장됨\')">대상 저장</button></div>';
+  }
+  h += '</div>';
+  // ③ AI
+  h += '<div class="rts-sec"><div class="rts-title">③ AI 비서에게 맡기기 <span class="wk-sub" style="font-weight:400">— 월내문 담당</span></div><div class="rts-row">'
+    + '<button class="btn btn-ghost btn-sm" onclick="mnmAi(\'check\')">시험 전: 시험지 검수</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="mnmAi(\'report\')">시험 후: 성적분석리포트 + 월간 보고서</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="mnmAi(\'clinic\')">클리닉 자료</button></div>'
+    + '<div class="rts-help">시험지 검수는 시험지 파일을 첨부하는 창이 열려요. 리포트는 이 회차 점수표를 같이 넘겨요.</div></div>';
+  // ④ 안내 문자
+  h += '<div class="rts-sec"><div class="rts-title">④ 클리닉 안내 (전날 밤) <span class="wk-sub" style="font-weight:400">— 고치면 대상 전원에게 똑같이</span></div>'
+    + '<textarea class="fi rts-tpl" style="min-height:200px" oninput="mnmSet(\'tplA\',this.value);mnmPreview(\'A\')">' + escHtml(o.tplA || MNM_TPL_A) + '</textarea>'
+    + '<div class="rts-help">{월} {날짜} {요일} {시작} {끝} {시간} {영역 수} {문법 영역} {지문 수} — 위 회차 정보로 자동</div>'
+    + '<pre class="comment-box rts-preview" id="mnm-prev-A"></pre>'
+    + '<div class="rts-row"><button class="btn btn-ghost btn-sm" onclick="mnmSet(\'tplA\',\'\');renderMnm()">기본 문구로</button><button class="btn btn-primary btn-sm" onclick="mnmConfirm(\'A\')">' + (mnm.confA ? '✓ 확인됨' : '확인 완료') + '</button></div>'
+    + mnmSendList('A', t, share) + '</div>';
+  // ⑤ 참석
+  h += '<div class="rts-sec"><div class="rts-title">⑤ 클리닉 후 참석 체크</div>';
+  if(!t.length) h += '<div class="wk-empty">대상이 없어요</div>';
+  t.forEach(function(x){
+    const a = o.att[x.s.id] || '';
+    h += '<div class="rt-row"><div class="rt-who"><span class="rt-name">' + escHtml(x.s.name) + '</span><span class="badge b-blue">' + escHtml(x.s.cls) + '</span></div>'
+      + '<div class="rt-actions"><span class="rt-pick"><button class="stage' + (a === 'O' ? ' on' : '') + '" onclick="mnmAtt(\'' + x.s.id + '\',\'O\')">참석</button><button class="stage' + (a === 'X' ? ' on' : '') + '" onclick="mnmAtt(\'' + x.s.id + '\',\'X\')">불참</button></span></div></div>';
+  });
+  if(t.length) h += '<div class="rts-row" style="margin-top:6px"><button class="btn btn-primary btn-sm" onclick="saveMnmAtt()">참석 저장</button><span class="wk-sub">저장하면 학생 기록에도 남아요</span></div>';
+  h += '</div>';
+  // ⑥ 불참자 숙제 안내 + 제출
+  const abs = t.filter(function(x){ return o.att[x.s.id] === 'X'; });
+  h += '<div class="rts-sec"><div class="rts-title">⑥ 불참자 숙제 안내 · 제출 체크 <span class="wk-sub" style="font-weight:400">— 클리닉 자료·답지 PDF를 카톡에 함께 첨부</span></div>';
+  if(!abs.length) h += '<div class="wk-empty">불참자가 없어요 (참석 체크 후 떠요)</div>';
+  else {
+    h += '<textarea class="fi rts-tpl" style="min-height:110px" oninput="mnmSet(\'tplB\',this.value);mnmPreview(\'B\')">' + escHtml(o.tplB || MNM_TPL_B) + '</textarea>'
+      + '<pre class="comment-box rts-preview" id="mnm-prev-B"></pre>'
+      + '<div class="rts-row"><button class="btn btn-ghost btn-sm" onclick="mnmSet(\'tplB\',\'\');renderMnm()">기본 문구로</button><button class="btn btn-primary btn-sm" onclick="mnmConfirm(\'B\')">' + (mnm.confB ? '✓ 확인됨' : '확인 완료') + '</button></div>'
+      + mnmSendList('B', abs, share);
+    h += '<div class="rts-title" style="margin-top:10px">제출 체크 <span class="wk-sub" style="font-weight:400">— 다음 수업 전까지 풀고 채점까지</span></div>';
+    abs.forEach(function(x){
+      const v = o.sub[x.s.id] || '';
+      h += '<div class="rt-row"><div class="rt-who"><span class="rt-name">' + escHtml(x.s.name) + '</span><span class="badge b-blue">' + escHtml(x.s.cls) + '</span></div>'
+        + '<div class="rt-actions"><span class="rt-pick"><button class="stage' + (v === 'O' ? ' on' : '') + '" onclick="mnmSub(\'' + x.s.id + '\',\'O\')">제출</button><button class="stage' + (v === 'X' ? ' on' : '') + '" onclick="mnmSub(\'' + x.s.id + '\',\'X\')">미제출</button></span></div></div>';
+    });
+    h += '<div class="rts-row" style="margin-top:6px"><button class="btn btn-primary btn-sm" onclick="mnmSave(mnm.o,\'제출 체크 저장됨\')">제출 저장</button></div>';
+  }
+  h += '</div>';
+  document.getElementById('mnm-title').textContent = o.name || '월내문';
+  document.getElementById('mnm-body').innerHTML = h;
+  mnmPreview('A'); if(abs.length) mnmPreview('B');
+}
+function mnmSendList(kind, list, share) {
+  const ok = kind === 'A' ? mnm.confA : mnm.confB, dis = ok ? '' : ' disabled';
+  let h = '<div class="rts-list" style="margin-top:8px">' + (ok ? '' : '<div class="rts-help" style="margin-top:0;color:var(--yellow)">문구를 확인하고 [확인 완료]를 누르면 보낼 수 있어요.</div>');
+  list.forEach(function(x){
+    const sent = mnmIsSent(mnm.o, kind, x.s);
+    h += '<div class="rt-row' + (sent ? ' sent' : '') + '"><div class="rt-who"><span class="rt-name">' + escHtml(x.s.name) + '</span><span class="badge b-blue">' + escHtml(x.s.cls) + '</span></div><div class="rt-actions">'
+      + (share ? '<button class="btn btn-primary btn-sm"' + dis + ' onclick="mnmShare(\'' + kind + '\',\'' + x.s.id + '\')">카톡 보내기</button>' : '')
+      + '<button class="btn btn-ghost btn-sm"' + dis + ' onclick="copyText(mnmMsg(\'' + kind + '\'),\'' + escHtml(x.s.name) + ' 문구 복사됨 — 카톡에 붙여넣고 [보냄 표시]\')">📋 복사</button>'
+      + '<button class="btn btn-sm ' + (sent ? 'btn-green' : 'btn-ghost') + '"' + dis + ' onclick="mnmMark(\'' + kind + '\',\'' + x.s.id + '\',' + (!sent) + ')">' + (sent ? '✓ 보냄' : '보냄 표시') + '</button></div></div>';
+  });
+  return h + '</div>';
+}
+function mnmPreview(kind) { const el = document.getElementById('mnm-prev-' + kind); if(el) el.textContent = mnmMsg(kind); }
+function mnmConfirm(kind) {
+  if(kind === 'A' && (!mnm.o.clinic || !mnm.o.start || !mnm.o.end)) { showToast('클리닉 날짜·시간을 먼저 넣어주세요', 'e'); return; }
+  if(kind === 'A') mnm.confA = true; else mnm.confB = true;
+  mnmSave(mnm.o); renderMnm();
+}
+function mnmPick(sid, v) { mnm.o.sel[sid] = v; renderMnm(); }
+function mnmAtt(sid, v) { mnm.o.att[sid] = mnm.o.att[sid] === v ? '' : v; renderMnm(); }
+function mnmSub(sid, v) { mnm.o.sub[sid] = mnm.o.sub[sid] === v ? '' : v; renderMnm(); }
+function mnmStu(sid) { return getStudents(null).find(function(s){ return s.id === sid; }); }
+async function mnmShare(kind, sid) {
+  const s = mnmStu(sid); if(!s) return;
+  try { await navigator.share({text: mnmMsg(kind)}); await mnmMark(kind, sid, true); }
+  catch(e) { if(e && e.name === 'AbortError') return; copyText(mnmMsg(kind), '공유가 안 돼서 복사했어요 — 카톡에 붙여넣어 주세요'); }
+}
+async function mnmMark(kind, sid, on) {
+  const s = mnmStu(sid); if(!s) return;
+  const id = mnmSentId(mnm.o, kind, s);
+  sendLogRows = sendLogRows.filter(function(r){ return r.id !== id; });
+  const rec = {id:id, '반구분':'KG6', '종류': kind === 'A' ? '월내문 클리닉 안내' : '클리닉 불참자 숙제 안내', '시험주': mnm.o.exam ? dateToWeek(mnm.o.exam) : '', '반':s.cls, '이름':s.name, '상태':'보냄', '시각':nowStamp()};
+  if(on) sendLogRows.push(rec);
+  renderMnm(); renderMnmCard();
+  if(on) await saveRecord('sendLog', rec); else await removeRecord('sendLog', id);
+}
+async function saveMnmAtt() {
+  const o = mnm.o, day = o.clinic || todayYmd();
+  await mnmSave(o, '참석 저장됨');
+  // 학생 기록(클리닉)에 남김 — 같은 회차 기록은 덮어씀
+  for(const sid of Object.keys(o.att)) {
+    const v = o.att[sid], s = mnmStu(sid); if(!s || !v) continue;
+    const rec = {id:'L' + o.id.slice(4) + '_' + sid, '반구분':'KG6', '반':s.cls, '이름':s.name, '날짜':day, '종류':'클리닉',
+      '내용':(o.name || '월내문') + ' 클리닉 ' + (v === 'O' ? '참석' : '불참'), '후속조치': v === 'X' ? '클리닉 자료 숙제 → 다음 수업 전 제출' : '', '상태':'', '작성':nowStamp()};
+    studentLog = studentLog.filter(function(r){ return r.id !== rec.id; }); studentLog.push(rec);
+    await saveRecord('studentLog', rec);
+  }
+}
+async function mnmAi(kind) {
+  const o = mnm.o, title = o.name || '월내문';
+  if(kind === 'check') {
+    closeModal('modal-mnm');
+    openCompose('KG6 R&D', '[월내문] ' + title + ' 시험지 검수 (시험일 ' + (o.exam ? mdLabel(o.exam, true) : '?') + ') — 오타·정답 오류·범위를 문제 번호별 목록으로. 범위: 문법 ' + (o.gram || '?') + ' / 독해 ' + (o.readN || '?') + '지문. 시험지 파일 첨부 → ');
+    return;
+  }
+  let text, due = '';
+  if(kind === 'report') {
+    const rows = mnmScores(o).filter(function(x){ return x.score !== null; }).sort(function(a, b){ return a.s.cls.localeCompare(b.s.cls) || b.score - a.score; });
+    if(!rows.length) { showToast('이 회차 월내문 점수가 아직 없어요', 'e'); return; }
+    const t = mnmTargets(o).map(function(x){ return x.s.id; });
+    text = '[월내문] ' + title + ' 성적분석리포트 + 월간 보고서 — 시험일 ' + o.exam + ', 클리닉 기준 ' + (o.cut || 60) + '점 이하(경계 ' + ((o.cut||60)-5) + '~' + ((o.cut||60)+5) + '). 범위: 문법 ' + (o.gram || '?') + ' / 독해 ' + (o.readN || '?') + '지문.\n점수표 (반 | 이름 | 점수 | 클리닉):\n'
+      + rows.map(function(x){ return x.s.cls + ' | ' + x.s.name + ' | ' + x.score + ' | ' + (t.includes(x.s.id) ? '대상' : ''); }).join('\n')
+      + '\n반별 평균·분포, 영역별 강약점(알 수 있는 만큼), 클리닉 대상 명단, 학부모 발송용 개인 리포트 초안을 만들어 주세요.';
+    due = addDays(o.exam || todayYmd(), 3);
+  } else {
+    text = '[월내문] ' + title + ' 클리닉 자료 — 클리닉 ' + (o.clinic ? mdLabel(o.clinic, true) : '미정') + ', 대상 ' + mnmTargets(o).length + '명. 범위: 문법 ' + (o.gramN || '?') + '영역(' + (o.gram || '?') + ') + 독해 ' + (o.readN || '?') + '지문. 클리닉 시간 안에 개념정리부터 문제풀이까지 끝나는 문제집 + 답지(불참자가 집에서 채점할 수 있게).';
+    due = o.clinic ? addDays(o.clinic, -2) : '';
+  }
+  const rec = {id:newId('I'), '반구분':'', '시각':nowStamp(), '내용':text, '첨부':'', '담당':'KG6 R&D', '마감':due, '상태':'접수', '메모':'[월내문] ' + title + (kind === 'report' ? ' 성적분석리포트' : ' 클리닉 자료')};
+  inboxItems.push(rec);
+  const res = await saveRecord('inbox', rec);
+  if(res && res.ok) showToast('월내문 담당 AI에게 맡겼어요 — 업무 탭에서 진행 상황을 볼 수 있어요', 's');
+  renderBriefCard();
+}
+// 브리핑에 넣을 일정·월내문 줄
+function schedBriefLines() {
+  const today = todayYmd(), tmr = addDays(today, 1), out = [];
+  schedItemsOn(today).forEach(function(r){ out.push('📅 오늘 ' + schedLine(r)); });
+  schedItemsOn(tmr).filter(function(r){ return ['휴원','보강','시험','월내문'].includes(r.k); }).forEach(function(r){ out.push('📅 내일 ' + schedLine(r)); });
+  if(currentClass === 'KG6') mnmList().forEach(function(o){
+    const st = mnmStage(o);
+    if(o.clinic === tmr && st.sentA < st.t.length) out.push('📝 오늘 밤 ' + (o.name || '월내문') + ' 클리닉 안내 보내기 (' + st.sentA + '/' + st.t.length + ')');
+    if(o.clinic === today) out.push('📝 오늘 ' + (o.name || '월내문') + ' 클리닉 — 끝나면 참석 체크');
+    if(o.clinic && o.clinic < today && addDays(o.clinic, 10) >= today) {
+      if(st.attDone < st.t.length) out.push('📝 ' + (o.name || '월내문') + ' 클리닉 참석 체크 (' + st.attDone + '/' + st.t.length + ')');
+      else if(st.sentB < st.abs.length) out.push('📝 클리닉 불참자 숙제 안내 (' + st.sentB + '/' + st.abs.length + ')');
+      else if(st.subOk < st.abs.length) out.push('📝 불참자 숙제 제출 확인 (' + st.subOk + '/' + st.abs.length + ')');
+    }
+  });
+  return out;
+}
+
 /* ── 확인 대기함: 선생님 확인이 필요한 것 (마감 빠른 순) ── */
 function confirmWaitingItems() {
   const out = [];
@@ -5256,10 +5678,12 @@ function buildBriefing() {
   // 2) 오늘 — 수업, 마감, 밀린 일
   const due = reportItems.filter(function(r){ return r['단계'] !== '발송 완료' && r['마감']; }).map(function(r){ return {t:r['보고서'] + (r['대상'] ? ' · ' + r['대상'] : ''), d:r['마감']}; })
     .concat(inboxItems.filter(function(r){ return r['상태'] !== '완료' && r['마감']; }).map(function(r){ return {t:short(r), d:r['마감']}; }));
-  const todays = classSettings.filter(function(r){ return String(r['사용']||'Y').toUpperCase() !== 'N' && DOW_KO.indexOf(String(r['요일']).charAt(0)) === dow; })
+  const todays = classSettings.filter(function(r){ return String(r['사용']||'Y').toUpperCase() !== 'N' && DOW_KO.indexOf(String(r['요일']).charAt(0)) === dow && !isClassOff(r['반'], today); })
     .map(function(r){ return r['반'] + (r['시작'] ? ' ' + r['시작'] : ''); });
   const dueToday = due.filter(function(x){ return x.d === today; }), late = due.filter(function(x){ return x.d < today; });
-  sec.push({k:'오늘', n:dueToday.length + late.length, items:[]
+  const sl = schedBriefLines();
+  sec.push({k:'오늘', n:dueToday.length + late.length + sl.length, items:[]
+    .concat(sl)
     .concat(todays.length ? ['오늘 수업: ' + todays.join(', ')] : [])
     .concat(dueToday.map(function(x){ return '오늘 마감 — ' + x.t; }))
     .concat(late.map(function(x){ return '⏰ 밀린 일 — ' + x.t + ' (마감 ' + mdLabel(x.d, true) + ')'; })), go:"goTab('work')"});
