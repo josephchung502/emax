@@ -316,6 +316,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 .sc-cls{font-size:12px;color:var(--text2);min-width:44px}
 .sc-t{font-size:13px;flex:1;min-width:120px}
 .sc-act{display:flex;gap:4px;margin-left:auto}
+.nav-flash{outline:2px solid var(--accent);outline-offset:-2px;border-radius:9px;background:rgba(79,156,249,.08)}
 /* 반 비서 판정 */
 .jd-item{padding:10px 16px;border-top:1px solid var(--border);cursor:pointer}
 .jd-item:hover{background:rgba(255,255,255,.02)}
@@ -1022,7 +1023,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.8.1';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -4554,7 +4555,7 @@ function renderInboxList() {
   const done = inboxItems.filter(function(r){ return r['상태'] === '완료'; })
     .sort(function(a,b){ return String(b['시각']).localeCompare(String(a['시각'])); }).slice(0,10);
   const item = function(r){
-    return '<div class="wk-item"><div class="wk-head">'
+    return '<div class="wk-item" data-iid="' + escHtml(r.id) + '"><div class="wk-head">'
       + '<select class="fi fi-sm" style="width:auto" onchange="setInboxField(\'' + r.id + '\',\'담당\',this.value)">'
       +   INBOX_OWNERS.map(function(x){ return '<option' + (x === (r['담당']||'미분류') ? ' selected' : '') + '>' + x + '</option>'; }).join('')
       + '</select>'
@@ -5649,7 +5650,7 @@ function confirmWaitingItems() {
 }
 function cwItemHtml(x) {
   const due = x.due ? '<span class="wk-due" style="margin-left:0">마감 ' + mdLabel(x.due, true) + '</span>' : '';
-  if(x.kind === 'inbox') return '<div class="cw-item" style="display:block"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="cw-t">' + escHtml(x.t) + '</div>' + due + '</div>' + aiStatusHtml(x.r) + '</div>';
+  if(x.kind === 'inbox') return '<div class="cw-item" data-iid="' + escHtml(x.id) + '" style="display:block"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="cw-t">' + escHtml(x.t) + '</div>' + due + '</div>' + aiStatusHtml(x.r) + '</div>';
   const btn = x.kind === 'report' ? '<button class="btn btn-primary btn-sm" onclick="setReportStage(\'' + x.id + '\',\'확인\');aiRerender()">확인 완료</button>'
     : '<button class="btn btn-primary btn-sm" onclick="openRetestSender(\'' + x.id + '\')">열기</button>';
   return '<div class="cw-item"><div class="cw-t">' + escHtml(x.t) + '</div>' + due + btn + '</div>';
@@ -5733,18 +5734,74 @@ function briefText() {
   const b = buildBriefing();
   return '[' + b.title + ']\n' + b.sec.map(function(x, i){ return (i+1) + '. ' + x.k + '\n' + (x.items.length ? x.items.map(function(t){ return ' - ' + t; }).join('\n') : ' - 없음'); }).join('\n');
 }
-// 12시 이후 그날 처음 열면 팝업 (알림을 눌러 열면 시간과 상관없이)
+// 12시 이후 그날 처음 열면 팝업. 알림을 눌러 열었으면 알림이 가리키는 화면으로
 function maybeShowBriefing() {
-  const tabp = (location.search.match(/[?&]tab=(work|org)\b/) || [])[1];
-  if(tabp && !window.__tabOpened) { window.__tabOpened = true; goTab(tabp); return; }
-  const force = /[?&]brief=1/.test(location.search), k = 'emax_brief_seen';
-  if(!force) {
+  const held = window.__navPending; window.__navPending = null;
+  readPendingNav().then(function(o){
+    o = o || held;
+    if(!o && !window.__tabOpened && /[?&](tab|brief)=/.test(location.search)) o = {url: location.href, t: 0};
+    if(o) {
+      window.__tabOpened = true;
+      try { history.replaceState(null, '', location.pathname); } catch(e) { /* 무시 */ }
+      routeNav(o.url, o.t, true);
+      return;
+    }
     if(new Date().getHours() < 12) return;
-    try { if(localStorage.getItem(k) === todayYmd()) return; } catch(e) { return; }
-  }
-  showBriefing();
-  try { localStorage.setItem(k, todayYmd()); } catch(e) { /* 무시 */ }
+    try { if(localStorage.getItem('emax_brief_seen') === todayYmd()) return; } catch(e) { return; }
+    showBriefing();
+    try { localStorage.setItem('emax_brief_seen', todayYmd()); } catch(e) { /* 무시 */ }
+  });
 }
+/* ── 알림을 눌렀을 때: 앱이 이미 열려 있어도 알림이 안내한 화면으로 이동 ──
+   서비스 워커가 '이 화면 열기' 메시지를 보내고, 놓쳤을 때를 위해 잠깐 저장해 둠 (2분) */
+let navLastT = 0;
+const NAV_KEY = new URL('__nav', document.baseURI).href;
+function appReady() { const a = document.getElementById('app'); return !!(a && a.style.display === 'flex' && currentClass); }
+async function readPendingNav() {
+  try {
+    if(!('caches' in window)) return null;
+    const c = await caches.open('emax-nav'), r = await c.match(NAV_KEY);
+    if(!r) return null;
+    await c.delete(NAV_KEY);
+    const o = await r.json();
+    return (o && o.url && Date.now() - o.t < 120000) ? o : null;
+  } catch(e) { return null; }
+}
+async function routeNav(url, t, atLoad) {
+  if(t) { if(t <= navLastT) return; navLastT = t; }
+  let q; try { q = new URL(url, location.href).searchParams; } catch(e) { return; }
+  document.querySelectorAll('.modal-overlay.open').forEach(function(m){ m.classList.remove('open'); });
+  const tab = q.get('tab');
+  if(tab === 'work' || tab === 'org') {
+    goTab(tab);
+    if(!atLoad) { try { await loadWorkTables(); } catch(e) { /* 보이던 것으로 */ } }
+    if(tab === 'work') setTimeout(function(){ focusWorkItem(q.get('task')); }, 120);
+  } else if(q.get('brief') === '1') {
+    goTab('dashboard');
+    if(!atLoad) { try { await loadWorkTables(); } catch(e) { /* 보이던 것으로 */ } }
+    showBriefing();
+    try { localStorage.setItem('emax_brief_seen', todayYmd()); } catch(e) { /* 무시 */ }
+  }
+}
+function focusWorkItem(id) {
+  let el = null;
+  if(id) document.querySelectorAll('[data-iid]').forEach(function(x){ if(!el && x.getAttribute('data-iid') === id) el = x; });
+  el = el || document.getElementById('cw-list');
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  el.classList.add('nav-flash'); setTimeout(function(){ el.classList.remove('nav-flash'); }, 2600);
+}
+if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function(e){
+  const d = e.data || {};
+  if(d.type !== 'emax-open') return;
+  if('caches' in window) caches.open('emax-nav').then(function(c){ return c.delete(NAV_KEY); }).catch(function(){});
+  if(appReady()) routeNav(d.url, d.t); else window.__navPending = d;
+});
+// 앱으로 돌아왔을 때 — 메시지를 놓쳤으면 저장해 둔 것으로
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState !== 'visible' || !appReady()) return;
+  readPendingNav().then(function(o){ if(o) routeNav(o.url, o.t); });
+});
 /* ═══════════════════════════════════════════════════════
    비서 조직도 — 비서별 할 일 · 자동 판정 · 맡기기 · Claude 요청문
 ═══════════════════════════════════════════════════════ */
