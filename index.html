@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>eMAX 학생 관리 시스템</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0d0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="eMAX">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -313,6 +320,23 @@ tr.changed td{background:rgba(79,156,249,.08)}
 .jr-row:first-child{border-top:none}
 .jr-lbl{flex:1;font-size:13px;line-height:1.4}
 .jr-val{min-width:44px;text-align:center;font-family:'DM Mono',monospace;font-size:15px;font-weight:700}
+/* 메인 비서: 전달 버튼·브리핑·확인 대기함 */
+.fab{display:none}
+.brief-row{display:flex;gap:8px;align-items:baseline;padding:7px 16px;border-top:1px solid var(--border);cursor:pointer;font-size:13px;line-height:1.5}
+.brief-row:first-child{border-top:none}
+.brief-k{font-weight:700;white-space:nowrap;min-width:64px}
+.brief-n{font-family:'DM Mono',monospace;font-weight:700;color:var(--accent);white-space:nowrap}
+.brief-t{color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.brief-sec{margin-bottom:14px}
+.brief-sec h4{font-size:14px;margin-bottom:6px;display:flex;gap:6px;align-items:center}
+.brief-sec li{font-size:13px;line-height:1.6;margin-left:18px;color:var(--text)}
+.brief-sec .none{font-size:12px;color:var(--text3);margin-left:4px}
+.cw-item{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--border)}
+.cw-item:first-child{border-top:none}
+.cw-t{flex:1;min-width:180px;font-size:13px;line-height:1.5}
+.cp-file{display:inline-flex;align-items:center;gap:6px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:4px 10px;max-width:100%}
+.cp-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.ib-att{display:inline-block;font-size:12px;margin:4px 8px 0 0;color:var(--accent)}
 .jr-btn{width:36px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer}
 .stage.on.pass{background:rgba(52,211,153,.15);border-color:var(--green);color:var(--green)}
 .stage.on.fail{background:rgba(248,113,113,.15);border-color:var(--red);color:var(--red)}
@@ -384,6 +408,8 @@ tr.changed td{background:rgba(79,156,249,.08)}
   input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important}
   .toast{left:12px;right:12px;bottom:calc(68px + env(safe-area-inset-bottom));text-align:center}
   .rt-row{padding:10px 12px}
+  .fab{display:flex;align-items:center;justify-content:center;position:fixed;right:16px;bottom:calc(70px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:28px;border:none;background:var(--accent);color:#fff;font-size:24px;box-shadow:0 6px 18px rgba(0,0,0,.45);z-index:210;cursor:pointer}
+  .tb-compose{display:none}
 }
 /* ── RESIZE HANDLES ── */
 .sb-resizer{position:fixed;top:0;left:var(--sidebar-w);width:5px;height:100vh;cursor:col-resize;z-index:200;background:transparent;transition:background .2s;user-select:none}
@@ -482,6 +508,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
       <div class="topbar-right">
         <div class="sync-dot" id="syncDot" title="동기화 상태"></div>
         <span class="sync-label" id="syncLabel">미연결</span>
+        <button class="btn btn-primary btn-sm tb-compose" onclick="openCompose()" title="메인 비서에게 전달 (Ctrl+K)">📥 전달</button>
         <button class="btn btn-ghost btn-sm" onclick="syncNow()" title="동기화">↻<span class="tb-txt"> 동기화</span></button>
         <button class="btn btn-ghost btn-sm" onclick="switchClass()" title="반 전환">⇄<span class="tb-txt"> 반 전환</span></button>
         <button class="btn btn-ghost btn-sm" onclick="openSettings()" title="설정">⚙️</button>
@@ -493,6 +520,10 @@ tr.changed td{background:rgba(79,156,249,.08)}
 
       <!-- ══════════ DASHBOARD ══════════ -->
       <div class="tab-page active" id="tab-dashboard">
+        <div class="card" id="d-brief-card">
+          <div class="card-header"><div class="card-title" id="d-brief-title">📣 오늘의 브리핑</div><button class="btn btn-ghost btn-sm" onclick="showBriefing()">크게 보기</button></div>
+          <div id="d-brief"><div class="wk-empty" style="padding:12px 16px">데이터 로딩 중...</div></div>
+        </div>
         <div class="grid-4">
           <div class="stat-card"><div class="stat-label">총 학생</div><div class="stat-value" style="color:var(--accent)" id="d-total">—</div><div style="font-size:11px;color:var(--text3);margin-top:2px" id="d-total-sub"></div></div>
           <div class="stat-card"><div class="stat-label">이번 주 평균</div><div class="stat-value" style="color:var(--green)" id="d-avg">—</div><div class="stat-note" id="d-avg-sub"></div></div>
@@ -539,6 +570,10 @@ tr.changed td{background:rgba(79,156,249,.08)}
 
       <!-- ══════════ WORK (보고서 현황 + 전달함) ══════════ -->
       <div class="tab-page" id="tab-work">
+        <div class="card">
+          <div class="card-header"><div class="card-title">✅ 확인 대기함 <span class="wk-sub" id="cw-count" style="font-weight:400"></span></div><span class="wk-sub">마감 빠른 순</span></div>
+          <div id="cw-list"></div>
+        </div>
         <div class="grid-2">
           <div class="card">
             <div class="card-header">
@@ -562,12 +597,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
           <div class="card">
             <div class="card-header"><div class="card-title">📥 전달함</div></div>
             <div class="card-body">
-              <textarea class="fi" id="ib-text" rows="3" placeholder="메인 비서에게 전달할 내용 (예: 다음 주 토요일 월내문 클리닉, 범위 문법 3영역)"></textarea>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center">
-                <select class="fi fi-sm" id="ib-owner" style="width:auto"></select>
-                <input type="date" class="fi fi-sm" id="ib-due" style="width:auto" title="마감 (선택)">
-                <button class="btn btn-primary btn-sm" onclick="addInboxItem()">전달</button>
-              </div>
+              <button class="btn btn-primary" style="width:100%;padding:12px" onclick="openCompose()">📥 메인 비서에게 전달 (글·음성·사진)</button>
               <div id="ib-list" style="margin-top:4px"></div>
             </div>
           </div>
@@ -736,6 +766,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
       </div>
 
     </div><!-- /content -->
+    <button class="fab" onclick="openCompose()" aria-label="메인 비서에게 전달">🎙️</button>
   </div><!-- /main -->
 </div><!-- /app -->
 
@@ -796,6 +827,43 @@ tr.changed td{background:rgba(79,156,249,.08)}
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-settings')">닫기</button></div>
+  </div>
+</div>
+
+<!-- COMPOSE (메인 비서에게 전달) -->
+<div class="modal-overlay" id="modal-compose">
+  <div class="modal">
+    <div class="modal-title">📥 메인 비서에게 전달</div>
+    <textarea class="fi" id="cp-text" rows="5" placeholder="무엇이든 적거나 말하세요 (예: 다음 주 토요일 월내문 클리닉, 범위 문법 3영역)" oninput="cpClassify()"></textarea>
+    <div class="rts-row" style="margin-top:8px">
+      <button class="btn btn-ghost" id="cp-mic" onclick="toggleDictation()">🎤 말하기</button>
+      <label class="btn btn-ghost" style="cursor:pointer">📎 사진·파일<input type="file" id="cp-file" multiple accept="image/*,application/pdf,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,.ppt,.pptx" style="display:none" onchange="cpAddFiles(this.files);this.value=''"></label>
+      <span class="wk-sub" id="cp-mic-msg"></span>
+    </div>
+    <div id="cp-files" class="rts-row" style="margin-top:8px"></div>
+    <div class="rts-title" style="margin-top:16px">메인 비서 분류 <span class="wk-sub" style="font-weight:400">— 틀리면 눌러서 고치세요</span></div>
+    <div class="cs-lbl" style="margin-bottom:4px">담당</div>
+    <div id="cp-owner" class="rt-pick" style="flex-wrap:wrap"></div>
+    <div class="cs-lbl" style="margin:12px 0 4px">할 일</div>
+    <input class="fi" id="cp-task" placeholder="할 일 한 줄 (자동으로 채워져요)" oninput="cpTaskTouched=true">
+    <div class="cs-lbl" style="margin:12px 0 4px">마감</div>
+    <div class="rts-row"><input type="date" class="fi fi-sm" id="cp-due" onchange="cpDueTouched=true"><span id="cp-due-quick" class="rt-pick"></span></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-compose')">닫기</button>
+      <button class="btn btn-primary" id="cp-send" onclick="sendCompose()">전달하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- BRIEFING (오늘의 브리핑) -->
+<div class="modal-overlay" id="modal-brief">
+  <div class="modal">
+    <div class="modal-title" id="brief-title">📣 오늘의 브리핑</div>
+    <div id="brief-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="copyText(briefText(), '브리핑 복사됨')">📋 복사</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-brief')">확인</button>
+    </div>
   </div>
 </div>
 
@@ -889,7 +957,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.4.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -1424,6 +1492,7 @@ function enterClass(cls) {
       if(failed && appKey) showToast('일부 데이터를 불러오지 못했습니다 — ↻ 동기화를 눌러 다시 시도해주세요','e');
       refreshClassSelects(); // 반 목록 드롭다운 일괄 갱신
       renderDashboard(); // 모든 데이터 로드 완료 후 단 한 번 렌더
+      maybeShowBriefing();
     })();
   } else {
     classSettings = defaultClassRows(currentClass);
@@ -1973,6 +2042,7 @@ function renderDashboard() {
     }
   }
   renderJudgeCard();
+  renderBriefCard();
   renderDashboardHwIncomplete();
   hwRefreshCount();
   renderDashboardHwConsult();
@@ -4242,10 +4312,9 @@ function renderWork() {
   const t = document.getElementById('rp-type');
   const types = REPORT_TYPES.common.concat(REPORT_TYPES[currentClass] || []);
   if(t.dataset.grp !== currentClass) { t.innerHTML = types.map(function(x){ return '<option>' + x + '</option>'; }).join(''); t.dataset.grp = currentClass; }
-  const o = document.getElementById('ib-owner');
-  if(!o.options.length) o.innerHTML = INBOX_OWNERS.map(function(x){ return '<option>' + x + '</option>'; }).join('');
   renderReportList();
   renderInboxList();
+  renderConfirmBox();
 }
 function renderReportList() {
   const today = todayYmd();
@@ -4309,7 +4378,10 @@ function renderInboxList() {
       + '</select>'
       + '<span class="wk-sub">' + escHtml(String(r['시각']).slice(5)) + '</span>'
       + (r['마감'] ? '<span class="wk-due">마감 ' + escHtml(String(r['마감']).slice(5).replace('-','/')) + '</span>' : '')
-      + '</div><div class="ib-text">' + escHtml(r['내용']) + '</div><div class="wk-stages">'
+      + '</div><div class="ib-text">' + escHtml(r['내용']) + '</div>'
+      + (r['메모'] ? '<div class="log-next">할 일: ' + escHtml(r['메모']) + '</div>' : '')
+      + String(r['첨부']||'').split(/\s+/).filter(Boolean).map(function(u, i){ return '<a class="ib-att" href="' + escHtml(u) + '" target="_blank" rel="noopener">📎 첨부 ' + (i+1) + '</a>'; }).join('')
+      + '<div class="wk-stages">'
       + INBOX_STATES.map(function(st){ return '<button class="stage' + (st === (r['상태']||'접수') ? ' on' : '') + '" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'' + st + '\')">' + st + '</button>'; }).join('')
       + '<button class="btn btn-ghost btn-sm wk-del" onclick="deleteInboxItem(\'' + r.id + '\')">삭제</button>'
       + '</div></div>';
@@ -4317,18 +4389,6 @@ function renderInboxList() {
   let html = '<div class="wk-sec">처리 중 ' + open.length + '</div>' + (open.length ? open.map(item).join('') : '<div class="wk-empty">전달한 내용이 없습니다</div>');
   if(done.length) html += '<details><summary class="wk-sec">✓ 완료 (최근 ' + done.length + ')</summary>' + done.map(item).join('') + '</details>';
   document.getElementById('ib-list').innerHTML = html;
-}
-async function addInboxItem() {
-  const text = document.getElementById('ib-text').value.trim();
-  if(!text) { showToast('전달할 내용을 입력해주세요','e'); return; }
-  // 전달함은 두 트랙 공통 — 반구분 비워서 저장
-  const rec = {id:newId('I'), '반구분':'', '시각':nowStamp(), '내용':text, '첨부':'',
-    '담당':document.getElementById('ib-owner').value || '미분류', '마감':document.getElementById('ib-due').value, '상태':'접수', '메모':''};
-  inboxItems.push(rec);
-  document.getElementById('ib-text').value = ''; document.getElementById('ib-due').value = '';
-  renderInboxList();
-  const res = await saveRecord('inbox', rec);
-  if(res && res.ok) showToast('전달함에 저장됨 ✓','s');
 }
 function setInboxField(id, field, val) {
   const r = inboxItems.find(function(x){ return x.id === id; }); if(!r) return;
@@ -4820,6 +4880,292 @@ async function saveJudgeRules() {
   const res = await saveRecord('appSettings', rec);
   if(res && res.ok) showToast('판정 기준 저장됨 ✓','s');
 }
+
+/* ═══════════════════════════════════════════════════════
+   4단계 — 메인 비서: 전달창(글·음성·사진) · 오늘의 브리핑 · 확인 대기함
+═══════════════════════════════════════════════════════ */
+// 쓰기(POST) — 첨부 파일처럼 큰 내용용. 작은 저장은 postToSheets(JSONP) 사용
+async function postJson(payload) {
+  const r = await fetch(gasUrl, {method:'POST', body: JSON.stringify(Object.assign({}, payload, {key: appKey, classGroup: currentClass}))});
+  const txt = await r.text();
+  let j; try { j = JSON.parse(txt); } catch(e) { throw new Error('서버 응답을 읽지 못했습니다'); }
+  if(j && j.error === 'unauthorized') { notifyUnauthorized(); throw new Error('unauthorized'); }
+  return j;
+}
+/* ── 자동 분류: 담당 · 할 일 · 마감 ── */
+const OWNER_RULES = [
+  ['KG6 R&D',    ['월내문','클리닉','워크북','리딩코어','Reading Core','통합 PDF','통합PDF','추가자료','서술형','개념노트','오답노트','단어시험지','재시험지','RC ']],
+  ['G5 TFS R&D', ['과학','Science','science','티치백','Teachback','토플','TOEFL','Review+','리뷰플러스','HTML','일러스트','Novel','노블']],
+  ['업무',       ['회의','원장','보고서','성적 업로드','성적표','분반','상담 요청','학부모 상담','공지','행정','안건']],
+  ['개인',       ['개인','병원','은행','약속','운동','헬스','가족','여행','휴가','자기계발','독서','치과']],
+  ['R&D 총괄',   ['문법책','특강','QR','채점','교재']],
+  ['KG6 반',     ['KG6','G6-','6학년']],
+  ['G5 TFS 반',  ['G5','5학년','TFS']],
+];
+function classifyOwner(text) {
+  const score = {};
+  OWNER_RULES.forEach(function(r){ r[1].forEach(function(k){ if(text.includes(k)) score[r[0]] = (score[r[0]]||0) + 1; }); });
+  // 학생 이름이 나오면 그 반 담당
+  const named = (students[currentClass]||[]).some(function(s){ const n = s.name.replace(/^\[[^\]]*\]/,''); return n.length >= 2 && text.includes(n); });
+  if(named) { const k = currentClass === 'KG6' ? 'KG6 반' : 'G5 TFS 반'; score[k] = (score[k]||0) + 1; }
+  let best = '미분류', bestN = 0;
+  OWNER_RULES.forEach(function(r){ if((score[r[0]]||0) > bestN) { best = r[0]; bestN = score[r[0]]; } });
+  return best;
+}
+// '내일', '다음 주 토요일', '수요일까지', '11/20', '11월 20일' → YYYY-MM-DD (주는 월요일 시작으로 말하는 습관 기준)
+function parseDueKo(text) {
+  const t = String(text||''), base = parseYmd(todayYmd()), today = ymd(base);
+  const DOW = {'일':0,'월':1,'화':2,'수':3,'목':4,'금':5,'토':6};
+  let m;
+  if(/모레/.test(t)) return addDays(today, 2);
+  if(/내일/.test(t)) return addDays(today, 1);
+  if((m = t.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/)) || (m = t.match(/(?:^|[^\d])(\d{1,2})\s*\/\s*(\d{1,2})(?!\d)/))) {
+    let d = new Date(base.getFullYear(), +m[1]-1, +m[2]);
+    if(d < new Date(base.getFullYear(), base.getMonth(), base.getDate() - 60)) d = new Date(base.getFullYear()+1, +m[1]-1, +m[2]);
+    return ymd(d);
+  }
+  if((m = t.match(/(다다음\s*주|다음\s*주|이번\s*주)?\s*([일월화수목금토])요일/))) {
+    const tgt = (DOW[m[2]] + 6) % 7, cur = (base.getDay() + 6) % 7; // 월=0 … 일=6
+    const pre = (m[1]||'').replace(/\s/g,'');
+    let diff = tgt - cur;
+    if(pre === '다음주') diff += 7; else if(pre === '다다음주') diff += 14; else if(!pre && diff < 0) diff += 7;
+    return addDays(today, diff);
+  }
+  if(/오늘/.test(t)) return today;
+  if(/이번\s*주/.test(t)) return addDays(today, 5 - (base.getDay() + 6) % 7); // 이번 주 토요일
+  if(/다음\s*주/.test(t)) return addDays(today, 7 - (base.getDay() + 6) % 7);  // 다음 주 월요일
+  return '';
+}
+function summarizeTask(text) {
+  // 첫 줄의 첫 문장 (예전 아이폰 Safari에서도 되도록 lookbehind 없이)
+  const line = String(text||'').split('\n')[0];
+  const m = line.match(/^.*?[.!?。](?=\s|$)/);
+  const first = (m ? m[0] : line).trim();
+  return first.length > 40 ? first.slice(0, 40) + '…' : first;
+}
+/* ── 전달창 ── */
+let cpOwner = '미분류', cpOwnerTouched = false, cpTaskTouched = false, cpDueTouched = false, cpFiles = [];
+function openCompose() {
+  cpOwner = '미분류'; cpOwnerTouched = cpTaskTouched = cpDueTouched = false; cpFiles = [];
+  ['cp-text','cp-task','cp-due'].forEach(function(id){ document.getElementById(id).value = ''; });
+  document.getElementById('cp-mic-msg').textContent = '';
+  document.getElementById('cp-send').disabled = false; document.getElementById('cp-send').textContent = '전달하기';
+  renderCpOwner(); renderCpFiles(); renderCpDueQuick();
+  document.getElementById('modal-compose').classList.add('open');
+  setTimeout(function(){ document.getElementById('cp-text').focus(); }, 50);
+}
+function renderCpOwner() {
+  document.getElementById('cp-owner').innerHTML = INBOX_OWNERS.map(function(o){
+    return '<button class="stage' + (o === cpOwner ? ' on' : '') + '" onclick="cpOwner=\'' + o + '\';cpOwnerTouched=true;renderCpOwner()">' + o + '</button>';
+  }).join('');
+}
+function renderCpDueQuick() {
+  const cur = document.getElementById('cp-due').value, t = todayYmd();
+  document.getElementById('cp-due-quick').innerHTML = [['오늘', t], ['내일', addDays(t,1)], ['없음', '']].map(function(q){
+    return '<button class="stage' + (cur === q[1] && (q[1] || !cur) ? ' on' : '') + '" onclick="document.getElementById(\'cp-due\').value=\'' + q[1] + '\';cpDueTouched=true;renderCpDueQuick()">' + q[0] + '</button>';
+  }).join('');
+}
+function cpClassify() {
+  const text = document.getElementById('cp-text').value;
+  if(!cpOwnerTouched) { cpOwner = classifyOwner(text); renderCpOwner(); }
+  if(!cpTaskTouched) document.getElementById('cp-task').value = summarizeTask(text);
+  if(!cpDueTouched) { document.getElementById('cp-due').value = parseDueKo(text); renderCpDueQuick(); }
+}
+// 음성: 브라우저 받아쓰기 (안 되면 키보드 🎤 받아쓰기 안내)
+let dictRec = null, dictOn = false;
+function toggleDictation() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const msg = document.getElementById('cp-mic-msg'), btn = document.getElementById('cp-mic'), ta = document.getElementById('cp-text');
+  if(!SR) { msg.textContent = '여기선 음성 입력이 안 돼요 — 키보드의 🎤(받아쓰기)를 눌러 말해주세요'; ta.focus(); return; }
+  if(dictOn) { try { dictRec.stop(); } catch(e) {} return; }
+  dictRec = new SR(); dictRec.lang = 'ko-KR'; dictRec.interimResults = true; dictRec.continuous = true;
+  const base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
+  let fin = '';
+  dictRec.onresult = function(e){
+    let interim = '';
+    for(let i = e.resultIndex; i < e.results.length; i++) { if(e.results[i].isFinal) fin += e.results[i][0].transcript; else interim += e.results[i][0].transcript; }
+    ta.value = base + fin + interim; cpClassify();
+  };
+  dictRec.onerror = function(e){ msg.textContent = e.error === 'not-allowed' ? '마이크 권한을 허용해주세요' : '음성 인식이 멈췄어요 (' + e.error + ')'; };
+  dictRec.onend = function(){ dictOn = false; btn.textContent = '🎤 말하기'; btn.className = 'btn btn-ghost'; if(msg.textContent.indexOf('듣는 중') === 0) msg.textContent = ''; };
+  try { dictRec.start(); } catch(e) { msg.textContent = '음성 입력을 시작하지 못했어요'; return; }
+  dictOn = true; btn.textContent = '⏹ 멈추기'; btn.className = 'btn btn-red'; msg.textContent = '듣는 중... 말이 끝나면 멈추기를 누르세요';
+}
+// 첨부 파일
+function cpAddFiles(list) { Array.from(list||[]).forEach(function(f){ cpFiles.push({file:f, status:''}); }); renderCpFiles(); }
+function renderCpFiles() {
+  document.getElementById('cp-files').innerHTML = cpFiles.map(function(f, i){
+    return '<span class="cp-file">' + (f.file.type.indexOf('image') === 0 ? '🖼️' : '📄') + '<span>' + escHtml(f.file.name) + '</span>'
+      + (f.status ? '<b>' + escHtml(f.status) + '</b>' : '<a href="#" onclick="cpFiles.splice(' + i + ',1);renderCpFiles();return false" style="color:var(--text3)">✕</a>') + '</span>';
+  }).join('');
+}
+function readAsDataUrl(file) { return new Promise(function(res, rej){ const fr = new FileReader(); fr.onload = function(){ res(String(fr.result)); }; fr.onerror = rej; fr.readAsDataURL(file); }); }
+// 사진은 긴 쪽 1600px JPEG로 줄여서 보냄 (휴대폰 사진이 너무 커서)
+function shrinkImage(dataUrl) {
+  return new Promise(function(res){
+    const img = new Image();
+    img.onload = function(){
+      const sc = Math.min(1, 1600 / Math.max(img.width, img.height));
+      if(sc >= 1 && dataUrl.length < 1500000) return res(null);
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = function(){ res(null); };
+    img.src = dataUrl;
+  });
+}
+async function uploadOne(file) {
+  let dataUrl = await readAsDataUrl(file), name = file.name, mime = file.type || 'application/octet-stream';
+  if(mime.indexOf('image/') === 0) {
+    const small = await shrinkImage(dataUrl);
+    if(small) { dataUrl = small; mime = 'image/jpeg'; name = name.replace(/\.[^.]+$/, '') + '.jpg'; }
+  }
+  return postJson({action:'uploadFile', name: nowStamp().replace(/[: ]/g,'') + '_' + name, mime: mime, data: dataUrl.split(',')[1] || ''});
+}
+async function sendCompose() {
+  const text = document.getElementById('cp-text').value.trim();
+  if(!text && !cpFiles.length) { showToast('전달할 내용을 적거나 파일을 넣어주세요','e'); return; }
+  if(dictOn) { try { dictRec.stop(); } catch(e) {} }
+  const btn = document.getElementById('cp-send');
+  btn.disabled = true; btn.textContent = '보내는 중...';
+  const urls = [];
+  try {
+    for(const f of cpFiles) {
+      f.status = '올리는 중'; renderCpFiles();
+      const r = await uploadOne(f.file);
+      if(!r || !r.ok) throw new Error((r && r.error) || '업로드 실패');
+      urls.push(r.url); f.status = '✓'; renderCpFiles();
+    }
+  } catch(e) {
+    const m = String(e.message||'');
+    showToast('첨부 올리기 실패 — ' + (/DriveApp|permission|권한/i.test(m) ? '구글 드라이브 권한 승인이 아직 안 됐어요' : m), 'e');
+    btn.disabled = false; btn.textContent = '전달하기';
+    cpFiles.forEach(function(f){ if(f.status !== '✓') f.status = ''; }); renderCpFiles();
+    return;
+  }
+  const due = document.getElementById('cp-due').value;
+  const rec = {id:newId('I'), '반구분':'', '시각':nowStamp(), '내용':text, '첨부':urls.join(' '), '담당':cpOwner,
+    '마감':due, '상태':'접수', '메모':document.getElementById('cp-task').value.trim()};
+  inboxItems.push(rec);
+  closeModal('modal-compose');
+  if(document.getElementById('tab-work').classList.contains('active')) renderWork();
+  renderBriefCard();
+  const res = await saveRecord('inbox', rec);
+  if(res && res.ok) showToast('전달됨 → ' + cpOwner + (due ? ' · 마감 ' + mdLabel(due, true) : ''), 's');
+}
+document.addEventListener('keydown', function(e){
+  if((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K') && document.getElementById('app').style.display === 'flex') { e.preventDefault(); openCompose(); }
+  if((e.ctrlKey || e.metaKey) && e.key === 'Enter' && document.getElementById('modal-compose').classList.contains('open')) { e.preventDefault(); sendCompose(); }
+});
+
+/* ── 확인 대기함: 선생님 확인이 필요한 것 (마감 빠른 순) ── */
+function confirmWaitingItems() {
+  const out = [];
+  reportItems.filter(function(r){ return r['단계'] === '작성'; }).forEach(function(r){
+    out.push({kind:'report', id:r.id, t:'보고서 확인: ' + r['보고서'] + (r['대상'] ? ' · ' + r['대상'] : ''), due:r['마감']||''});
+  });
+  inboxItems.filter(function(r){ return r['상태'] === '확인 대기'; }).forEach(function(r){
+    out.push({kind:'inbox', id:r.id, t:'전달함: ' + (r['메모'] || String(r['내용']).slice(0,40)), due:r['마감']||''});
+  });
+  const weeks = vocWeeks();
+  if(weeks.length) {
+    const w = weeks[0], n = retestTargets(w).length, rep = reportItems.find(function(r){ return r.id === 'rt|' + currentClass + '|' + w; });
+    if(n && !rep) out.push({kind:'retest', id:w, t:'단어 재시험 안내 문구 확인 — ' + weekRangeLabel(w) + ', ' + n + '명', due:''});
+  }
+  return out.sort(function(a,b){ return String(a.due||'9999').localeCompare(String(b.due||'9999')); });
+}
+function renderConfirmBox() {
+  const items = confirmWaitingItems();
+  document.getElementById('cw-count').textContent = items.length ? items.length + '건' : '';
+  document.getElementById('cw-list').innerHTML = items.length ? items.map(function(x){
+    const btn = x.kind === 'report' ? '<button class="btn btn-primary btn-sm" onclick="setReportStage(\'' + x.id + '\',\'확인\');renderConfirmBox()">확인 완료</button>'
+      : x.kind === 'inbox' ? '<button class="btn btn-primary btn-sm" onclick="setInboxField(\'' + x.id + '\',\'상태\',\'완료\');renderConfirmBox()">완료</button>'
+      : '<button class="btn btn-primary btn-sm" onclick="openRetestSender(\'' + x.id + '\')">열기</button>';
+    return '<div class="cw-item"><div class="cw-t">' + escHtml(x.t) + '</div>' + (x.due ? '<span class="wk-due" style="margin-left:0">마감 ' + mdLabel(x.due, true) + '</span>' : '') + btn + '</div>';
+  }).join('') : '<div class="wk-empty" style="padding:12px 16px">확인할 것이 없습니다 ✓</div>';
+}
+
+/* ── 오늘의 브리핑 ── */
+// 집중 관리 명단이 어제와 비교해 새로 생긴 학생
+function focusDiff(ids) {
+  const k = 'emax_focus_' + currentClass, today = todayYmd();
+  let st = {}; try { st = JSON.parse(localStorage.getItem(k) || '{}'); } catch(e) { st = {}; }
+  if(st.date !== today) st = {prevIds: st.ids || null, date: today, ids: ids}; else st.ids = ids;
+  try { localStorage.setItem(k, JSON.stringify(st)); } catch(e) { /* 저장 안 돼도 브리핑은 계속 */ }
+  return st.prevIds ? ids.filter(function(x){ return !st.prevIds.includes(x); }) : [];
+}
+function buildBriefing() {
+  const now = new Date(), today = todayYmd(), dow = now.getDay(), sec = [];
+  const short = function(r){ return String(r['메모'] || r['내용'] || '').slice(0, 40); };
+  // 1) 확인 대기
+  const cw = confirmWaitingItems();
+  sec.push({k:'확인 대기', n:cw.length, items:cw.map(function(x){ return x.t + (x.due ? ' (마감 ' + mdLabel(x.due, true) + ')' : ''); }), go:"goTab('work')"});
+  // 2) 오늘 — 수업, 마감, 밀린 일
+  const due = reportItems.filter(function(r){ return r['단계'] !== '발송 완료' && r['마감']; }).map(function(r){ return {t:r['보고서'] + (r['대상'] ? ' · ' + r['대상'] : ''), d:r['마감']}; })
+    .concat(inboxItems.filter(function(r){ return r['상태'] !== '완료' && r['마감']; }).map(function(r){ return {t:short(r), d:r['마감']}; }));
+  const todays = classSettings.filter(function(r){ return String(r['사용']||'Y').toUpperCase() !== 'N' && DOW_KO.indexOf(String(r['요일']).charAt(0)) === dow; })
+    .map(function(r){ return r['반'] + (r['시작'] ? ' ' + r['시작'] : ''); });
+  const dueToday = due.filter(function(x){ return x.d === today; }), late = due.filter(function(x){ return x.d < today; });
+  sec.push({k:'오늘', n:dueToday.length + late.length, items:[]
+    .concat(todays.length ? ['오늘 수업: ' + todays.join(', ')] : [])
+    .concat(dueToday.map(function(x){ return '오늘 마감 — ' + x.t; }))
+    .concat(late.map(function(x){ return '⏰ 밀린 일 — ' + x.t + ' (마감 ' + mdLabel(x.d, true) + ')'; })), go:"goTab('work')"});
+  // 3) 학생 — 집중 관리
+  const focus = getStudents(null).map(function(s){ return {s:s, j:judgeStage(s)}; }).filter(function(x){ return x.j.stage === 'focus' && !lastConsult(x.s); });
+  const fresh = focusDiff(focus.map(function(x){ return x.s.id; }));
+  sec.push({k:'학생', n:focus.length, items:[]
+    .concat(fresh.length ? ['🆕 새로 집중 관리: ' + focus.filter(function(x){ return fresh.includes(x.s.id); }).map(function(x){ return x.s.name; }).join(', ')] : [])
+    .concat(focus.slice(0, 5).map(function(x){ return x.s.name + ' (' + x.s.cls + ') — ' + (x.j.reasons[0] || {}).t; }))
+    .concat(focus.length > 5 ? ['외 ' + (focus.length - 5) + '명 — 대시보드 학생 판정에서 보기'] : []), go:"judgeView='focus';goTab('dashboard');document.getElementById('d-judge').scrollIntoView({behavior:'smooth'})"});
+  // 4) R&D
+  const rnd = inboxItems.filter(function(r){ return r['상태'] !== '완료' && /R&D/.test(r['담당']||''); });
+  const rndItems = rnd.map(function(r){ return '[' + r['담당'] + '] ' + short(r) + (r['마감'] ? ' (마감 ' + mdLabel(r['마감'], true) + ')' : ''); });
+  if(currentClass === 'G5TFS' && dow >= 1 && dow <= 3) rndItems.unshift('이번 주 과학 리뷰 HTML — 수요일 마감');
+  sec.push({k:'R&D', n:rnd.length, items:rndItems, go:"goTab('work')"});
+  // 5) 회의 (월 KG6 주도 · 목 G5 TFS 참여)
+  const meet = {0:'내일(월) KG6 회의 — 안건지 준비', 1:'오늘 KG6 회의 (주도)', 3:'내일(목) G5 TFS 회의 — 자료 상태·오류 공유 준비', 4:'오늘 G5 TFS 회의'}[dow];
+  sec.push({k:'회의', n:meet ? 1 : 0, items: meet ? [meet] : [], go:"goTab('work')"});
+  // 6) 개인
+  const me = inboxItems.filter(function(r){ return r['상태'] !== '완료' && r['담당'] === '개인'; });
+  sec.push({k:'개인', n:me.length, items:me.map(function(r){ return short(r) + (r['마감'] ? ' (마감 ' + mdLabel(r['마감'], true) + ')' : ''); }), go:"goTab('work')"});
+  return {title: (now.getMonth()+1) + '/' + now.getDate() + ' (' + DOW_KO[dow] + ') 브리핑 · ' + cfg().label, sec: sec};
+}
+function renderBriefCard() {
+  const el = document.getElementById('d-brief'); if(!el) return;
+  const b = buildBriefing();
+  document.getElementById('d-brief-title').textContent = '📣 ' + b.title;
+  el.innerHTML = b.sec.map(function(x, i){
+    return '<div class="brief-row" onclick="showBriefing()"><span class="brief-k">' + (i+1) + '. ' + x.k + '</span>'
+      + '<span class="brief-n">' + (x.k === '회의' ? (x.n ? '●' : '') : x.n) + '</span>'
+      + '<span class="brief-t">' + escHtml(x.items[0] || '없음') + '</span></div>';
+  }).join('');
+}
+function showBriefing() {
+  const b = buildBriefing();
+  document.getElementById('brief-title').textContent = '📣 ' + b.title;
+  document.getElementById('brief-body').innerHTML = b.sec.map(function(x, i){
+    return '<div class="brief-sec"><h4>' + (i+1) + '. ' + x.k + (x.k !== '회의' ? ' <span class="brief-n">' + x.n + '</span>' : '') + '</h4>'
+      + (x.items.length ? '<ul>' + x.items.map(function(t){ return '<li>' + escHtml(t) + '</li>'; }).join('') + '</ul>' : '<div class="none">없음</div>') + '</div>';
+  }).join('');
+  document.getElementById('modal-brief').classList.add('open');
+}
+function briefText() {
+  const b = buildBriefing();
+  return '[' + b.title + ']\n' + b.sec.map(function(x, i){ return (i+1) + '. ' + x.k + '\n' + (x.items.length ? x.items.map(function(t){ return ' - ' + t; }).join('\n') : ' - 없음'); }).join('\n');
+}
+// 12시 이후 그날 처음 열면 팝업 (알림을 눌러 열면 시간과 상관없이)
+function maybeShowBriefing() {
+  const force = /[?&]brief=1/.test(location.search), k = 'emax_brief_seen';
+  if(!force) {
+    if(new Date().getHours() < 12) return;
+    try { if(localStorage.getItem(k) === todayYmd()) return; } catch(e) { return; }
+  }
+  showBriefing();
+  try { localStorage.setItem(k, todayYmd()); } catch(e) { /* 무시 */ }
+}
+// 홈 화면 앱용 서비스 워커 (알림 준비)
+if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function(){});
 
 /* ═══════════════════════════════════════════════════════
    UTILS
