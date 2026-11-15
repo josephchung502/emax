@@ -889,7 +889,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.3.1';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -902,7 +902,7 @@ const CLASS_CONFIG = {
     label: 'G5 TFS',
     classes: ['G5-22TH','G5-42F','G5-46SA'],
     subjects: ['VOC Test','Gram HW','GraSP','Sci HW','Sci Test','Sci Teachback','TFL Reading','Grammar Test','TFL Speaking','Novel','MarketDay Points'],
-    hwItems: ['VOC HW','Sci HW','Adv Reading HW','TFL RCT Sum','GR HW','GR Sum','GR 오답노트','Novel HW','Sci Teachback Script','Grasp'],
+    hwItems: ['VOC HW','Sci HW','Adv Reading HW','TFL RCT Sum','GR HW','GR Sum','GR 오답노트','Novel HW','Sci Teachback Script','Grasp','Review+'],
     retestSubject: 'VOC Test',
     retestKey: 'retest-g5',
   },
@@ -4625,7 +4625,7 @@ function copyRetest(sid) {
    3단계 — 반 비서 자동 판정 (집중 관리 · 주의 관찰 · 우수·개선)
    점수·숙제·출석·관찰 태그를 보고 학생마다 단계와 근거를 붙임
 ═══════════════════════════════════════════════════════ */
-const JUDGE_DEFAULT = {vocWarn:2, vocFocus:3, hwWarn:2, hwFocus:3, drop:15, rise:15, tagWeeks:3, absMonth:2, watch:2, sciDrop:15};
+const JUDGE_DEFAULT = {vocWarn:2, vocFocus:3, hwWarn:2, hwFocus:3, drop:15, rise:15, tagWeeks:3, mannerWeeks:2, absMonth:2, watch:2, sciDrop:15, reviewWeeks:2};
 const JUDGE_LABELS = [
   ['vocWarn',  '단어시험 연속 미통과 → 주의', '회'],
   ['vocFocus', '단어시험 연속 미통과 → 집중 관리 (재시험도 미통과면 바로 집중)', '회'],
@@ -4634,14 +4634,17 @@ const JUDGE_LABELS = [
   ['drop',     '최근 3주 평균이 직전 3주보다 떨어짐 → 주의', '점'],
   ['rise',     '최근 3주 평균이 직전 3주보다 오름 → 우수·개선', '점'],
   ['tagWeeks', '같은 약점 태그 연속 → 주의', '주'],
+  ['mannerWeeks', '태도 약점 태그(집중부족·태도불성실·소극적 등) 연속 → 주의', '주'],
   ['absMonth', '한 달 결석 → 주의', '회'],
   ['watch',    '주의가 이만큼 이어지면 집중 관리로', '주'],
   ['sciDrop',  'Science Test 직전보다 떨어짐 → 주의 (G5 TFS)', '점'],
+  ['reviewWeeks', 'Review+ 연속 미제출 → 주의 (G5 TFS)', '주'],
 ];
 const JUDGE_TIPS = {
   voc:'단어 복습 방법·시간 점검, 재시험 결과 같이 공유', hw:'자주 빠지는 숙제 항목과 집에서 숙제하는 시간 확인',
   drop:'점수가 떨어진 과목 위주로 원인 확인', tag:'반복되는 약점과 관련된 수업 모습 공유', att:'결석 사유와 보강 계획 확인',
   sci:'Science Test 범위 복습 상태 확인', watch:'2주 넘게 변화가 없어 가정과 함께 방법 조정',
+  manner:'수업 중 집중·참여 모습 공유하고 가정에서도 격려 부탁', review:'Review+ 제출 — 가정에서 한 번만 챙겨봐 주시길 부탁',
 };
 const JUDGE_STAGE = {focus:['집중 관리','b-red'], warn:['주의 관찰','b-yellow'], good:['우수·개선','b-green']};
 let judgeRules = null;
@@ -4658,7 +4661,7 @@ function hwBad(s, w) {
   const d = (homework[s.id]||{})[w];
   if(!d || !Object.keys(d).some(function(k){ return !k.startsWith('_'); })) return null;
   if(currentClass === 'KG6') { const t = calcHwTotal(s.id, w, s.cls); return t === null ? null : t < 100; }
-  return getHwItems(s.cls, s.id).some(function(h){ return !(d[h]||{}).done; });
+  return getHwItems(s.cls, s.id).some(function(h){ return h !== 'Review+' && !(d[h]||{}).done; });
 }
 // ref 주를 기준으로 한 학생의 판정 근거 (warn·focus·good)
 function judgeStudent(s, ref, R) {
@@ -4698,6 +4701,16 @@ function judgeStudent(s, ref, R) {
     const common = wk[0].filter(function(n){ return wk.every(function(a){ return a.includes(n); }); });
     if(common.length) warn.push({k:'tag', t:'약점 태그 ' + R.tagWeeks + '주 연속: ' + common.map(function(n){ return tags.weakness[n-1]; }).filter(Boolean).join(', ')});
   }
+  // 태도: 태도 관련 약점 태그가 연속으로 (같은 태그가 아니어도)
+  const MANNER = ['집중부족','태도불성실','소극적','소극참여'];
+  const mIdx = tags.weakness.map(function(t, i){ return MANNER.includes(t) ? i + 1 : 0; }).filter(Boolean);
+  if(mIdx.length && R.mannerWeeks > 0) {
+    const mw = weeksBack(ref, R.mannerWeeks).map(function(w){ return ((((obsTags[sid]||{})[w])||{}).weakness||[]).filter(function(n){ return mIdx.includes(n); }); });
+    if(mw.every(function(a){ return a.length; })) {
+      const names = [...new Set([].concat.apply([], mw))].map(function(n){ return tags.weakness[n-1]; });
+      warn.push({k:'manner', t:'태도 태그 ' + R.mannerWeeks + '주 연속: ' + names.join(', ')});
+    }
+  }
   const imp = tags.strength.map(function(t, i){ return t.includes('개선') ? i + 1 : 0; }).filter(Boolean);
   const impN = tw.slice(0,4).filter(function(w){ return ((((obsTags[sid]||{})[w])||{}).strength||[]).some(function(n){ return imp.includes(n); }); }).length;
   if(impN >= 2) good.push({k:'imp', t:'"개선" 강점 태그 최근 4주 중 ' + impN + '주'});
@@ -4705,7 +4718,12 @@ function judgeStudent(s, ref, R) {
   const refDay = ref === currentWeek() ? todayYmd() : addDays(weekStartYmd(ref), 6), ym = refDay.slice(0,7);
   const abs = Object.entries(attendance[sid]||{}).filter(function(e){ return e[0].slice(0,7) === ym && e[0] <= refDay && resolveAttStatus(e[1]) === 'absent'; }).length;
   if(abs >= R.absMonth) warn.push({k:'att', t:parseInt(ym.slice(5)) + '월 결석 ' + abs + '회'});
-  // 6) G5 TFS: Science Test 하락
+  // 6) G5 TFS: Science Test 하락 / Review+ 연속 미제출 (Review+를 체크한 주만 셈)
+  if(currentClass === 'G5TFS' && R.reviewWeeks > 0) {
+    const rv = weeksBack(ref, 6).map(function(w){ const d = (homework[sid]||{})[w]; return d && d['Review+'] ? !d['Review+'].done : null; }).filter(function(b){ return b !== null; });
+    let miss = 0; for(const b of rv) { if(b) miss++; else break; }
+    if(miss >= R.reviewWeeks) warn.push({k:'review', t:'Review+ ' + miss + '주 연속 미제출'});
+  }
   if(currentClass === 'G5TFS') {
     const st = sc.filter(function(x){ return x.type === 'Sci Test' && x.week && x.week <= ref; }).sort(function(a,b){ return a.week.localeCompare(b.week); });
     if(st.length >= 2) {
@@ -4779,7 +4797,7 @@ function openJudgeRules() {
   document.getElementById('modal-judge-rules').classList.add('open');
 }
 function renderJudgeRules() {
-  document.getElementById('jr-list').innerHTML = JUDGE_LABELS.filter(function(l){ return l[0] !== 'sciDrop' || currentClass === 'G5TFS'; }).map(function(l){
+  document.getElementById('jr-list').innerHTML = JUDGE_LABELS.filter(function(l){ return !['sciDrop','reviewWeeks'].includes(l[0]) || currentClass === 'G5TFS'; }).map(function(l){
     return '<div class="jr-row"><div class="jr-lbl">' + l[1] + '</div>'
       + '<button class="jr-btn" onclick="stepJudgeRule(\'' + l[0] + '\',-1)">−</button>'
       + '<span class="jr-val">' + jrDraft[l[0]] + '<span style="font-size:11px;color:var(--text3);font-weight:400">' + l[2] + '</span></span>'
@@ -4788,7 +4806,7 @@ function renderJudgeRules() {
 }
 function stepJudgeRule(k, d) {
   const step = ['drop','rise','sciDrop'].includes(k) ? 5 : 1;
-  jrDraft[k] = Math.max(['watch','tagWeeks'].includes(k) ? 0 : 1, (jrDraft[k]||0) + d * step);
+  jrDraft[k] = Math.max(['watch','tagWeeks','mannerWeeks','reviewWeeks'].includes(k) ? 0 : 1, (jrDraft[k]||0) + d * step);
   renderJudgeRules();
 }
 function resetJudgeRules() { jrDraft = Object.assign({}, JUDGE_DEFAULT); renderJudgeRules(); }
