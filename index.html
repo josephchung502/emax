@@ -595,18 +595,18 @@ textarea.fi{resize:vertical;min-height:70px}
             <div style="padding:0 14px 14px" id="msg-lib-preview"></div>
           </div>
         </div>
+          <div class="card" style="margin-top:16px">
+            <div class="card-header">
+              <div class="card-title">📋 이번 주 피드백 일괄 생성</div>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <select class="fi fi-sm" id="batch-fb-class" style="width:auto"></select>
+                <input type="text" class="fi fi-sm" id="batch-fb-topic" placeholder="이번 주 수업 내용 (공통층 — 예: 문법L13, RE3 Unit5)" style="min-width:200px">
+                <button class="btn btn-primary btn-sm" onclick="generateBatchFeedback()">✨ 일괄 생성</button>
+              </div>
+            </div>
+            <div id="batch-fb-output" style="padding:14px;color:var(--text3);font-size:12px">반과 이번 주 수업 내용을 입력 후 생성 버튼을 눌러주세요.<br><span style="font-size:10px">💡 관찰 태그(출석/숙제 탭 S/W 번호 입력)가 있으면 개인 피드백에 반영됩니다.</span></div>
+          </div>
       </div>
-  <div class="card" style="margin-top:16px">
-    <div class="card-header">
-      <div class="card-title">📋 이번 주 피드백 일괄 생성</div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <select class="fi fi-sm" id="batch-fb-class" style="width:auto"></select>
-        <input type="text" class="fi fi-sm" id="batch-fb-topic" placeholder="이번 주 수업 내용 (공통층 — 예: 문법L13, RE3 Unit5)" style="min-width:200px">
-        <button class="btn btn-primary btn-sm" onclick="generateBatchFeedback()">✨ 일괄 생성</button>
-      </div>
-    </div>
-    <div id="batch-fb-output" style="padding:14px;color:var(--text3);font-size:12px">반과 이번 주 수업 내용을 입력 후 생성 버튼을 눌러주세요.<br><span style="font-size:10px">💡 관찰 태그(출석/숙제 탭 S/W 번호 입력)가 있으면 개인 피드백에 반영됩니다.</span></div>
-  </div>
 
     </div><!-- /content -->
   </div><!-- /main -->
