@@ -300,6 +300,8 @@ textarea.rts-tpl{font-size:13px;line-height:1.6;min-height:280px;font-family:inh
 .rt-row.sent{opacity:.55}
 .rt-row.changed{background:rgba(79,156,249,.08)}
 .rt-row.changed.sent{opacity:1}
+tr.changed td{background:rgba(79,156,249,.08)}
+.rt-pick{display:flex;gap:4px;flex-wrap:nowrap}
 .stage.on.pass{background:rgba(52,211,153,.15);border-color:var(--green);color:var(--green)}
 .stage.on.fail{background:rgba(248,113,113,.15);border-color:var(--red);color:var(--red)}
 @media(max-width:1200px){
@@ -628,10 +630,10 @@ textarea.rts-tpl{font-size:13px;line-height:1.6;min-height:280px;font-family:inh
           <div class="card-header" style="flex-shrink:0">
             <div class="card-title">출석 / 숙제 관리</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <select class="fi fi-sm" id="att-class" onchange="renderAttList()" style="width:auto"></select>
-              <input type="date" class="fi fi-sm" id="att-date" onchange="renderAttList()" style="width:auto">
+              <select class="fi fi-sm" id="att-class" onchange="rtDrafts.att={};renderAttList()" style="width:auto"></select>
+              <input type="date" class="fi fi-sm" id="att-date" onchange="rtDrafts.att={};renderAttList()" style="width:auto">
               <button class="btn btn-ghost btn-sm" onclick="loadAttHwFromSheets()">↻ 불러오기</button>
-              <button class="btn btn-primary btn-sm" onclick="saveAttendance()">💾 저장</button>
+              <button class="btn btn-primary btn-sm" id="att-save-btn" onclick="saveAttendance()">💾 저장</button>
             </div>
           </div>
           <div style="padding:6px 14px;background:rgba(79,156,249,.05);border-bottom:1px solid var(--border);font-size:12px;color:var(--text3);flex-shrink:0">
@@ -829,7 +831,7 @@ textarea.rts-tpl{font-size:13px;line-height:1.6;min-height:280px;font-family:inh
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="syncAndRefreshSession()">↻ Sheets 불러오기</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-session')">닫기</button>
-      <button class="btn btn-primary" onclick="saveSession()">💾 저장</button>
+      <button class="btn btn-primary" id="sess-save-btn" onclick="saveSession()">💾 저장</button>
     </div>
   </div>
 </div>
@@ -864,7 +866,7 @@ textarea.rts-tpl{font-size:13px;line-height:1.6;min-height:280px;font-family:inh
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.2.3';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -1933,18 +1935,18 @@ function renderDashboard() {
   if(retestCard) {
     retestCard.style.display = retestCandidates.length ? '' : 'none';
     if(retestCandidates.length) {
-      retestRowInfo = {};
+      rtInfo.dash = {};
       document.getElementById('d-retest-list').innerHTML = retestCandidates.map(({s, triggerWeek, ri, done})=>{
-          retestRowInfo[s.id] = {triggerWeek, saved: ri.result||''};
+          rtInfo.dash[s.id] = {tw: triggerWeek, saved: ri.result||''};
           const failedSc = (scores[s.id]||[]).find(sc=>sc.week===triggerWeek&&sc.type===cfg().retestSubject);
           const testDate = failedSc?.date || triggerWeek;
           const scorePill = failedSc ? `<span class="score-pill" style="color:${scoreColor(failedSc.score)};background:${scoreColor(failedSc.score)}22">${failedSc.score}</span>` : '';
-          return `<div class="rt-row${done?' sent':''}" id="rtrow-${s.id}">
+          return `<div class="rt-row${done?' sent':''}" id="dashrow-${s.id}">
             <div class="rt-who"><span class="rt-name">${s.name}</span><span class="badge b-blue">${s.cls}</span>${scorePill}<span class="rt-date">${testDate}</span>${done?`<span class="badge ${ri.result==='pass'?'b-green':'b-red'}">✓ ${ri.result==='pass'?'통과':'미통과'} 저장됨</span>`:''}</div>
-            <div class="rt-actions" id="rtseg-${s.id}"></div>
+            <div class="rt-actions" id="dashrt-${s.id}">${rtPickHtml('dash', s.id)}</div>
           </div>`;
         }).join('');
-      Object.keys(retestRowInfo).forEach(updateRetestPick);
+      rtRefreshCount('dash');
     }
   }
   // 주의 학생: 각 반에서 평균 꼴찌 학생만, 이슈 기준(과목 75점 미만) 동일
@@ -2309,6 +2311,7 @@ function setSessionAtt(sid, date, st) {
 function openSession(cls, date, week) {
   sessionContext = {cls, date, week};
   sessionAttDirty = new Set();
+  rtDrafts.sess = {};
   document.getElementById('session-title').textContent = `${cls} — ${date} (${week})`;
   renderSessionAtt();
   renderSessionScores();
@@ -2327,7 +2330,8 @@ function renderSessionAtt() {
   const {cls, date, week} = sessionContext;
   const ss = getStudents(cls);
   const cw = week || currentWeek();
-  let html = `<div style="margin-bottom:10px;font-size:12px;color:var(--text2)">📌 재시험 대상자 확인 포함</div>`;
+  rtInfo.sess = {};
+  let html = `<div style="margin-bottom:10px;font-size:12px;color:var(--text2)">📌 재시험 결과는 고른 뒤 아래 💾 저장을 눌러야 저장됩니다</div>`;
   html += `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>학생</th><th>출석</th><th>지각</th><th>결석</th><th>재시험 결과</th></tr></thead><tbody>`;
   ss.forEach(s=>{
     const cur = getAttStatus(s.id, date);
@@ -2335,14 +2339,16 @@ function renderSessionAtt() {
     const isRetest = !retestDone && isRetestCandidate(s.id, cw, s.cls);
     const retestTW = getRetestTriggerWeek(s.id, cw, s.cls) || cw;
     const retestInfo = (retests[s.id]||{})[retestTW]||{};
-    html += `<tr>
+    if(isRetest||retestDone) rtInfo.sess[s.id] = {tw: retestTW, saved: retestInfo.result||''};
+    html += `<tr id="sessrow-${s.id}">
       <td style="font-weight:600">${s.name}${retestDone?`<span class="badge b-green" style="margin-left:4px;font-size:9px">진행완료</span>`:isRetest?`<span class="retest-badge">재시험</span>`:''}</td>
       ${['present','late','absent'].map(st=>`<td><input type="radio" name="att-${s.id}" value="${st}" ${cur===st?'checked':''} onchange="setSessionAtt('${s.id}','${date}','${st}')"></td>`).join('')}
-      <td>${(isRetest||retestDone)?`<select class="fi fi-sm" id="retest-result-${s.id}" style="width:90px" onchange="saveRetestResult('${s.id}','${cw}',this.value)"><option value="">미진행</option><option value="pass" ${retestInfo.result==='pass'?'selected':''}>통과</option><option value="fail" ${retestInfo.result==='fail'?'selected':''}>미통과</option></select>`:'—'}</td>
+      <td>${(isRetest||retestDone)?`<div id="sessrt-${s.id}">${rtPickHtml('sess', s.id)}</div>`:'—'}</td>
     </tr>`;
   });
   html += '</tbody></table></div>';
   document.getElementById('session-att').innerHTML = html;
+  rtRefreshCount('sess');
 }
 function renderSessionScores() {
   const {cls, date} = sessionContext;
@@ -2486,17 +2492,9 @@ function saveSession() {
         if(el) homework[s.id][week][h]={done:el.checked};
       });
     }
-    // retests — trigger week 기준으로 저장
-    const retestEl = document.getElementById(`retest-result-${s.id}`);
-    if(retestEl) {
-      const result = retestEl.value;
-      const retestSaveWeek = getRetestTriggerWeek(s.id, week, s.cls) || week;
-      if(!retests[s.id]) retests[s.id]={};
-      if(!retests[s.id][retestSaveWeek]) retests[s.id][retestSaveWeek]={};
-      retests[s.id][retestSaveWeek].taken = result !== '';
-      retests[s.id][retestSaveWeek].result = result;
-    }
   });
+  // 재시험 결과 — 고른 학생만 (시험 본 주로) 저장
+  saveRetestScope('sess');
   closeModal('modal-session');
   renderDashboard();
   showToast('수업 내용 저장됨 — Sheets 동기화 중...','s');
@@ -2514,12 +2512,6 @@ function saveSession() {
     });
   });
   if(scoreItems.length) postToSheets({action:'saveScores',cls,week,scoreData:scoreItems});
-  // 재시험 Sheets 저장 (trigger week 기준)
-  ss.forEach(s=>{
-    const tw = getRetestTriggerWeek(s.id, week, s.cls) || week;
-    const rt=(retests[s.id]||{})[tw];
-    if(rt&&rt.result) postToSheets({action:'saveRetest',name:s.name,cls:s.cls,week:tw,taken:'yes',result:rt.result,score:rt.score||0});
-  });
   // 출석 Sheets 저장 (이 창에서 바꾼 학생만)
   sessionAttDirty.forEach(sid=>{
     const s = ss.find(x=>x.id===sid); if(!s) return;
@@ -2996,6 +2988,7 @@ function hwStatusCell(s, week, date, curStatus) {
 }
 function renderAttList() {
   const cls = document.getElementById('att-class')?.value; if(!cls) return;
+  rtInfo.att = {};
   const ss = getStudents(cls);
   const date = document.getElementById('att-date')?.value || todayYmd();
   const week = dateToWeek(date);
@@ -3028,11 +3021,10 @@ function renderAttList() {
         var active = curStatus === st;
         return '<td><button class="btn btn-sm" onclick="setAtt(\'' + s.id + '\',\'' + date + '\',\'' + st + '\')" style="background:' + (active ? cols[i]+'22' : 'transparent') + ';border:1px solid ' + (active ? cols[i] : 'var(--border)') + ';color:' + (active ? cols[i] : 'var(--text3)') + '">' + labels[i] + '</button></td>';
       }).join('');
-      var retestCell = (isRetest||retestDone)
-        ? '<select class="fi fi-sm" style="width:auto" onchange="saveRetestResult(\'' + s.id + '\',\'' + week + '\',this.value)"><option value=""' + (!retestInfo.result?' selected':'') + '>미진행</option><option value="pass"' + (retestInfo.result==='pass'?' selected':'') + '>통과</option><option value="fail"' + (retestInfo.result==='fail'?' selected':'') + '>미통과</option></select>'
-        : '—';
+      if(isRetest||retestDone) rtInfo.att[s.id] = {tw: retestTW, saved: retestInfo.result||''};
+      var retestCell = (isRetest||retestDone) ? '<div id="attrt-' + s.id + '">' + rtPickHtml('att', s.id) + '</div>' : '—';
       var hwCell = hwStatusCell(s, week, date, curStatus);
-      html += '<tr><td style="font-weight:700;color:var(--orange)">' + s.name + '</td>'
+      html += '<tr id="attrow-' + s.id + '"><td style="font-weight:700;color:var(--orange)">' + s.name + '</td>'
         + '<td><span class="badge b-orange">' + s.cls + '</span></td>'
         + '<td style="color:var(--text3);font-size:12px">' + (s.bogangFromDate||'') + '</td>'
         + attBtns
@@ -3081,9 +3073,8 @@ function renderAttList() {
       + (isBogangActive ? '<input type="date" class="fi fi-sm" style="width:auto;padding:3px 5px;font-size:12px" value="' + (bogangInfo.targetDate||'') + '" onchange="setBogangDate(\'' + s.id + '\',\'' + date + '\',this.value)">' : '')
       + '</div></td>';
 
-    var retestCell = (isRetest||retestDone)
-      ? '<select class="fi fi-sm" style="width:auto" onchange="saveRetestResult(\'' + s.id + '\',\'' + week + '\',this.value)"><option value=""' + (!retestInfo.result?' selected':'') + '>미진행</option><option value="pass"' + (retestInfo.result==='pass'?' selected':'') + '>통과</option><option value="fail"' + (retestInfo.result==='fail'?' selected':'') + '>미통과</option></select>'
-      : '—';
+    if(isRetest||retestDone) rtInfo.att[s.id] = {tw: retestTW, saved: retestInfo.result||''};
+    var retestCell = (isRetest||retestDone) ? '<div id="attrt-' + s.id + '">' + rtPickHtml('att', s.id) + '</div>' : '—';
     var hwCell = hwStatusCell(s, week, date, curStatus);
 
     var nameBadges = '';
@@ -3101,7 +3092,7 @@ function renderAttList() {
       + '<span style="font-size:9px;font-weight:700;color:var(--red);margin-left:2px">W</span>'
       + '<input class="fi" type="text" data-sid="' + s.id + '" data-week="' + week + '" data-field="weakness" value="' + wkVal + '" placeholder="번호" style="width:44px;padding:1px 3px;font-size:10px" onblur="saveObsTagEl(this)" title="약점 번호 입력 (예: 5)">'
       + '</div>';
-    html += '<tr' + (isBogangActive?' style="opacity:0.55"':'') + '>'
+    html += '<tr id="attrow-' + s.id + '"' + (isBogangActive?' style="opacity:0.55"':'') + '>'
       + '<td style="font-weight:600;min-width:110px">' + s.name + nameBadges + obsCell + '</td>'
       + attBtns
       + bogangCell
@@ -3130,6 +3121,7 @@ function renderAttList() {
   document.getElementById('att-student-list').innerHTML = html;
   var footer = document.getElementById('att-bogang-footer');
   if(footer) footer.innerHTML = footerHtml;
+  rtRefreshCount('att');
   initCardResize();
 }
 
@@ -3187,14 +3179,17 @@ async function saveAttendance() {
     const v = (attendance[s.id]||{})[date];
     return {s, status: typeof v==='object'&&v ? JSON.stringify(v) : (v||'')};
   }).filter(x=>x.status);
-  if(!items.length) { showToast('이 날짜에 입력된 출석이 없습니다','i'); return; }
-  showToast('출석 저장 중... ('+items.length+'명)','i');
+  const rtJob = saveRetestScope('att'); // 고른 재시험 결과(바꾼 학생만)
+  if(!items.length && !rtJob.n) { showToast('저장할 내용이 없습니다','i'); return; }
+  if(rtJob.n) { renderAttList(); renderDashboard(); }
+  showToast('저장 중...' + (items.length ? ' 출석 ' + items.length + '명' : '') + (rtJob.n ? ' · 재시험 결과 ' + rtJob.n + '명' : ''),'i');
   let fail = 0;
   for(const {s, status} of items) {
     const res = await postToSheets({action:'saveAtt', name:s.name, cls:s.cls, date, status});
     if(!res || res.ok === false) fail++;
   }
-  if(!fail) showToast('출석 저장됨 ✓','s');
+  const rtRes = await rtJob.done;
+  if(!fail && rtRes.every(function(r){ return r && r.ok; })) showToast('저장됨 ✓' + (rtJob.n ? ' (재시험 결과 ' + rtJob.n + '명 포함)' : ''),'s');
 }
 // displayWeek = 재시험을 보는 주(출석·수업 화면). 대시보드처럼 이미 '시험 본 주'를 알면 isTriggerWeek=true
 // (예전엔 대시보드도 한 주 더 거슬러 올라가 저장해서, 2주 연속 미통과 학생은 결과가 엉뚱한 주에 저장됐음)
@@ -3208,45 +3203,65 @@ async function saveRetestResult(sid, displayWeek, result, isTriggerWeek) {
   renderDashboard();
   return postToSheets({action:'saveRetest', name:st?.name||'', cls:st?.cls||'', week:saveWeek, taken:result?'yes':'no', result, score:retests[sid][saveWeek].score||0});
 }
-/* 대시보드 재시험 결과: 학생마다 미진행/통과/미통과를 고르고 [전체 저장하기]로 한꺼번에 저장.
+/* 재시험 결과 고르기 — 대시보드(dash)·출석 탭(att)·수업 입력 창(sess) 공통
+   학생마다 미진행/통과/미통과를 고르기만 하고, 저장 버튼을 누를 때 바꾼 학생만 한꺼번에 저장.
    손대지 않은 학생은 그대로 둠 */
-let retestDraft = {};    // sid → 고른 값 ('' | 'pass' | 'fail'), 아직 저장 전
-let retestRowInfo = {};  // sid → {triggerWeek, saved}
 const RT_PICKS = [['','미진행'],['pass','통과'],['fail','미통과']];
-function updateRetestPick(sid) {
-  const info = retestRowInfo[sid]; if(!info) return;
-  const cur = retestDraft[sid] !== undefined ? retestDraft[sid] : info.saved;
-  const seg = document.getElementById('rtseg-' + sid);
-  if(seg) seg.innerHTML = RT_PICKS.map(function(p){
-    return '<button class="stage' + (cur === p[0] ? ' on' + (p[0] ? ' ' + p[0] : '') : '') + '" onclick="pickRetest(\'' + sid + '\',\'' + p[0] + '\')">' + p[1] + '</button>';
-  }).join('');
-  const row = document.getElementById('rtrow-' + sid);
-  if(row) row.classList.toggle('changed', retestDraft[sid] !== undefined);
-  const n = Object.keys(retestDraft).filter(function(k){ return retestRowInfo[k]; }).length;
-  const btn = document.getElementById('rt-save-all');
-  if(btn) { btn.textContent = '💾 전체 저장하기' + (n ? ' (' + n + ')' : ''); btn.className = 'btn btn-sm ' + (n ? 'btn-primary' : 'btn-ghost'); }
+const RT_SAVE_BTN = {dash:['rt-save-all','💾 전체 저장하기'], att:['att-save-btn','💾 저장'], sess:['sess-save-btn','💾 저장']};
+let rtInfo = {dash:{}, att:{}, sess:{}};    // 화면에 보이는 학생: sid → {tw: 시험 본 주, saved: 저장된 결과}
+let rtDrafts = {dash:{}, att:{}, sess:{}};  // 고른 값(저장 전): sid → {v, tw}
+function rtCurrent(scope, sid) {
+  const info = rtInfo[scope][sid], d = rtDrafts[scope][sid];
+  return d && info && d.tw === info.tw ? d.v : (info ? info.saved : '');
 }
-function pickRetest(sid, v) {
-  const info = retestRowInfo[sid]; if(!info) return;
-  if(v === info.saved) delete retestDraft[sid]; else retestDraft[sid] = v;
-  updateRetestPick(sid);
+function rtPickHtml(scope, sid) {
+  const cur = rtCurrent(scope, sid);
+  return '<span class="rt-pick">' + RT_PICKS.map(function(p){
+    return '<button class="stage' + (cur === p[0] ? ' on' + (p[0] ? ' ' + p[0] : '') : '') + '" onclick="pickRetest(\'' + scope + '\',\'' + sid + '\',\'' + p[0] + '\')">' + p[1] + '</button>';
+  }).join('') + '</span>';
 }
-async function saveAllRetests() {
-  const ids = Object.keys(retestDraft).filter(function(sid){ return retestRowInfo[sid]; });
-  if(!ids.length) { showToast('바꾼 학생이 없습니다','i'); return; }
+function rtPendingIds(scope) {
+  return Object.keys(rtDrafts[scope]).filter(function(sid){
+    const info = rtInfo[scope][sid], d = rtDrafts[scope][sid];
+    return info && d.tw === info.tw && d.v !== info.saved;
+  });
+}
+function rtRefreshCount(scope) {
+  const n = rtPendingIds(scope).length, b = RT_SAVE_BTN[scope], btn = document.getElementById(b[0]);
+  if(btn) {
+    btn.textContent = b[1] + (n ? ' (' + n + ')' : '');
+    if(scope === 'dash') btn.className = 'btn btn-sm ' + (n ? 'btn-primary' : 'btn-ghost');
+  }
+}
+function pickRetest(scope, sid, v) {
+  const info = rtInfo[scope][sid]; if(!info) return;
+  if(v === info.saved) delete rtDrafts[scope][sid]; else rtDrafts[scope][sid] = {v: v, tw: info.tw};
+  const cell = document.getElementById(scope + 'rt-' + sid); if(cell) cell.innerHTML = rtPickHtml(scope, sid);
+  const row = document.getElementById(scope + 'row-' + sid); if(row) row.classList.toggle('changed', !!rtDrafts[scope][sid]);
+  rtRefreshCount(scope);
+}
+// 바꾼 학생만 저장 → {n, done: Promise<결과 배열>}
+function saveRetestScope(scope) {
+  const ids = rtPendingIds(scope);
   const posts = ids.map(function(sid){
     const st = (students[currentClass]||[]).find(function(x){ return x.id === sid; });
-    const w = retestRowInfo[sid].triggerWeek, v = retestDraft[sid];
+    const d = rtDrafts[scope][sid], w = d.tw, v = d.v;
     if(!retests[sid]) retests[sid] = {};
     if(!retests[sid][w]) retests[sid][w] = {};
     retests[sid][w].taken = !!v; retests[sid][w].result = v;
+    rtInfo[scope][sid].saved = v;
     return postToSheets({action:'saveRetest', name:st?.name||'', cls:st?.cls||'', week:w, taken:v?'yes':'no', result:v, score:retests[sid][w].score||0});
   });
-  retestDraft = {};
+  rtDrafts[scope] = {};
+  return {n: ids.length, done: Promise.all(posts)};
+}
+async function saveAllRetests() {
+  const job = saveRetestScope('dash');
+  if(!job.n) { showToast('바꾼 학생이 없습니다','i'); return; }
   renderDashboard();
-  showToast(ids.length + '명 저장 중...','i');
-  const res = await Promise.all(posts);
-  if(res.every(function(r){ return r && r.ok; })) showToast(ids.length + '명 재시험 결과 저장됨 ✓','s');
+  showToast(job.n + '명 저장 중...','i');
+  const res = await job.done;
+  if(res.every(function(r){ return r && r.ok; })) showToast(job.n + '명 재시험 결과 저장됨 ✓','s');
 }
 function setHwMax(sid) {
   const s = (students[currentClass]||[]).find(st=>st.id===sid);
