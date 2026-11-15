@@ -360,7 +360,15 @@ tr.changed td{background:rgba(79,156,249,.08)}
 .org-dic{font-size:30px}
 .org-dname{font-size:18px;font-weight:700}
 .org-duty{margin:4px 0 0 18px;font-size:13px;line-height:1.7;color:var(--text2)}
-.org-claude{margin-top:8px;width:100%}
+.ai-st{font-size:12px;color:var(--accent);margin-top:8px;line-height:1.5}
+.ai-st.wait{color:var(--text2)}
+.ai-st.fb{color:var(--orange)}
+.ai-res{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.ai-res a{font-size:13px;color:var(--accent);word-break:break-all}
+.ai-res a.old{color:var(--text3);font-size:12px}
+.ai-fb{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.ai-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.org-ai{display:inline-block;font-size:11px;padding:1px 6px;border-radius:8px;background:rgba(124,106,247,.15);color:var(--accent2);margin-left:6px;vertical-align:middle;font-weight:600}
 @media(max-width:1200px){
   .grid-4{grid-template-columns:repeat(2,1fr)}
 }
@@ -987,7 +995,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -4341,6 +4349,56 @@ const REPORT_TYPES = {
 const REPORT_STAGES = ['작성 전','작성','확인','발송 완료'];
 const INBOX_OWNERS = ['미분류','업무','R&D 총괄','KG6 R&D','G5 TFS R&D','KG6 반','G5 TFS 반','개인'];
 const INBOX_STATES = ['접수','진행 중','확인 대기','완료'];
+/* ── AI 비서: 이 담당들의 일은 Claude가 2시간마다(8~22시) 작업함을 확인해 초안을 만들어 올림 ── */
+const AI_OWNERS = ['업무','R&D 총괄','KG6 R&D','G5 TFS R&D'];
+const AI_SHIFT = '2시간마다 · 8~22시';
+let aiFbOpen = '';
+function isAiTask(r) { return AI_OWNERS.includes(r['담당'] || ''); }
+// 결과 칸: 줄마다 "📄 제목 | 링크"
+function aiResults(r) {
+  return String(r['결과'] || '').split('\n').map(function(l){ const i = l.lastIndexOf(' | '); return i > 0 ? {t:l.slice(0, i).trim(), u:l.slice(i + 3).trim()} : null; }).filter(Boolean);
+}
+function aiResultLinks(r) {
+  const res = aiResults(r); if(!res.length) return '';
+  return '<div class="ai-res">' + res.map(function(x, i){
+    const last = i === res.length - 1;
+    return '<a' + (last ? '' : ' class="old"') + ' href="' + escHtml(x.u) + '" target="_blank" rel="noopener">' + escHtml(x.t) + (last && res.length > 1 ? ' (최신)' : '') + '</a>';
+  }).join('') + '</div>';
+}
+// AI 진행 상태 + 결과 링크 + (확인 대기면) 완료·수정 요청
+function aiStatusHtml(r) {
+  if(!isAiTask(r) && !r['결과']) return '';
+  const st = r['상태'] || '접수', ai = String(r['AI'] || '');
+  let h = '';
+  if(isAiTask(r)) {
+    if(st === '접수') h += '<div class="ai-st wait">🤖 AI 비서가 다음 근무 때 시작해요 (' + AI_SHIFT + ')</div>';
+    else if(st === '진행 중' && /^🤖/.test(ai)) h += '<div class="ai-st">' + escHtml(ai.replace('🤖 시작', '🤖 AI 비서 작업 중 — 시작')) + '</div>';
+    else if(st === '수정 요청') h += '<div class="ai-st fb">✏️ 수정 요청 보냄 — 다음 근무 때 고쳐서 다시 올려요<br>「' + escHtml(r['피드백'] || '') + '」</div>';
+    else if(st === '확인 대기' && /^[✅❓]/.test(ai)) h += '<div class="ai-st">' + escHtml(ai.replace('✅ 초안', '🤖 초안 도착').replace('❓ 질문', '❓ 비서 질문')) + '</div>';
+  }
+  h += aiResultLinks(r);
+  if(st === '확인 대기' && (r['결과'] || isAiTask(r))) {
+    h += '<div class="ai-acts"><button class="btn btn-primary btn-sm" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'완료\');renderConfirmBox()">✓ 완료</button>'
+      + (isAiTask(r) ? '<button class="btn btn-ghost btn-sm" onclick="toggleAiFeedback(\'' + r.id + '\')">✏️ 수정 요청</button>' : '') + '</div>';
+    if(aiFbOpen === r.id) h += '<div class="ai-fb"><textarea class="fi" id="aifb-' + r.id + '" rows="3" placeholder="무엇을 고칠지 적어주세요 (예: 3번 슬라이드 그림 크게, 퀴즈 5문제로)"></textarea>'
+      + '<button class="btn btn-primary btn-sm" onclick="sendAiFeedback(\'' + r.id + '\')">수정 요청 보내기</button></div>';
+  }
+  return h;
+}
+function aiRerender() { renderInboxList(); renderConfirmBox(); if(orgActive()) renderOrg(); }
+function toggleAiFeedback(id) {
+  aiFbOpen = aiFbOpen === id ? '' : id; aiRerender();
+  setTimeout(function(){ const t = document.getElementById('aifb-' + id); if(t) t.focus(); }, 30);
+}
+async function sendAiFeedback(id) {
+  const t = document.getElementById('aifb-' + id), text = t ? t.value.trim() : '';
+  if(!text) { showToast('무엇을 고칠지 적어주세요','e'); return; }
+  const r = inboxItems.find(function(x){ return x.id === id; }); if(!r) return;
+  r['상태'] = '수정 요청'; r['피드백'] = text; aiFbOpen = '';
+  aiRerender(); renderBriefCard();
+  const res = await saveRecord('inbox', {id:id, '상태':'수정 요청', '피드백':text});
+  if(res && res.ok) showToast('수정 요청 보냄 — 다음 근무 때 고쳐서 올려요','s');
+}
 function renderWork() {
   const t = document.getElementById('rp-type');
   const types = REPORT_TYPES.common.concat(REPORT_TYPES[currentClass] || []);
@@ -4414,6 +4472,7 @@ function renderInboxList() {
       + '</div><div class="ib-text">' + escHtml(r['내용']) + '</div>'
       + (r['메모'] ? '<div class="log-next">할 일: ' + escHtml(r['메모']) + '</div>' : '')
       + String(r['첨부']||'').split(/\s+/).filter(Boolean).map(function(u, i){ return '<a class="ib-att" href="' + escHtml(u) + '" target="_blank" rel="noopener">📎 첨부 ' + (i+1) + '</a>'; }).join('')
+      + aiStatusHtml(r)
       + '<div class="wk-stages">'
       + INBOX_STATES.map(function(st){ return '<button class="stage' + (st === (r['상태']||'접수') ? ' on' : '') + '" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'' + st + '\')">' + st + '</button>'; }).join('')
       + '<button class="btn btn-ghost btn-sm wk-del" onclick="deleteInboxItem(\'' + r.id + '\')">삭제</button>'
@@ -5106,7 +5165,7 @@ function confirmWaitingItems() {
     out.push({kind:'report', id:r.id, t:'보고서 확인: ' + r['보고서'] + (r['대상'] ? ' · ' + r['대상'] : ''), due:r['마감']||''});
   });
   inboxItems.filter(function(r){ return r['상태'] === '확인 대기'; }).forEach(function(r){
-    out.push({kind:'inbox', id:r.id, t:'전달함: ' + (r['메모'] || String(r['내용']).slice(0,40)), due:r['마감']||''});
+    out.push({kind:'inbox', id:r.id, t:(isAiTask(r) ? '🤖 ' + r['담당'] + ': ' : '전달함: ') + (r['메모'] || String(r['내용']).slice(0,40)), due:r['마감']||'', r:r});
   });
   const weeks = vocWeeks();
   if(weeks.length) {
@@ -5115,15 +5174,17 @@ function confirmWaitingItems() {
   }
   return out.sort(function(a,b){ return String(a.due||'9999').localeCompare(String(b.due||'9999')); });
 }
+function cwItemHtml(x) {
+  const due = x.due ? '<span class="wk-due" style="margin-left:0">마감 ' + mdLabel(x.due, true) + '</span>' : '';
+  if(x.kind === 'inbox') return '<div class="cw-item" style="display:block"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="cw-t">' + escHtml(x.t) + '</div>' + due + '</div>' + aiStatusHtml(x.r) + '</div>';
+  const btn = x.kind === 'report' ? '<button class="btn btn-primary btn-sm" onclick="setReportStage(\'' + x.id + '\',\'확인\');aiRerender()">확인 완료</button>'
+    : '<button class="btn btn-primary btn-sm" onclick="openRetestSender(\'' + x.id + '\')">열기</button>';
+  return '<div class="cw-item"><div class="cw-t">' + escHtml(x.t) + '</div>' + due + btn + '</div>';
+}
 function renderConfirmBox() {
   const items = confirmWaitingItems();
   document.getElementById('cw-count').textContent = items.length ? items.length + '건' : '';
-  document.getElementById('cw-list').innerHTML = items.length ? items.map(function(x){
-    const btn = x.kind === 'report' ? '<button class="btn btn-primary btn-sm" onclick="setReportStage(\'' + x.id + '\',\'확인\');renderConfirmBox()">확인 완료</button>'
-      : x.kind === 'inbox' ? '<button class="btn btn-primary btn-sm" onclick="setInboxField(\'' + x.id + '\',\'상태\',\'완료\');renderConfirmBox()">완료</button>'
-      : '<button class="btn btn-primary btn-sm" onclick="openRetestSender(\'' + x.id + '\')">열기</button>';
-    return '<div class="cw-item"><div class="cw-t">' + escHtml(x.t) + '</div>' + (x.due ? '<span class="wk-due" style="margin-left:0">마감 ' + mdLabel(x.due, true) + '</span>' : '') + btn + '</div>';
-  }).join('') : '<div class="wk-empty" style="padding:12px 16px">확인할 것이 없습니다 ✓</div>';
+  document.getElementById('cw-list').innerHTML = items.length ? items.map(cwItemHtml).join('') : '<div class="wk-empty" style="padding:12px 16px">확인할 것이 없습니다 ✓</div>';
 }
 
 /* ── 오늘의 브리핑 ── */
@@ -5198,6 +5259,8 @@ function briefText() {
 }
 // 12시 이후 그날 처음 열면 팝업 (알림을 눌러 열면 시간과 상관없이)
 function maybeShowBriefing() {
+  const tabp = (location.search.match(/[?&]tab=(work|org)\b/) || [])[1];
+  if(tabp && !window.__tabOpened) { window.__tabOpened = true; goTab(tabp); return; }
   const force = /[?&]brief=1/.test(location.search), k = 'emax_brief_seen';
   if(!force) {
     if(new Date().getHours() < 12) return;
@@ -5303,15 +5366,15 @@ function renderOrg() {
 function orgTreeHtml(nodes, J) {
   const guide = '<div class="card"><div class="card-header"><div class="card-title">🧭 일 맡기는 법</div></div><div class="card-body org-guide">'
     + '<div class="org-step"><span class="org-num">1</span><div><b>전달</b> — 무엇이든 📥 메인 비서에게 보내면 담당·마감이 자동으로 정리돼요. 담당을 알면 아래에서 그 비서를 눌러 <b>＋ 맡기기</b></div></div>'
-    + '<div class="org-step"><span class="org-num">2</span><div><b>만들기</b> — 자료·교재 개발은 그 일의 <b>🤖 Claude에게 요청문 복사</b> → Claude 앱 「2027 수업 아이디어뱅크」 프로젝트에 붙여넣기 (상태는 진행 중으로)</div></div>'
-    + '<div class="org-step"><span class="org-num">3</span><div><b>확인</b> — 결과를 받으면 <b>확인 대기</b> → 검토 후 <b>완료</b>. 확인 대기는 브리핑 맨 위에 모여요</div></div>'
+    + '<div class="org-step"><span class="org-num">2</span><div><b>AI 비서가 만듦</b> — <span class="org-ai">AI</span> 표시 비서(업무·R&D)는 ' + AI_SHIFT + ' 작업함을 확인해 초안을 만들어 드라이브에 올려요. 선생님은 기다리기만 하면 돼요</div></div>'
+    + '<div class="org-step"><span class="org-num">3</span><div><b>확인</b> — 초안이 오면 휴대폰 알림 + <b>확인 대기</b>. 보고 <b>✓ 완료</b>, 고칠 게 있으면 <b>✏️ 수정 요청</b>에 한 줄 → 다음 근무 때 고쳐서 다시 올려요</div></div>'
     + '</div></div>';
   const rows = nodes.map(function(n){
     const other = n.track && n.track !== currentClass && !n.cls;
     return '<div class="org-row" style="padding-left:' + (12 + n.d * 18) + 'px" onclick="orgOpen(decodeURIComponent(\'' + encodeURIComponent(n.id) + '\'))">'
       + (n.d ? '<span class="org-br">└</span>' : '')
       + '<span class="org-ic">' + n.icon + '</span>'
-      + '<div class="org-main"><div class="org-name">' + escHtml(n.name) + '</div>'
+      + '<div class="org-main"><div class="org-name">' + escHtml(n.name) + (n.make ? '<span class="org-ai">AI</span>' : '') + '</div>'
       + '<div class="org-role">' + escHtml(other ? '⇄ 트랙을 바꾸면 반 비서·판정이 보여요' : n.role) + '</div></div>'
       + '<div class="org-cnt">' + orgBadges(n, J) + '</div><span class="org-go">›</span></div>';
   }).join('');
@@ -5331,11 +5394,10 @@ function orgTaskHtml(r, n) {
     h += '<div class="cs-lbl" style="margin-top:8px">담당 고르기</div><div class="wk-stages" style="margin-top:4px">'
       + INBOX_OWNERS.filter(function(o){ return o !== '미분류'; }).map(function(o){ return '<button class="stage" onclick="setInboxField(\'' + r.id + '\',\'담당\',\'' + o + '\')">' + o + '</button>'; }).join('') + '</div>';
   }
+  h += aiStatusHtml(r);
   h += '<div class="wk-stages">' + INBOX_STATES.map(function(st){
       return '<button class="stage' + (st === (r['상태']||'접수') ? ' on' : '') + '" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'' + st + '\')">' + st + '</button>';
     }).join('') + '</div>';
-  if(n.make && r['상태'] !== '완료')
-    h += '<button class="btn btn-ghost btn-sm org-claude" onclick="copyClaudeRequest(\'' + r.id + '\',decodeURIComponent(\'' + encodeURIComponent(n.id) + '\'))">🤖 Claude에게 요청문 복사</button>';
   return h + '</div>';
 }
 function orgDetailHtml(n, J) {
@@ -5344,6 +5406,7 @@ function orgDetailHtml(n, J) {
   let h = '<div class="card"><div class="card-body">'
     + '<button class="btn btn-ghost btn-sm" onclick="orgView=\'\';renderOrg()">← 조직도</button>'
     + '<div class="org-dh"><span class="org-dic">' + n.icon + '</span><div><div class="org-dname">' + escHtml(n.name) + '</div><div class="org-role" style="white-space:normal">' + escHtml(n.role) + '</div></div></div>'
+    + (n.make ? '<div class="ai-st" style="margin-top:10px">🤖 AI 비서 — ' + AI_SHIFT + ' 작업함을 확인해서 맡긴 일의 초안을 직접 만들어 올려요</div>' : '')
     + (n.duties ? '<div class="cs-lbl" style="margin-top:12px">맡은 일</div><ul class="org-duty">' + n.duties.map(function(t){ return '<li>' + escHtml(t) + '</li>'; }).join('') + '</ul>' : '')
     + (assign ? '<button class="btn btn-primary" style="width:100%;margin-top:12px;padding:11px" onclick="' + assign + '">＋ ' + (n.id === 'main' ? '메인 비서에게 전달' : '이 비서에게 맡기기') + '</button>' : '')
     + '</div></div>';
@@ -5352,12 +5415,7 @@ function orgDetailHtml(n, J) {
     const cw = confirmWaitingItems();
     h += '<div class="card"><div class="card-header"><div class="card-title">✅ 확인 대기함 <span class="wk-sub" style="font-weight:400">' + (cw.length ? cw.length + '건' : '') + '</span></div>'
       + '<button class="btn btn-ghost btn-sm" onclick="showBriefing()">📣 오늘 브리핑</button></div>'
-      + (cw.length ? cw.map(function(x){
-          const btn = x.kind === 'report' ? '<button class="btn btn-primary btn-sm" onclick="setReportStage(\'' + x.id + '\',\'확인\');renderOrg()">확인 완료</button>'
-            : x.kind === 'inbox' ? '<button class="btn btn-primary btn-sm" onclick="setInboxField(\'' + x.id + '\',\'상태\',\'완료\')">완료</button>'
-            : '<button class="btn btn-primary btn-sm" onclick="openRetestSender(\'' + x.id + '\')">열기</button>';
-          return '<div class="cw-item"><div class="cw-t">' + escHtml(x.t) + '</div>' + (x.due ? '<span class="wk-due" style="margin-left:0">마감 ' + mdLabel(x.due, true) + '</span>' : '') + btn + '</div>';
-        }).join('') : '<div class="wk-empty" style="padding:12px 16px">확인할 것이 없습니다 ✓</div>') + '</div>';
+      + (cw.length ? cw.map(cwItemHtml).join('') : '<div class="wk-empty" style="padding:12px 16px">확인할 것이 없습니다 ✓</div>') + '</div>';
     const un = inboxItems.filter(function(r){ return r['상태'] !== '완료' && (r['담당']||'미분류') === '미분류'; });
     if(un.length) h += '<div class="card"><div class="card-header"><div class="card-title">❔ 담당 미정 ' + un.length + '</div></div><div class="card-body">'
       + un.map(function(r){ return orgTaskHtml(r, {id:'none'}); }).join('') + '</div></div>';
@@ -5404,21 +5462,6 @@ function orgDetailHtml(n, J) {
       + '</div></div>';
   }
   return h;
-}
-// Claude에게 보낼 요청문: 담당 범위 + 전달 내용 + 첨부 + 진행 방법
-function copyClaudeRequest(id, nid) {
-  const r = inboxItems.find(function(x){ return x.id === id; }), n = orgNodes().find(function(x){ return x.id === nid; });
-  if(!r || !n) return;
-  const L = ['[eMAX 비서 요청 — ' + n.name + ']', '할 일: ' + (r['메모'] || summarizeTask(r['내용']))];
-  if(r['마감']) L.push('마감: ' + mdLabel(r['마감'], true) + ' (' + r['마감'] + ')');
-  L.push('', '전달 내용:', r['내용'] || '(없음)');
-  const att = String(r['첨부']||'').split(/\s+/).filter(Boolean);
-  if(att.length) { L.push('', '첨부 (구글 드라이브):'); att.forEach(function(u){ L.push(u); }); }
-  L.push('', '담당 범위: ' + n.role);
-  (n.duties||[]).forEach(function(t){ L.push('- ' + t); });
-  L.push('', '진행 방법: 이 프로젝트에 있는 같은 종류 자료의 형식을 먼저 찾아 그대로 맞추고, 내용은 채팅에서 먼저 확인받은 뒤 파일로 만들어 주세요.');
-  copyText(L.join('\n'), '요청문 복사됨 — Claude 앱 「2027 수업 아이디어뱅크」 프로젝트에 붙여넣으세요');
-  if((r['상태']||'접수') === '접수') setInboxField(id, '상태', '진행 중');
 }
 function orgActive() { const t = document.getElementById('tab-org'); return !!(t && t.classList.contains('active')); }
 
