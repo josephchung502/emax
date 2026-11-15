@@ -959,7 +959,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.4.2';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -5170,8 +5170,8 @@ function maybeShowBriefing() {
 }
 /* ── 매일 12시 휴대폰 알림 (Firebase Cloud Messaging) ──
    Firebase 프로젝트를 만든 뒤 아래 두 값과 sw.js의 같은 값을 채우면 켜짐 (공개돼도 되는 값) */
-const FIREBASE_CONFIG = null; // {apiKey, authDomain, projectId, messagingSenderId, appId}
-const FCM_VAPID_KEY = '';
+const FIREBASE_CONFIG = {apiKey:'AIzaSyDPJOLnMkYBkLEHkpI34zlhBpB5hZOd5wI', authDomain:'emax-student-app.firebaseapp.com', projectId:'emax-student-app', messagingSenderId:'712333583681', appId:'1:712333583681:web:80f37ef87655ee8015edc0'}; // 공개용 웹 설정값 (비밀 아님)
+const FCM_VAPID_KEY = 'BJV0mxcwqUHJnkG9vgFsf0A1DlVCKGjfSJXqCQtwldFYMPEOJPifCCVRY_AzFcOv4TfHLw66wOEC_Mc2BAHkqXo';
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
 function loadScript(src) {
   return new Promise(function(res, rej){

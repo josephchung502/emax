@@ -2,7 +2,7 @@
 // 화면 파일은 저장해 두지 않음 → 앱을 열 때마다 항상 최신 버전
 
 // 매일 12시 알림: Firebase 프로젝트를 만든 뒤 index.html과 같은 값을 채우면 켜짐
-const FIREBASE_CONFIG = null; // {apiKey, authDomain, projectId, messagingSenderId, appId}
+const FIREBASE_CONFIG = {apiKey:'AIzaSyDPJOLnMkYBkLEHkpI34zlhBpB5hZOd5wI', authDomain:'emax-student-app.firebaseapp.com', projectId:'emax-student-app', messagingSenderId:'712333583681', appId:'1:712333583681:web:80f37ef87655ee8015edc0'}; // 공개용 웹 설정값 (비밀 아님)
 if (FIREBASE_CONFIG) {
   importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
   importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
