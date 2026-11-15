@@ -995,7 +995,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -4351,7 +4351,58 @@ const INBOX_OWNERS = ['미분류','업무','R&D 총괄','KG6 R&D','G5 TFS R&D','
 const INBOX_STATES = ['접수','진행 중','확인 대기','완료'];
 /* ── AI 비서: 이 담당들의 일은 Claude가 2시간마다(8~22시) 작업함을 확인해 초안을 만들어 올림 ── */
 const AI_OWNERS = ['업무','R&D 총괄','KG6 R&D','G5 TFS R&D'];
-const AI_SHIFT = '2시간마다 · 8~22시';
+// 바로 시작(서버가 AI를 깨우는 키가 연결되면 'agent|instant' = 1) / 아니면 2시간마다 근무
+function aiInstant() { return appSettings['agent|instant'] === '1'; }
+function aiShiftText() { return aiInstant() ? '맡기면 바로 시작 — 보통 몇 분 안에 초안' : '2시간마다(8~22시) 작업함 확인'; }
+/* ── KG6 워크북 마감 관리: 권별 마감에서 거꾸로 단계별 마감 (서버 WB_DUES_·WB_STEPS_와 같은 값) ── */
+const WB_DUES = [['2.0','2027-01-23'],['3.0','2027-03-20'],['4.0','2027-05-15'],['5.0','2027-07-10'],['6.0','2027-09-04']];
+const WB_STEPS = [['지문 초안',42,true],['문항 초안',21,true],['자체 검수',14,true],['원장님 검토',7,false],['완성·인쇄',0,false]];
+function workbookPlan(today) {
+  today = today || todayYmd();
+  const cur = WB_DUES.find(function(v){ return v[1] >= today; }); if(!cur) return null;
+  const steps = WB_STEPS.map(function(s, i){
+    const id = 'Iwb' + cur[0].replace('.','') + 's' + i, r = inboxItems.find(function(x){ return x.id === id; });
+    return {name:s[0], due:addDays(cur[1], -s[1]), ai:s[2], id:id, state: r ? (r['상태'] || '접수') : ''};
+  });
+  const now = steps.find(function(s){ return s.ai ? s.state !== '완료' : s.due >= today; }) || steps[steps.length - 1];
+  const dleft = Math.round((parseYmd(cur[1]) - parseYmd(today)) / 86400000);
+  return {v:cur[0], due:cur[1], steps:steps, now:now, dleft:dleft, late: now.due < today,
+    line:'워크북 ' + cur[0] + ' — 지금 단계: ' + now.name + ' (' + mdLabel(now.due, true) + '까지)' + (now.due < today ? ' ⏰ 밀림' : '') + ' · 권 마감 ' + mdLabel(cur[1], true) + ' D-' + dleft};
+}
+async function saveAgentSetting(id, val, msg) {
+  appSettings[id] = val;
+  if(orgActive()) renderOrg();
+  const res = await saveRecord('appSettings', {id:id, '반구분':'', '값':val, '수정':nowStamp()});
+  if(res && res.ok && msg) showToast(msg, 's');
+}
+function workbookCardHtml() {
+  const p = workbookPlan(), on = appSettings['agent|wbAuto'] === '1', today = todayYmd();
+  let h = '<div class="card"><div class="card-header"><div class="card-title">📅 워크북 마감 관리</div>'
+    + '<button class="btn btn-sm ' + (on ? 'btn-primary' : 'btn-ghost') + '" onclick="saveAgentSetting(\'agent|wbAuto\',\'' + (on ? '0' : '1') + '\',\'' + (on ? '자동 진행 껐어요' : '자동 진행 켰어요 — 내일 아침 7시부터 단계별로 AI가 시작') + '\')">' + (on ? '🤖 자동 진행 켜짐' : '자동 진행 꺼짐') + '</button></div><div class="card-body">';
+  if(!p) return h + '<div class="wk-empty">남은 권이 없어요</div></div></div>';
+  h += '<div class="org-step" style="margin-bottom:8px"><div><b>Reading Core ' + p.v + '</b> — 마감 ' + mdLabel(p.due, true) + ' (D-' + p.dleft + ')' + (on ? '' : '<br><span style="color:var(--text3)">자동 진행을 켜면 지문 초안 → 문항 초안 → 자체 검수를 AI 비서가 차례로 맡아요 (앞 단계를 완료하면 다음 단계)</span>') + '</div></div>';
+  h += p.steps.map(function(s){
+    const late = s.due < today && s.state !== '완료' && (s.ai || s === p.now);
+    const badge = s.state === '완료' ? '<span class="badge b-green">완료</span>' : s.state ? '<span class="badge b-blue">' + escHtml(s.state) + '</span>' : (s === p.now ? '<span class="badge b-purple">지금</span>' : '');
+    return '<div class="cw-item"><div class="cw-t">' + (s.ai ? '🤖 ' : '👤 ') + s.name + '</div>' + badge + '<span class="wk-due" style="margin-left:0' + (late ? ';color:var(--red)' : '') + '">' + (late ? '⏰ ' : '') + mdLabel(s.due, true) + '</span></div>';
+  }).join('');
+  h += '<div class="wk-sec" style="margin-top:12px">다음 권</div><div style="font-size:13px;color:var(--text2);line-height:1.8">'
+    + WB_DUES.filter(function(v){ return v[0] !== p.v && v[1] > p.due; }).map(function(v){ return v[0] + ' — ' + mdLabel(v[1], true); }).join(' · ') + '</div>';
+  return h + '</div></div>';
+}
+function weeklyAutoCardHtml() {
+  const st = appSettings['agent|kg6Start'] || '';
+  return '<div class="card"><div class="card-header"><div class="card-title">🔁 매주 자동 업무 (KG6)</div></div><div class="card-body">'
+    + '<div style="font-size:13px;line-height:1.8;color:var(--text2)">'
+    + '• 목요일 18시 — 다음 주 <b>Reading Core 워크시트</b>, <b>주간 수업자료(화면용)</b>, <b>단어시험지 E·K트랙</b>(단어 겹치지 않게)<br>'
+    + '• 월요일 7시 — 오늘 <b>KG6 회의 안건지</b> (업무 비서)<br>'
+    + '• 재시험지 — 공통 포맷이 정해지면 자동으로 추가</div>'
+    + '<div class="cs-lbl" style="margin-top:12px">2027 1주차 시작일 (이날부터 자동 시작)</div>'
+    + '<div class="rts-row" style="margin-top:4px"><input type="date" class="fi fi-sm" id="kg6-start" value="' + escHtml(st) + '">'
+    + '<button class="btn btn-primary btn-sm" onclick="saveAgentSetting(\'agent|kg6Start\',document.getElementById(\'kg6-start\').value,\'1주차 시작일 저장됨\')">저장</button></div>'
+    + (st ? '' : '<div class="ai-st wait">아직 시작일이 없어서 매주 자동 업무는 쉬는 중이에요</div>')
+    + '</div></div>';
+}
 let aiFbOpen = '';
 function isAiTask(r) { return AI_OWNERS.includes(r['담당'] || ''); }
 // 결과 칸: 줄마다 "📄 제목 | 링크"
@@ -4371,7 +4422,7 @@ function aiStatusHtml(r) {
   const st = r['상태'] || '접수', ai = String(r['AI'] || '');
   let h = '';
   if(isAiTask(r)) {
-    if(st === '접수') h += '<div class="ai-st wait">🤖 AI 비서가 다음 근무 때 시작해요 (' + AI_SHIFT + ')</div>';
+    if(st === '접수') h += '<div class="ai-st wait">' + (aiInstant() ? '🤖 AI 비서가 곧 시작해요' : '🤖 AI 비서가 다음 근무 때 시작해요 (2시간마다 · 8~22시)') + '</div>';
     else if(st === '진행 중' && /^🤖/.test(ai)) h += '<div class="ai-st">' + escHtml(ai.replace('🤖 시작', '🤖 AI 비서 작업 중 — 시작')) + '</div>';
     else if(st === '수정 요청') h += '<div class="ai-st fb">✏️ 수정 요청 보냄 — 다음 근무 때 고쳐서 다시 올려요<br>「' + escHtml(r['피드백'] || '') + '」</div>';
     else if(st === '확인 대기' && /^[✅❓]/.test(ai)) h += '<div class="ai-st">' + escHtml(ai.replace('✅ 초안', '🤖 초안 도착').replace('❓ 질문', '❓ 비서 질문')) + '</div>';
@@ -5222,7 +5273,8 @@ function buildBriefing() {
   // 4) R&D
   const rnd = inboxItems.filter(function(r){ return r['상태'] !== '완료' && /R&D/.test(r['담당']||''); });
   const rndItems = rnd.map(function(r){ return '[' + r['담당'] + '] ' + short(r) + (r['마감'] ? ' (마감 ' + mdLabel(r['마감'], true) + ')' : ''); });
-  if(currentClass === 'G5TFS' && dow >= 1 && dow <= 3) rndItems.unshift('이번 주 과학 리뷰 HTML — 수요일 마감');
+  const wbp = currentClass === 'KG6' ? workbookPlan() : null;
+  if(wbp) rndItems.unshift((wbp.late ? '⏰ ' : '') + wbp.line);
   sec.push({k:'R&D', n:rnd.length, items:rndItems, go:"goTab('work')"});
   // 5) 회의 (월 KG6 주도 · 목 G5 TFS 참여)
   const meet = {0:'내일(월) KG6 회의 — 안건지 준비', 1:'오늘 KG6 회의 (주도)', 3:'내일(목) G5 TFS 회의 — 자료 상태·오류 공유 준비', 4:'오늘 G5 TFS 회의'}[dow];
@@ -5276,7 +5328,7 @@ const ORG_BASE = [
   {id:'main', d:0, icon:'📣', name:'메인 비서', role:'받은 일을 담당에게 나누고, 매일 12시 브리핑과 확인 대기함을 챙겨요',
     duties:['전달창(글·음성·사진)으로 받은 일을 담당에게 배정','매일 12시 브리핑 + 휴대폰 알림','확인 대기함 — 선생님 확인이 필요한 결과물 모음']},
   {id:'work', d:1, icon:'🗂️', name:'업무 비서', owner:'업무', make:true, role:'회의 안건지 · 보고서·발송 현황 · 원장님 요청',
-    duties:['월요일 KG6 회의 안건지 초안 (전날 밤), 회의 후 공유 메모','목요일 G5 TFS 회의 — 자료 상태·오류 공유 메모','보고서·발송 현황판 마감 관리, 밀린 일 알림','원장님 요청·학부모 상담 일정']},
+    duties:['월요일 아침 7시 KG6 회의 안건지 자동 초안, 회의 후 공유 메모','목요일 G5 TFS 회의 — 자료 상태·오류 공유 메모','보고서·발송 현황판 마감 관리, 밀린 일 알림','원장님 요청·학부모 상담 일정']},
   {id:'rnd', d:1, icon:'🔬', name:'R&D 총괄', owner:'R&D 총괄', make:true, role:'두 트랙 공통 — 문법책 · 1월 특강 · QR 채점 · 교재',
     duties:['2027 문법책, 1월 특강, QR 채점 등 공통 프로젝트','한 자료가 바뀌면 연결 자료 점검 (예: 단어책 → Reading Core·단어시험·Quizlet)']},
   {id:'kg6rnd', d:2, icon:'📘', name:'KG6 R&D', owner:'KG6 R&D', sub:'', make:true, role:'KG6 자료 제작 — 아래 세 담당이 나눠 맡아요',
@@ -5287,8 +5339,8 @@ const ORG_BASE = [
     duties:['서술형 영작·문법 개념요약노트·오답노트 (종류별 포맷 고정, 내용만 채움)','추가자료 확정 → 그 주 자료 전체 확정 → 통합 PDF 조립','수업 이틀 전까지 미확정이면 브리핑 맨 위']},
   {id:'kg6mn', d:3, icon:'📝', name:'월내문 담당', owner:'KG6 R&D', sub:'mn', tag:'[월내문]', make:true, role:'시험지 검수 · 복습 자료 · 성적분석리포트 · 클리닉 자료',
     duties:['시험 전: 시험지 검수(오타·정답·범위), 복습 자료','시험 후: 성적분석리포트 + 월간 보고서, 클리닉 대상 (기본 60점 이하)','클리닉 자료 제작, 전날 밤 안내, 불참자 숙제 안내']},
-  {id:'g5rnd', d:2, icon:'🔭', name:'G5 TFS R&D', owner:'G5 TFS R&D', make:true, role:'과학 리뷰 HTML(수 마감) · Science Test · 티치백·토플 · Review+',
-    duties:['매주 과학 리뷰 HTML — 영어로만, 월 자료 확인 → 화 초안 → 수 최종','월 1회 Science Test 검수 + 시험 주 리뷰 퀴즈','티치백·토플 격주 회차, Review+ 복습 워크시트']},
+  {id:'g5rnd', d:2, icon:'🔭', name:'G5 TFS R&D', owner:'G5 TFS R&D', make:true, role:'과학 리뷰 HTML(새 챕터 때) · Science Test · 티치백·토플 · Review+',
+    duties:['과학 리뷰 HTML — 새 과학 챕터에 들어갈 때만, 선생님이 보낸 자료로 (영어로만)','월 1회 Science Test 검수 + 시험 주 리뷰 퀴즈','티치백·토플 격주 회차, Review+ 복습 워크시트']},
   {id:'cls', d:1, icon:'🏫', name:'반 관리', role:'트랙 비서 → 반 비서 → 학생 카드 (판정은 앱이 자동으로)',
     duties:['트랙 비서: 그 트랙의 판정 규칙 보관','반 비서: 반마다 1개, 매주 학생 카드 점검','상담은 학부모 요청 시에만 — 반 비서는 월간 보고서·상담 준비 자료 담당']},
   {id:'trk|KG6', d:2, icon:'🎓', name:'KG6 트랙 비서', owner:'KG6 반', track:'KG6', role:'KG6 판정 규칙 보관 · 반 비서 점검',
@@ -5366,7 +5418,7 @@ function renderOrg() {
 function orgTreeHtml(nodes, J) {
   const guide = '<div class="card"><div class="card-header"><div class="card-title">🧭 일 맡기는 법</div></div><div class="card-body org-guide">'
     + '<div class="org-step"><span class="org-num">1</span><div><b>전달</b> — 무엇이든 📥 메인 비서에게 보내면 담당·마감이 자동으로 정리돼요. 담당을 알면 아래에서 그 비서를 눌러 <b>＋ 맡기기</b></div></div>'
-    + '<div class="org-step"><span class="org-num">2</span><div><b>AI 비서가 만듦</b> — <span class="org-ai">AI</span> 표시 비서(업무·R&D)는 ' + AI_SHIFT + ' 작업함을 확인해 초안을 만들어 드라이브에 올려요. 선생님은 기다리기만 하면 돼요</div></div>'
+    + '<div class="org-step"><span class="org-num">2</span><div><b>AI 비서가 만듦</b> — <span class="org-ai">AI</span> 표시 비서(업무·R&D)는 ' + (aiInstant() ? '맡기면 바로' : '2시간마다(8~22시)') + ' 초안을 만들어 드라이브에 올려요. 매주 하는 일은 맡기지 않아도 알아서 시작해요</div></div>'
     + '<div class="org-step"><span class="org-num">3</span><div><b>확인</b> — 초안이 오면 휴대폰 알림 + <b>확인 대기</b>. 보고 <b>✓ 완료</b>, 고칠 게 있으면 <b>✏️ 수정 요청</b>에 한 줄 → 다음 근무 때 고쳐서 다시 올려요</div></div>'
     + '</div></div>';
   const rows = nodes.map(function(n){
@@ -5406,7 +5458,7 @@ function orgDetailHtml(n, J) {
   let h = '<div class="card"><div class="card-body">'
     + '<button class="btn btn-ghost btn-sm" onclick="orgView=\'\';renderOrg()">← 조직도</button>'
     + '<div class="org-dh"><span class="org-dic">' + n.icon + '</span><div><div class="org-dname">' + escHtml(n.name) + '</div><div class="org-role" style="white-space:normal">' + escHtml(n.role) + '</div></div></div>'
-    + (n.make ? '<div class="ai-st" style="margin-top:10px">🤖 AI 비서 — ' + AI_SHIFT + ' 작업함을 확인해서 맡긴 일의 초안을 직접 만들어 올려요</div>' : '')
+    + (n.make ? '<div class="ai-st" style="margin-top:10px">🤖 AI 비서 — ' + aiShiftText() + '. 맡긴 일의 초안을 직접 만들어 올려요</div>' : '')
     + (n.duties ? '<div class="cs-lbl" style="margin-top:12px">맡은 일</div><ul class="org-duty">' + n.duties.map(function(t){ return '<li>' + escHtml(t) + '</li>'; }).join('') + '</ul>' : '')
     + (assign ? '<button class="btn btn-primary" style="width:100%;margin-top:12px;padding:11px" onclick="' + assign + '">＋ ' + (n.id === 'main' ? '메인 비서에게 전달' : '이 비서에게 맡기기') + '</button>' : '')
     + '</div></div>';
@@ -5420,6 +5472,8 @@ function orgDetailHtml(n, J) {
     if(un.length) h += '<div class="card"><div class="card-header"><div class="card-title">❔ 담당 미정 ' + un.length + '</div></div><div class="card-body">'
       + un.map(function(r){ return orgTaskHtml(r, {id:'none'}); }).join('') + '</div></div>';
   }
+  if(n.id === 'kg6rnd' || n.id === 'kg6wb') h += workbookCardHtml();
+  if(n.id === 'kg6rnd' || n.id === 'work') h += weeklyAutoCardHtml();
   if(n.id === 'work') {
     const today = todayYmd(), open = reportItems.filter(function(r){ return r['단계'] !== '발송 완료'; })
       .sort(function(a,b){ return String(a['마감']||'9999').localeCompare(String(b['마감']||'9999')); });
