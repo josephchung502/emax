@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0d0f14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="eMAX">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -370,7 +370,9 @@ tr.changed td{background:rgba(79,156,249,.08)}
   .mobile-nav{display:flex;height:calc(56px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom)}
   #app{height:auto;min-height:100svh;display:flex;flex-direction:column}
   .main{margin-left:0;height:auto;min-height:calc(100svh - 56px);overflow:visible}
-  .topbar{padding:env(safe-area-inset-top) max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left));height:calc(48px + env(safe-area-inset-top));flex-shrink:0;gap:8px}
+  #app{overflow:visible;overflow-x:clip}
+  /* 상단 바 고정: 내용이 아이폰 상태 표시줄 밑으로 지나가며 흐려지지 않게 */
+  .topbar{position:sticky;top:0;z-index:150;padding:env(safe-area-inset-top) max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left));height:calc(48px + env(safe-area-inset-top));flex-shrink:0;gap:8px}
   .page-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   .tb-class{display:inline-block}
   .tb-txt,.sync-label{display:none}
@@ -959,7 +961,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.4.2';
+const APP_VERSION = '1.4.3';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
