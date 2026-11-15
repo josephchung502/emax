@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>eMAX 학생 관리 시스템</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -157,6 +157,7 @@ textarea.fi{resize:vertical;min-height:70px}
 .toast.s{border-left:3px solid var(--green)}
 .toast.e{border-left:3px solid var(--red)}
 .toast.i{border-left:3px solid var(--accent)}
+.toast.w{border-left:3px solid var(--yellow)}
 
 /* ── CHIP ── */
 .chip{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text2);transition:all .15s;user-select:none}
@@ -238,8 +239,17 @@ textarea.fi{resize:vertical;min-height:70px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
 /* ── RESPONSIVE ── */
-.tbl{overflow-x:auto}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
 .card,.card-body{min-width:0}
+summary::-webkit-details-marker{display:none}
+/* 재시험 대상자 목록 — 화면 폭에 맞춰 자동 줄바꿈 */
+.rt-row{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--border)}
+.rt-row:first-child{border-top:none}
+.rt-who{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.rt-name{font-weight:700;white-space:nowrap}
+.rt-date{font-size:12px;color:var(--text2);white-space:nowrap}
+.rt-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tb-class{display:none}
 @media(max-width:1200px){
   .grid-4{grid-template-columns:repeat(2,1fr)}
 }
@@ -247,7 +257,6 @@ textarea.fi{resize:vertical;min-height:70px}
   :root{--sidebar-w:190px}
   .grid-4{grid-template-columns:repeat(2,1fr)}
   .grid-2,.grid-3{grid-template-columns:1fr}
-  .topbar-right .btn-ghost:not(:last-child){display:none}
   .excel-table{font-size:12px}
   .content{padding:16px}
 }
@@ -268,25 +277,31 @@ textarea.fi{resize:vertical;min-height:70px}
 
 @media(max-width:640px){
   .sidebar{display:none}
-  .mobile-nav{display:flex}
+  .mobile-nav{display:flex;height:calc(56px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom)}
   #app{height:auto;min-height:100svh;display:flex;flex-direction:column}
   .main{margin-left:0;height:auto;min-height:calc(100svh - 56px);overflow:visible}
-  .topbar{padding:0 12px;height:48px;flex-shrink:0}
-  .topbar-right{gap:6px}
-  .topbar-right .btn{font-size:11px;padding:5px 9px;min-height:34px}
-  .content{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 10px 72px;min-height:0}
-  .grid-4,.grid-3,.grid-2{grid-template-columns:1fr;gap:8px}
-  .stat-value{font-size:20px}
+  .topbar{padding:env(safe-area-inset-top) max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left));height:calc(48px + env(safe-area-inset-top));flex-shrink:0;gap:8px}
+  .page-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .tb-class{display:inline-block}
+  .tb-txt,.sync-label{display:none}
+  .topbar-right{gap:6px;flex-shrink:0}
+  .topbar-right .btn{font-size:13px;padding:5px 9px;min-height:34px;min-width:34px}
+  .content{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px max(10px,env(safe-area-inset-right)) calc(72px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));min-height:0}
+  .grid-3,.grid-2{grid-template-columns:1fr;gap:8px}
+  .grid-4{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+  .stat-card{padding:12px}
+  .stat-value{font-size:22px}
   .card{border-radius:8px}
   .card-title{font-size:13px}
   .card-body{font-size:13px}
   .modal-overlay{align-items:flex-end}
-  .modal{width:100vw!important;max-width:100vw!important;border-radius:16px 16px 0 0;max-height:88svh;margin:0;padding:16px 14px;overflow-y:auto}
+  .modal{width:100vw!important;max-width:100vw!important;border-radius:16px 16px 0 0;max-height:88svh;margin:0;padding:16px 14px calc(16px + env(safe-area-inset-bottom));overflow-y:auto}
   .form-row{grid-template-columns:1fr}
   .splash-cards{flex-direction:column}
   .splash-card{min-width:unset;width:200px}
   .tbl{font-size:12px}
-  .tbl th,.tbl td{padding:6px 8px}
+  .tbl th,.tbl td{padding:6px 8px;white-space:nowrap}
+  .tbl td.wrap{white-space:normal;min-width:200px}
   .excel-table th,.excel-table td{padding:4px 5px;font-size:11px}
   .hw-table th,.hw-table td{padding:4px 5px;font-size:11px}
   .badge{font-size:10px;padding:2px 5px}
@@ -297,6 +312,12 @@ textarea.fi{resize:vertical;min-height:70px}
   .score-pill{font-size:11px;min-width:28px}
   .page-title{font-size:14px;font-weight:600}
   .nav-footer{display:none}
+  .sb-resizer,.card-rh{display:none!important}
+  .card{height:auto!important}
+  /* iOS: 16px보다 작은 입력칸은 누를 때 화면이 확대됨 */
+  input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important}
+  .toast{left:12px;right:12px;bottom:calc(68px + env(safe-area-inset-bottom));text-align:center}
+  .rt-row{padding:10px 12px}
 }
 /* ── RESIZE HANDLES ── */
 .sb-resizer{position:fixed;top:0;left:var(--sidebar-w);width:5px;height:100vh;cursor:col-resize;z-index:200;background:transparent;transition:background .2s;user-select:none}
@@ -386,13 +407,17 @@ textarea.fi{resize:vertical;min-height:70px}
 
   <div class="main">
     <div class="topbar">
-      <div class="page-title" id="pageTitle">대시보드</div>
+      <div style="display:flex;align-items:center;gap:8px;min-width:0">
+        <span class="class-badge tb-class" id="topbarClass">—</span>
+        <div class="page-title" id="pageTitle">대시보드</div>
+      </div>
       <div class="topbar-right">
-        <div class="sync-dot" id="syncDot"></div>
+        <div class="sync-dot" id="syncDot" title="동기화 상태"></div>
         <span class="sync-label" id="syncLabel">미연결</span>
-        <button class="btn btn-ghost btn-sm" onclick="syncNow()">↻ 동기화</button>
-        <button class="btn btn-ghost btn-sm" onclick="switchClass()">반 전환</button>
-        <button class="btn btn-primary btn-sm" onclick="openAddStudent()">+ 학생 추가</button>
+        <button class="btn btn-ghost btn-sm" onclick="syncNow()" title="동기화">↻<span class="tb-txt"> 동기화</span></button>
+        <button class="btn btn-ghost btn-sm" onclick="switchClass()" title="반 전환">⇄<span class="tb-txt"> 반 전환</span></button>
+        <button class="btn btn-ghost btn-sm" onclick="openSettings()" title="설정">⚙️</button>
+        <button class="btn btn-primary btn-sm" onclick="openAddStudent()" title="학생 추가">+ 학생<span class="tb-txt"> 추가</span></button>
       </div>
     </div>
 
@@ -402,7 +427,7 @@ textarea.fi{resize:vertical;min-height:70px}
       <div class="tab-page active" id="tab-dashboard">
         <div class="grid-4">
           <div class="stat-card"><div class="stat-label">총 학생</div><div class="stat-value" style="color:var(--accent)" id="d-total">—</div><div style="font-size:11px;color:var(--text3);margin-top:2px" id="d-total-sub"></div></div>
-          <div class="stat-card"><div class="stat-label">이번 주 평균</div><div class="stat-value" style="color:var(--green)" id="d-avg">—</div></div>
+          <div class="stat-card"><div class="stat-label">이번 주 평균</div><div class="stat-value" style="color:var(--green)" id="d-avg">—</div><div class="stat-note" id="d-avg-sub"></div></div>
           <div class="stat-card"><div class="stat-label">출석률</div><div class="stat-value" style="color:var(--yellow)" id="d-att">—</div></div>
           <div class="stat-card"><div class="stat-label">VOC 재시험 대상</div><div class="stat-value" style="color:var(--red)" id="d-retest">—</div></div>
         </div>
@@ -410,7 +435,7 @@ textarea.fi{resize:vertical;min-height:70px}
         <!-- 재시험 대상자 카드 (대상자 있을 때만 표시) -->
         <div class="card" id="d-retest-card" style="display:none;margin-bottom:18px">
           <div class="card-header"><div class="card-title">🔁 VOC 재시험 대상자 — 이번 주</div></div>
-          <div id="d-retest-list" style="overflow-x:auto;max-height:280px;overflow-y:auto;padding:0 0 4px"></div>
+          <div id="d-retest-list" style="max-height:360px;overflow-y:auto"></div>
         </div>
 
         <!-- 수업 일정 카드 (Sheets에서) -->
@@ -655,7 +680,7 @@ textarea.fi{resize:vertical;min-height:70px}
       <strong style="color:var(--text)">수업 일정 Google Sheets 구조:</strong><br>
       Sheet명: <code style="color:var(--accent)">Schedule</code> | 열 순서: <code style="color:var(--accent)">날짜 | 반 | 수업내용 | 과목1 | 과목2 | 과목3</code><br><br>
       <strong style="color:var(--text)">VOC 재시험 기준 점수:</strong>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+      <div style="display:flex;align-items:center;gap:10px;row-gap:8px;flex-wrap:wrap;margin-top:6px">
         <span style="font-size:11px;font-weight:600;color:var(--text2)">G5TFS</span>
         <span style="font-size:10px;color:var(--text3)">Lv2:</span><input type="number" class="fi" id="retest-g5-2" value="88" style="width:46px">
         <span style="font-size:10px;color:var(--text3)">Lv3:</span><input type="number" class="fi" id="retest-g5-3" value="84" style="width:46px">
@@ -721,7 +746,7 @@ textarea.fi{resize:vertical;min-height:70px}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.0.0.5';
+const APP_VERSION = '1.0.0.6';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -846,25 +871,27 @@ async function loadStudentsFromSheets() {
     const dataRows = hasHeader ? data.slice(1) : data;
 
     // 헤더 없으면 열 순서 고정(col 0=반구분, 1=반, 2=학생명), 헤더 있으면 탐색
-    let useCls, useName, useGroup, useGrade, useThreshold, usePersonalLevel, useRegDate;
-    if (!hasHeader) {
-      useGroup = -1; useName = 0; useCls = 1; useGrade = 2; useThreshold = 3; usePersonalLevel = 4; useRegDate = 5;
-    } else {
-      const header = firstRow;
-      function colIdx(names) {
-        for(var i=0;i<names.length;i++){
-          var idx = header.findIndex(function(h){ return h.includes(names[i]); });
-          if(idx>=0) return idx;
-        }
-        return -1;
+    let useCls, useName, useGroup, useGrade, useThreshold, usePersonalLevel, useRegDate, useActive;
+    // 헤더에서 열 위치 찾기 (헤더가 없는 시트면 항상 -1)
+    const colIdx = function(names) {
+      if(!hasHeader) return -1;
+      for(var i=0;i<names.length;i++){
+        var idx = firstRow.findIndex(function(h){ return h.includes(names[i]); });
+        if(idx>=0) return idx;
       }
+      return -1;
+    };
+    if (!hasHeader) {
+      useGroup = -1; useName = 0; useCls = 1; useGrade = 2; useThreshold = 3; usePersonalLevel = 4; useRegDate = 5; useActive = -1;
+    } else {
       useCls          = colIdx(['반','class']) >= 0 ? colIdx(['반','class']) : 1;
       useName         = colIdx(['학생','이름','name']) >= 0 ? colIdx(['학생','이름','name']) : 2;
       useGroup        = colIdx(['반구분','group']);
       useGrade        = colIdx(['학년','grade']);
-      useThreshold    = colIdx(['재시험기준','기준점수','threshold','레벨기준']);
+      useThreshold    = colIdx(['재시험기준','재시험 기준','기준점','threshold','레벨기준']);
       usePersonalLevel = colIdx(['개인레벨','personalLevel','개인 레벨']);
       useRegDate      = colIdx(['등록일','시작일','regDate']);
+      useActive       = colIdx(['상태','active','활성']);
     }
 
     const myClasses = getAllClasses();
@@ -895,7 +922,6 @@ async function loadStudentsFromSheets() {
       const grade         = useGrade>=0         ? String(r[useGrade]||'').trim()         : (currentClass==='KG6'?'G6':'G5');
       const threshold     = useThreshold>=0     ? parseInt(r[useThreshold])||null         : null;
       const personalLevel = usePersonalLevel>=0 ? String(r[usePersonalLevel]||'').trim() || null : null;
-      const useActive = colIdx(['상태','active','활성']);
       const active = useActive>=0 ? String(r[useActive]||'').trim().toLowerCase() !== 'inactive' : true;
       const id = 'sh_' + cls.replace(/[^a-zA-Z0-9가-힣]/g,'') + '_' + name.replace(/[^a-zA-Z0-9가-힣]/g,'');
       const sheetRegDate = useRegDate>=0 ? String(r[useRegDate]||'').trim() || null : null;
@@ -939,6 +965,25 @@ function getStudents(cls, includeInactive) {
 }
 function getAllClasses() { return CLASS_CONFIG[currentClass].classes; }
 function getSubjects() { return CLASS_CONFIG[currentClass].subjects; }
+// 표 머리글용 과목 약칭 (앞 4글자로 자르면 Sci HW·Sci Test·Sci Teachback이 모두 'Sci '로 보이던 문제)
+const SUBJ_SHORT = {'VOC Test':'VOC','Gram HW':'Gram HW','GraSP':'GraSP','Sci HW':'Sci HW','Sci Test':'Sci Test','Sci Teachback':'Sci TB','TFL Reading':'TFL R','Grammar Test':'Gram Test','TFL Speaking':'TFL S','Novel':'Novel','MarketDay Points':'MDP','수능토플독해':'수토독해'};
+function subjShort(sub) { return SUBJ_SHORT[sub] || sub; }
+function escHtml(v) { return String(v==null?'':v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+// 클립보드 복사 — 아이폰/일부 브라우저에서 clipboard API가 막힐 때 대체 방식 사용
+function copyText(text, okMsg) {
+  const done = function(){ showToast(okMsg || '복사됨', 's'); };
+  if(navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done).catch(function(){ fallbackCopy(text, done); });
+  } else fallbackCopy(text, done);
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.top='0'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+  let ok = false; try { ok = document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+  if(ok) done(); else showToast('복사하지 못했습니다 — 길게 눌러 직접 복사해주세요','e');
+}
 function cfg() { return CLASS_CONFIG[currentClass]; }
 function threshold() { return retestThreshold[currentClass]; }
 
@@ -1034,38 +1079,31 @@ function getClassDayOfWeek(cls) {
   const map = {M:1,T:2,W:3,TH:4,F:5,S:6,SA:6};
   return map[m[1]]!==undefined ? map[m[1]] : -1;
 }
-// 이번 주 해당 반 수업 날짜
-function getCurrentWeekClassDate(cls) {
-  const dow = getClassDayOfWeek(cls);
-  if(dow<1) return null;
-  const today = new Date();
-  const todayDow = today.getDay()===0?7:today.getDay();
-  const d = new Date(today);
-  d.setDate(today.getDate()+(dow-todayDow));
-  return d.toISOString().slice(0,10);
+// 날짜 ↔ 'YYYY-MM-DD' — 항상 기기의 현지 날짜 기준
+// (toISOString은 UTC라 한국에서 오전 9시 전에는 하루 전 날짜가 나옴)
+function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function todayYmd() { return ymd(new Date()); }
+function parseYmd(str) {
+  const m = String(str||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(+m[1], +m[2]-1, +m[3]) : new Date(str);
 }
-// N주 전 해당 반 수업 날짜 (weeksBack=1 → 1주 전)
+// 이번 주(일요일 시작) 해당 반 수업 날짜
+function getCurrentWeekClassDate(cls) { return getPrevWeekClassDate(cls, 0); }
+// N주 전 해당 반 수업 날짜 (weeksBack=1 → 1주 전). 주는 일요일 시작 — currentWeek()와 같은 기준
 function getPrevWeekClassDate(cls, weeksBack) {
   const dow = getClassDayOfWeek(cls);
   if(dow<1) return null;
-  const today = new Date();
-  const todayDow = today.getDay()===0?7:today.getDay();
-  const d = new Date(today);
-  d.setDate(today.getDate()+(dow-todayDow)-weeksBack*7);
-  return d.toISOString().slice(0,10);
+  const t = new Date();
+  return ymd(new Date(t.getFullYear(), t.getMonth(), t.getDate() - t.getDay() + dow - weeksBack*7));
 }
-// ISO 주차 문자열 + 반 → 해당 주 수업 날짜
+// 주차 문자열(YYYY-Www) + 반 → 그 주 수업 날짜. dateToWeek()의 역계산
 function weekToClassDate(weekStr, cls) {
   const dow = getClassDayOfWeek(cls);
   if(dow<1) return null;
-  const [y, wn] = weekStr.split('-W').map(Number);
-  const jan4 = new Date(y, 0, 4);
-  const jan4dow = jan4.getDay()===0?7:jan4.getDay();
-  const mon = new Date(jan4);
-  mon.setDate(jan4.getDate()-jan4dow+1+(wn-1)*7);
-  const cd = new Date(mon);
-  cd.setDate(mon.getDate()+dow-1);
-  return cd.toISOString().slice(0,10);
+  const [y, wn] = String(weekStr).split('-W').map(Number);
+  if(!y || !wn) return null;
+  const jan1 = new Date(y, 0, 1);
+  return ymd(new Date(y, 0, 1 - jan1.getDay() + (wn-1)*7 + dow));
 }
 
 function normalizeStr(s) {
@@ -1123,21 +1161,25 @@ function weekList() {
   if(!weeks.size) {weeks.add(currentWeek());}
   return [...weeks].sort().reverse();
 }
-function currentWeek() {
-  const d = new Date(); const y = d.getFullYear();
-  const start = new Date(y,0,1); const w = Math.ceil(((d-start)/86400000+start.getDay()+1)/7);
+// 주차: 일요일~토요일을 한 주로, 1월 1일이 든 주가 1주차.
+// 연말 주가 새해 1월 1일을 포함하면 그 주는 새해 1주차로 셈 (한 주가 두 이름으로 갈리지 않게)
+function weekOf(d) {
+  let y = d.getFullYear();
+  const day0 = new Date(y, d.getMonth(), d.getDate());
+  const sat = new Date(y, d.getMonth(), d.getDate() + 6 - day0.getDay());
+  if(sat.getFullYear() > y) return `${y+1}-W01`;
+  const jan1 = new Date(y, 0, 1);
+  const n = Math.round((day0 - jan1) / 86400000);
+  const w = Math.floor((n + jan1.getDay()) / 7) + 1;
   return `${y}-W${String(w).padStart(2,'0')}`;
 }
-function dateToWeek(dateStr) {
-  const d = new Date(dateStr); const y = d.getFullYear();
-  const start = new Date(y,0,1); const w = Math.ceil(((d-start)/86400000+start.getDay()+1)/7);
-  return `${y}-W${String(w).padStart(2,'0')}`;
-}
+function currentWeek() { return weekOf(new Date()); }
+function dateToWeek(dateStr) { return weekOf(parseYmd(dateStr)); }
 function prevWeek(weekStr) {
   const [y, w] = weekStr.split('-W').map(Number);
   if(w > 1) return `${y}-W${String(w-1).padStart(2,'0')}`;
-  const dec31 = new Date(y-1, 11, 31);
-  return dateToWeek(dec31.toISOString().slice(0,10));
+  const jan1 = new Date(y, 0, 1);
+  return weekOf(new Date(y, 0, 1 - jan1.getDay() - 1)); // 1주차 바로 앞 토요일
 }
 // 재시험 의무를 발생시킨 점수 주차를 반환. 대상 아니면 null.
 function getRetestTriggerWeek(sid, displayWeek, cls) {
@@ -1195,6 +1237,7 @@ function enterClass(cls) {
   setTimeout(addCardResizeHandles, 100);
   document.getElementById('sidebarClass').textContent = cfg().label;
   document.getElementById('footerClass').textContent = cfg().label;
+  const tbc = document.getElementById('topbarClass'); if(tbc) tbc.textContent = cfg().label;
   // 대시보드 로딩 중 상태 표시
   const hwEl = document.getElementById('d-hw-incomplete');
   if(hwEl) hwEl.innerHTML = '<div style="padding:14px 16px;color:var(--text3);font-size:13px">⏳ 동기화 중...</div>';
@@ -1210,7 +1253,7 @@ function enterClass(cls) {
         await new Promise(r => setTimeout(r, 2000));
         await loadStudentsFromSheets();
       }
-      await Promise.all([
+      const results = await Promise.allSettled([
         loadScoresFromSheets(true),
         loadAttendanceFromSheets(),
         loadHomeworkFromSheets(),
@@ -1219,7 +1262,9 @@ function enterClass(cls) {
         loadConsultationsFromSheets(),
         loadObsTagsFromSheets(),
       ]);
-      setSyncStatus('synced');
+      const failed = results.filter(function(r){ return r.status==='rejected'; }).length;
+      setSyncStatus(failed ? 'error' : 'synced');
+      if(failed && appKey) showToast('일부 데이터를 불러오지 못했습니다 — ↻ 동기화를 눌러 다시 시도해주세요','e');
       // 반 목록 드롭다운 일괄 초기화
       ['sc-class','sc-view-class','att-class','msg-class','rpt-class'].forEach(function(id){
         const el=document.getElementById(id); if(!el||el.options.length) return;
@@ -1396,27 +1441,64 @@ function notifyUnauthorized() {
 }
 
 // 쓰기 요청 — JSONP GET (GAS POST redirect 문제 우회)
+// 저장은 한 번에 하나씩 순서대로 보냄 (동시에 보내면 시트 행 번호가 엇갈릴 수 있음).
+// 예전엔 실패해도 '연동됨'으로 표시됐음 → 이제 실패하면 알려줌
+let _writeQueue = Promise.resolve();
+let _writeFailToastAt = 0;
 function postToSheets(payload) {
   if(!gasUrl) return Promise.resolve();
   const json = JSON.stringify({...payload, classGroup:currentClass});
   const url = gasUrl + '?writeData=' + encodeURIComponent(json);
-  return jsonpFetch(url, 15000)
-    .then(function(res) { setSyncStatus('synced'); return res; })
-    .catch(function() { setSyncStatus('synced'); return null; });
+  const run = function() {
+    return jsonpFetch(url, 20000).then(function(res) {
+      if(res && res.ok === false) { reportWriteFail(res.error); return res; }
+      setSyncStatus('synced');
+      return res;
+    }).catch(function(e) { reportWriteFail(e && e.message); return null; });
+  };
+  const p = _writeQueue.then(run, run);
+  _writeQueue = p;
+  return p;
+}
+function reportWriteFail(reason) {
+  setSyncStatus('error');
+  if(reason === 'unauthorized') return; // 로그인 화면이 따로 뜸
+  const now = Date.now();
+  if(now - _writeFailToastAt < 4000) return;
+  _writeFailToastAt = now;
+  const why = {timeout:'응답 시간 초과', 'script error':'연결 오류'}[reason] || reason || '';
+  showToast('Sheets 저장 실패' + (why ? ' (' + why + ')' : '') + ' — 다시 저장해주세요', 'e');
 }
 
 async function syncNow() {
   if(!gasUrl){openSettings();return;}
   setSyncStatus('syncing');
-  await loadStudentsFromSheets();
-  await loadScoresFromSheets();
-  await loadAttendanceFromSheets();
-  await loadHomeworkFromSheets();
-  await loadRetestsFromSheets();
-  await loadScheduleFromSheets();
-  await loadConsultationsFromSheets();
-  setSyncStatus('synced');
-  showToast('전체 동기화 완료 ✓','s');
+  try {
+    await loadStudentsFromSheets();
+    await loadScoresFromSheets(true);
+    await loadAttendanceFromSheets();
+    await loadHomeworkFromSheets();
+    await loadRetestsFromSheets();
+    await loadScheduleFromSheets();
+    await loadConsultationsFromSheets();
+    await loadObsTagsFromSheets();
+    setSyncStatus('synced');
+    refreshActiveTab();
+    showToast('전체 동기화 완료 ✓','s');
+  } catch(e) {
+    setSyncStatus('error');
+    if(e && e.message === 'unauthorized') return;
+    showToast('동기화 실패: ' + (e && e.message === 'timeout' ? '응답 시간 초과' : ((e && e.message) || '오류')), 'e');
+  }
+}
+// 동기화 후 지금 보고 있는 화면을 새 데이터로 다시 그림
+function refreshActiveTab() {
+  const active = document.querySelector('.tab-page.active');
+  const id = active ? active.id.replace('tab-','') : 'dashboard';
+  renderDashboard();
+  if(id==='students' && document.getElementById('student-list-view').style.display!=='none') renderStudentList();
+  if(id==='scores') { renderScoreEntry(); renderScoreView(); }
+  if(id==='attendance') renderAttList();
 }
 
 async function loadAttendanceFromSheets() {
@@ -1693,8 +1775,14 @@ function renderDashboard() {
   document.getElementById('d-total').textContent = all.length;
   const subEl = document.getElementById('d-total-sub');
   if(subEl) subEl.textContent = inactiveCount > 0 ? `비활성 ${inactiveCount}명 포함 전체 ${allWithInactive.length}명` : '';
-  const allScores = all.flatMap(s=>(scores[s.id]||[]).map(sc=>sc.score));
-  document.getElementById('d-avg').textContent = avg(allScores)||'—';
+  // 이번 주 평균 (Market Day 포인트 제외). 이번 주 성적이 아직 없으면 지난주 기준으로 표시
+  const cwAvg = currentWeek();
+  const weekVals = function(w){ return all.flatMap(s=>(scores[s.id]||[]).filter(sc=>sc.week===w&&sc.type!=='MarketDay Points').map(sc=>sc.score)).filter(v=>typeof v==='number'&&!isNaN(v)); };
+  let avgVals = weekVals(cwAvg), avgNote = '';
+  if(!avgVals.length) { avgVals = weekVals(prevWeek(cwAvg)); if(avgVals.length) avgNote = '지난주 기준'; }
+  const avgVal = avg(avgVals);
+  document.getElementById('d-avg').textContent = avgVal ?? '—';
+  const avgSubEl = document.getElementById('d-avg-sub'); if(avgSubEl) avgSubEl.textContent = avgNote;
   const attAll = all.flatMap(s=>Object.values(attendance[s.id]||{}).map(resolveAttStatus));
   document.getElementById('d-att').textContent = attAll.length?Math.round(attAll.filter(a=>a==='present').length/attAll.length*100)+'%':'—';
   const cw = currentWeek();
@@ -1713,21 +1801,24 @@ function renderDashboard() {
   if(retestCard) {
     retestCard.style.display = retestCandidates.length ? '' : 'none';
     if(retestCandidates.length) {
-      document.getElementById('d-retest-list').innerHTML = `<table class="tbl"><thead><tr><th>학생</th><th>반</th><th>시험 날짜</th><th>결과</th><th>재시험 문자</th><th></th></tr></thead><tbody>` +
-        retestCandidates.map(({s, triggerWeek})=>{
+      document.getElementById('d-retest-list').innerHTML = retestCandidates.map(({s, triggerWeek})=>{
           const ri = (retests[s.id]||{})[triggerWeek]||{};
           const failedSc = (scores[s.id]||[]).find(sc=>sc.week===triggerWeek&&sc.type===cfg().retestSubject);
           const testDate = failedSc?.date || triggerWeek;
-          return `<tr><td style="font-weight:600">${s.name}</td><td><span class="badge b-blue">${s.cls}</span></td>
-            <td style="font-size:12px;color:var(--text2);white-space:nowrap">${testDate}</td>
-            <td><select id="dash-retest-${s.id}" class="fi fi-sm" style="width:auto">
-              <option value=""${!ri.result?' selected':''}>미진행</option>
-              <option value="pass"${ri.result==='pass'?' selected':''}>통과</option>
-              <option value="fail"${ri.result==='fail'?' selected':''}>미통과</option>
-            </select></td>
-            <td><button class="btn btn-ghost btn-sm" style="font-size:10px;white-space:nowrap" onclick="navigator.clipboard.writeText(generateRetestMsg('${s.id}','${triggerWeek}')).then(()=>showToast('재시험 안내 문자 복사됨','s'))">📋 문자 복사</button></td>
-            <td><button class="btn btn-primary btn-sm" onclick="saveDashboardRetest('${s.id}','${triggerWeek}')">저장</button></td></tr>`;
-        }).join('') + `</tbody></table>`;
+          const scorePill = failedSc ? `<span class="score-pill" style="color:${scoreColor(failedSc.score)};background:${scoreColor(failedSc.score)}22">${failedSc.score}</span>` : '';
+          return `<div class="rt-row">
+            <div class="rt-who"><span class="rt-name">${s.name}</span><span class="badge b-blue">${s.cls}</span>${scorePill}<span class="rt-date">${testDate}</span></div>
+            <div class="rt-actions">
+              <select id="dash-retest-${s.id}" class="fi fi-sm" style="width:auto">
+                <option value=""${!ri.result?' selected':''}>미진행</option>
+                <option value="pass"${ri.result==='pass'?' selected':''}>통과</option>
+                <option value="fail"${ri.result==='fail'?' selected':''}>미통과</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="copyRetestMsg('${s.id}','${triggerWeek}')">📋 문자 복사</button>
+              <button class="btn btn-primary btn-sm" onclick="saveDashboardRetest('${s.id}','${triggerWeek}')">저장</button>
+            </div>
+          </div>`;
+        }).join('');
     }
   }
   // 주의 학생: 각 반에서 평균 꼴찌 학생만, 이슈 기준(과목 75점 미만) 동일
@@ -1754,7 +1845,7 @@ function renderDashboard() {
     if(issues.length) alertRows.push({s, issues, avg:a});
   });
   document.getElementById('d-alerts').innerHTML = alertRows.length ? alertRows.map(({s,issues,avg:a})=>{
-    const issueHtml = issues.map(i=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span class="badge ${i.level==='위험'?'b-red':'b-yellow'}" style="font-size:9px">${i.subj.slice(0,8)}</span><span style="font-family:'DM Mono';font-size:11px;color:${scoreColor(i.score)}">${i.score}점</span><span>${i.trend}</span></div>`).join('');
+    const issueHtml = issues.map(i=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span class="badge ${i.level==='위험'?'b-red':'b-yellow'}" style="font-size:9px">${subjShort(i.subj)}</span><span style="font-family:'DM Mono';font-size:11px;color:${scoreColor(i.score)}">${i.score}점</span><span>${i.trend}</span></div>`).join('');
     return `<tr><td style="font-weight:600;vertical-align:top">${s.name}</td><td style="vertical-align:top"><span class="badge b-blue" style="font-size:9px">${s.cls}</span></td><td>${issueHtml}</td><td class="num" style="color:${scoreColor(a)};vertical-align:top;font-family:'DM Mono'">${a}</td></tr>`;
   }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px">주의 학생 없음 ✓</td></tr>';
   renderDashboardHwIncomplete();
@@ -1764,13 +1855,13 @@ function renderDashboard() {
 
 /* ── 이번 주 숙제 미완성 ── */
 function getNextClassDate(cls) {
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayYmd();
   const dow = getClassDayOfWeek(cls);
   if(dow>=1) {
-    const d = new Date(today);
+    const d = parseYmd(today);
     for(let i=1;i<=21;i++){
       d.setDate(d.getDate()+1);
-      const dStr=d.toISOString().slice(0,10);
+      const dStr=ymd(d);
       if((d.getDay()===0?7:d.getDay())===dow && !isHoliday(dStr)) return dStr;
     }
   }
@@ -1780,7 +1871,7 @@ function getNextClassDate(cls) {
 
 // 가장 최근 비휴가·이미 지난 수업 주차를 반환
 function getEffectiveHwWeek(cls) {
-  const today=new Date().toISOString().slice(0,10);
+  const today=todayYmd();
   const cw=currentWeek();
   const thisDate=weekToClassDate(cw,cls);
   if(thisDate && thisDate<today && !isHoliday(thisDate)) return {week:cw,classDate:thisDate};
@@ -1797,7 +1888,7 @@ function getEffectiveHwWeek(cls) {
 function renderDashboardHwIncomplete() {
   const el=document.getElementById('d-hw-incomplete');
   if(!el) return;
-  const today=new Date().toISOString().slice(0,10);
+  const today=todayYmd();
   const all=getStudents(null);
   const isKG6=currentClass==='KG6';
   const itemRows=[];
@@ -1875,7 +1966,7 @@ function renderDashboardHwIncomplete() {
       }
     }).join('');
     return `<details${ci===0?' open':''}  style="border-bottom:1px solid var(--border)">
-      <summary style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;list-style:none;-webkit-appearance:none;user-select:none">
+      <summary style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap;list-style:none;-webkit-appearance:none;user-select:none">
         <span class="badge b-blue">${cls}</span>
         ${clsDate?`<span style="font-size:11px;color:var(--text3)">${clsDate}</span>`:''}
         <span style="font-weight:600;font-size:13px">${[...new Set(rows.map(r=>r.s.name))].join(', ')}</span>
@@ -2040,31 +2131,32 @@ function renderScheduleCards() {
   });
 
   if(!filtered.length) {
-    // Sheets 데이터 없을 때 — 오늘부터 반 수만큼 기본 카드 표시
-    const today = new Date();
-    row.innerHTML = myClasses.map(function(cls, i){
-      const d = new Date(today); d.setDate(d.getDate()+i);
-      const ds = d.toLocaleDateString('ko-KR',{month:'short',day:'numeric',weekday:'short'});
-      const dateStr = d.toISOString().slice(0,10);
-      return `<div class="sched-card ${i===0?'today':''}" onclick="openSession('${cls}','${dateStr}','${dateToWeek(dateStr)}')">
+    // Sheets 일정이 없을 때 — 반 이름의 요일(M/T/W/TH/F/S)로 이번 주 수업 날짜를 계산해 표시
+    const todayStr = todayYmd();
+    const cards = myClasses.map(function(cls){ return {cls:cls, date:getCurrentWeekClassDate(cls)}; })
+      .filter(function(x){ return x.date && !isHoliday(x.date); })
+      .sort(function(a,b){ return a.date.localeCompare(b.date); });
+    row.innerHTML = cards.length ? cards.map(function(x){
+      const ds = parseYmd(x.date).toLocaleDateString('ko-KR',{month:'short',day:'numeric',weekday:'short'});
+      return `<div class="sched-card ${x.date===todayStr?'today':''}" onclick="openSession('${x.cls}','${x.date}','${dateToWeek(x.date)}')">
         <div class="sched-date">${ds}</div>
-        <div class="sched-class">${cls}</div>
+        <div class="sched-class">${x.cls}</div>
         <div class="sched-topics" style="color:var(--text3);font-size:10px">클릭하여 수업 입력</div>
       </div>`;
-    }).join('');
+    }).join('') : '<div style="color:var(--text3);font-size:12px;padding:8px">이번 주 수업 없음 (휴강)</div>';
     return;
   }
 
   // 날짜 기준 정렬
   filtered.sort(function(a,b){ return a.date.localeCompare(b.date); });
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayYmd();
 
   row.innerHTML = filtered.map(function(ev){
     const isToday = ev.date === today;
     // 날짜 표시: YYYY-MM-DD → 4월 21일 (월)
     let displayDate = ev.date;
     try {
-      const d = new Date(ev.date);
+      const d = parseYmd(ev.date);
       displayDate = d.toLocaleDateString('ko-KR',{month:'short',day:'numeric',weekday:'short'});
     } catch(e){}
     const subjectText = ev.subjects.length
@@ -2082,8 +2174,15 @@ function renderScheduleCards() {
 /* ═══════════════════════════════════════════════════════
    SESSION MODAL (Dashboard card click)
 ═══════════════════════════════════════════════════════ */
+let sessionAttDirty = new Set(); // 수업 입력 창에서 출석을 바꾼 학생
+function setSessionAtt(sid, date, st) {
+  if(!attendance[sid]) attendance[sid] = {};
+  attendance[sid][date] = st;
+  sessionAttDirty.add(sid);
+}
 function openSession(cls, date, week) {
   sessionContext = {cls, date, week};
+  sessionAttDirty = new Set();
   document.getElementById('session-title').textContent = `${cls} — ${date} (${week})`;
   renderSessionAtt();
   renderSessionScores();
@@ -2103,20 +2202,20 @@ function renderSessionAtt() {
   const ss = getStudents(cls);
   const cw = week || currentWeek();
   let html = `<div style="margin-bottom:10px;font-size:12px;color:var(--text2)">📌 재시험 대상자 확인 포함</div>`;
-  html += `<table class="tbl"><thead><tr><th>학생</th><th>출석</th><th>지각</th><th>결석</th><th>재시험 결과</th></tr></thead><tbody>`;
+  html += `<div class="tbl-scroll"><table class="tbl"><thead><tr><th>학생</th><th>출석</th><th>지각</th><th>결석</th><th>재시험 결과</th></tr></thead><tbody>`;
   ss.forEach(s=>{
-    const cur = (attendance[s.id]||{})[date]||'';
+    const cur = getAttStatus(s.id, date);
     const retestDone = isRetestDone(s.id, cw, s.cls);
     const isRetest = !retestDone && isRetestCandidate(s.id, cw, s.cls);
     const retestTW = getRetestTriggerWeek(s.id, cw, s.cls) || cw;
     const retestInfo = (retests[s.id]||{})[retestTW]||{};
     html += `<tr>
       <td style="font-weight:600">${s.name}${retestDone?`<span class="badge b-green" style="margin-left:4px;font-size:9px">진행완료</span>`:isRetest?`<span class="retest-badge">재시험</span>`:''}</td>
-      ${['present','late','absent'].map(st=>`<td><input type="radio" name="att-${s.id}" value="${st}" ${cur===st?'checked':''} onchange="attendance['${s.id}']={...attendance['${s.id}'],'${date}':'${st}'}"></td>`).join('')}
+      ${['present','late','absent'].map(st=>`<td><input type="radio" name="att-${s.id}" value="${st}" ${cur===st?'checked':''} onchange="setSessionAtt('${s.id}','${date}','${st}')"></td>`).join('')}
       <td>${(isRetest||retestDone)?`<select class="fi fi-sm" id="retest-result-${s.id}" style="width:90px" onchange="saveRetestResult('${s.id}','${cw}',this.value)"><option value="">미진행</option><option value="pass" ${retestInfo.result==='pass'?'selected':''}>통과</option><option value="fail" ${retestInfo.result==='fail'?'selected':''}>미통과</option></select>`:'—'}</td>
     </tr>`;
   });
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';
   document.getElementById('session-att').innerHTML = html;
 }
 function renderSessionScores() {
@@ -2295,6 +2394,13 @@ function saveSession() {
     const rt=(retests[s.id]||{})[tw];
     if(rt&&rt.result) postToSheets({action:'saveRetest',name:s.name,cls:s.cls,week:tw,taken:'yes',result:rt.result,score:rt.score||0});
   });
+  // 출석 Sheets 저장 (이 창에서 바꾼 학생만)
+  sessionAttDirty.forEach(sid=>{
+    const s = ss.find(x=>x.id===sid); if(!s) return;
+    const v = (attendance[sid]||{})[date];
+    postToSheets({action:'saveAtt', name:s.name, cls:s.cls, date, status:typeof v==='object'&&v?JSON.stringify(v):(v||'')});
+  });
+  sessionAttDirty = new Set();
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -2327,12 +2433,12 @@ function renderStudentList() {
       <td class="num" style="color:${a?scoreColor(a):'var(--text3)'}">${a||'—'}</td>
       <td>${inactive?'<span class="badge b-gray">비활성</span>':retestDone?`<span class="badge b-green">재시험 진행완료</span>`:isRetest?`<span class="badge b-red">재시험 대상</span>`:'<span class="badge b-gray">해당없음</span>'}</td>
       <td class="num" style="color:var(--purple)">${md!==null?md||0:'—'}</td>
-      <td style="display:flex;gap:4px">
+      <td><div style="display:flex;gap:4px">
         ${inactive
           ? `<button class="btn btn-green btn-sm" onclick="restoreStudent('${s.id}')">복원</button>`
           : `<button class="btn btn-yellow btn-sm" onclick="hideStudent('${s.id}')">숨기기</button>`}
         <button class="btn btn-ghost btn-sm" onclick="deleteStudent('${s.id}')">삭제</button>
-      </td>
+      </div></td>
     </tr>`;
   };
   let html = list.length
@@ -2377,13 +2483,13 @@ function openStudentDetail(sid) {
     attWeeks.forEach(wk=>{
       const entries = attByWeek[wk].sort((a,b)=>a.date.localeCompare(b.date));
       const badges = entries.map(({date, status})=>{
-        const d = new Date(date);
+        const d = parseYmd(date);
         const col = statusColor[status]||'var(--text2)';
         const lbl = statusLabel[status]||status;
         const mmdd = `${d.getMonth()+1}/${String(d.getDate()).padStart(2,'0')}`;
         return `<span style="display:inline-flex;align-items:center;gap:3px;margin:2px 4px 2px 0;padding:3px 8px;border-radius:20px;font-size:11px;background:${col}22;color:${col};font-weight:600">${mmdd}(${dayNames[d.getDay()]}) ${lbl}</span>`;
       }).join('');
-      attHtml += `<tr><td style="font-weight:600;white-space:nowrap;font-size:12px;color:var(--text2)">${wk}</td><td>${badges}</td></tr>`;
+      attHtml += `<tr><td style="font-weight:600;white-space:nowrap;font-size:12px;color:var(--text2)">${wk}</td><td class="wrap">${badges}</td></tr>`;
     });
     attHtml += '</tbody></table></div>';
   }
@@ -2488,8 +2594,8 @@ async function deleteStudent(id) {
   if(!st) return;
   students[currentClass] = (students[currentClass]||[]).filter(s=>s.id!==id);
   renderStudentList();
-  await postToSheets({action:'deleteStudent', name:st.name, cls:st.cls});
-  showToast(st.name+' 삭제됨 — Sheets 동기화됨','s');
+  const res = await postToSheets({action:'deleteStudent', name:st.name, cls:st.cls});
+  if(res && res.ok) showToast(st.name+' 삭제됨 — Sheets 동기화됨','s');
 }
 async function resetStudentMdp(sid) {
   if(!confirm('Market Day 포인트를 초기화하시겠습니까? 복구할 수 없습니다.')) return;
@@ -2499,8 +2605,8 @@ async function resetStudentMdp(sid) {
   Object.values(homework[sid]||{}).forEach(wd=>{
     Object.keys(wd).filter(k=>k.startsWith('opt_')).forEach(k=>delete wd[k]);
   });
-  await postToSheets({action:'clearMdp', name:st.name, cls:st.cls});
-  showToast('Market Day 포인트 초기화됨','s');
+  const res = await postToSheets({action:'clearMdp', name:st.name, cls:st.cls});
+  if(res && res.ok) showToast('Market Day 포인트 초기화됨','s');
   openStudentDetail(sid);
 }
 async function confirmMoveClass(sid) {
@@ -2528,10 +2634,11 @@ async function confirmMoveClass(sid) {
     students[newGroup].push(st);
     students[currentClass] = (students[currentClass]||[]).filter(s=>s.id!==oldId);
   }
-  await postToSheets({action:'moveStudent', name:st.name, oldCls, newCls});
-  showToast(`${st.name} → ${newCls} 이동됨`, 's');
-  currentClass = newGroup;
-  openStudentDetail(newId);
+  const res = await postToSheets({action:'moveStudent', name:st.name, oldCls, newCls});
+  if(res && res.ok) showToast(`${st.name} → ${newCls} 이동됨`, 's');
+  // 다른 그룹(KG6↔G5TFS)으로 옮긴 학생은 그 그룹 화면에서 보임 — 지금 화면의 그룹은 그대로 둠
+  if(newGroup !== currentClass) renderStudentList();
+  else openStudentDetail(newId);
 }
 function onNsGroupChange() {
   const grp = document.getElementById('ns-group').value;
@@ -2541,7 +2648,7 @@ function onNsGroupChange() {
 function openAddStudent() {
   document.getElementById('ns-name').value = '';
   document.getElementById('ns-group').value = currentClass;
-  document.getElementById('ns-regdate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('ns-regdate').value = todayYmd();
   onNsGroupChange();
   document.getElementById('modal-add-student').classList.add('open');
 }
@@ -2554,15 +2661,15 @@ async function addStudent() {
   const regDate = document.getElementById('ns-regdate').value || '';
   const id = 'sh_' + cls.replace(/[^a-zA-Z0-9가-힣]/g,'') + '_' + name.replace(/[^a-zA-Z0-9가-힣]/g,'');
   if((students[grp]||[]).find(s=>s.id===id)){showToast('이미 같은 이름의 학생이 있습니다','e');return;}
-  const s = {id, name, cls, grade};
+  const s = {id, name, cls, grade, active:true, regDate:regDate||null};
   if(!students[grp]) students[grp]=[];
   students[grp].push(s);
   scores[id]=[]; attendance[id]={}; homework[id]={}; retests[id]={};
-  if(regDate) setRegDate(id, regDate);
+  if(regDate) setRegDate(id, regDate, true); // 시트에는 아래 addStudent로 함께 저장됨
   closeModal('modal-add-student');
   renderStudentList(); renderDashboard();
-  await postToSheets({action:'addStudent', name, cls, grade, regDate});
-  showToast(name+' 추가됨 — Sheets 동기화됨','s');
+  const res = await postToSheets({action:'addStudent', name, cls, grade, regDate});
+  if(res && res.ok) showToast(name+' 추가됨 — Sheets 동기화됨','s');
 }
 /* 등록일: 시트에 컬럼이 있으면 그 값을 우선 사용하고, 없으면 로컬 저장값을 사용 */
 function getRegDate(sid) {
@@ -2571,13 +2678,13 @@ function getRegDate(sid) {
   const local = JSON.parse(localStorage.getItem('emax_regdates')||'{}');
   return local[sid] || null;
 }
-function setRegDate(sid, date) {
+function setRegDate(sid, date, localOnly) {
   const local = JSON.parse(localStorage.getItem('emax_regdates')||'{}');
   local[sid] = date;
   localStorage.setItem('emax_regdates', JSON.stringify(local));
   const s = Object.values(students).flat().find(st=>st.id===sid);
   if(s) s.regDate = date;
-  postToSheets({action:'setRegDate', id:sid, name:s?s.name:'', cls:s?s.cls:'', regDate:date});
+  if(!localOnly) postToSheets({action:'setRegDate', id:sid, name:s?s.name:'', cls:s?s.cls:'', regDate:date});
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -2589,20 +2696,20 @@ function initScoreSelects() {
     const el = document.getElementById(id); if(!el) return;
     el.innerHTML = cls.map(c=>`<option>${c}</option>`).join('');
   });
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayYmd();
   const scDate = document.getElementById('sc-date');
   if(scDate && !scDate.value) scDate.value = today;
   const fromEl = document.getElementById('sc-view-from');
   const toEl = document.getElementById('sc-view-to');
   if(fromEl && !fromEl.value) {
     const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-2);
-    fromEl.value = d.toISOString().slice(0,10);
+    fromEl.value = ymd(d);
   }
   if(toEl && !toEl.value) toEl.value = today;
 }
 function renderScoreEntry() {
   const cls = document.getElementById('sc-class')?.value; if(!cls) return;
-  const date = document.getElementById('sc-date')?.value || new Date().toISOString().slice(0,10);
+  const date = document.getElementById('sc-date')?.value || todayYmd();
   const week = dateToWeek(date);
   const ss = getStudents(cls);
   const subjs = getSubjects();
@@ -2639,7 +2746,7 @@ function calcHwTotal(sid, week, cls) {
 }
 async function saveScores() {
   const cls = document.getElementById('sc-class')?.value;
-  const date = document.getElementById('sc-date')?.value || new Date().toISOString().slice(0,10);
+  const date = document.getElementById('sc-date')?.value || todayYmd();
   const week = dateToWeek(date);
   const ss = getStudents(cls);
   const subjs = getSubjects();
@@ -2692,19 +2799,26 @@ function renderScoreView() {
     tbl.innerHTML = '<thead></thead><tbody><tr><td colspan="99" style="text-align:center;color:var(--text3);padding:20px">해당 기간에 성적 데이터 없음</td></tr></tbody>';
     return;
   }
+  // 날짜마다 실제로 점수가 있는 과목만 열로 표시 (빈 칸 열이 수십 개 생기던 문제)
+  const colsByDate = {};
+  dates.forEach(d=>{
+    const has = new Set();
+    ss.forEach(s=>{ const cur=s.cls===cls; (scores[s.id]||[]).forEach(x=>{ if(x.date===d && (cur || (x.cls||s.cls)===cls)) has.add(x.type); }); });
+    colsByDate[d] = subjs.filter(sj=>has.has(sj));
+  });
   let html = `<thead><tr><th style="text-align:left;min-width:90px">학생</th>`;
-  dates.forEach(d=>{ subjs.forEach(s=>{ html+=`<th title="${d}·${s}" style="font-size:9px">${d.slice(5)}<br>${s.slice(0,4)}</th>`; }); });
+  dates.forEach(d=>{ colsByDate[d].forEach(s=>{ html+=`<th title="${d} · ${s}" style="font-size:9px">${d.slice(5)}<br>${subjShort(s)}</th>`; }); });
   html += '<th>평균</th></tr></thead><tbody>';
   ss.forEach(s=>{
     const sc = scores[s.id]||[];
     const map = {};
     const isCurrent2 = s.cls===cls;
     sc.forEach(x=>{ const xCls=x.cls||s.cls; const ok=isCurrent2?true:xCls===cls; if(ok && x.date) map[x.date+'|'+x.type]=x.score; });
-    const filteredVals = sc.filter(x=>{const xCls=x.cls||s.cls;const ok=isCurrent2?true:xCls===cls;return ok&&x.date&&(!from||x.date>=from)&&(!to||x.date<=to);}).map(x=>x.score).filter(v=>!isNaN(v));
+    const filteredVals = sc.filter(x=>{const xCls=x.cls||s.cls;const ok=isCurrent2?true:xCls===cls;return ok&&x.type!=='MarketDay Points'&&x.date&&(!from||x.date>=from)&&(!to||x.date<=to);}).map(x=>x.score).filter(v=>!isNaN(v));
     const a = avg(filteredVals);
     const isTransferred = s.cls!==cls;
     html += `<tr><td class="student-name">${s.name}${isTransferred?'<span class="badge" style="font-size:9px;background:rgba(99,102,241,.15);color:#818cf8;margin-left:4px">이동</span>':''}</td>`;
-    dates.forEach(d=>{ subjs.forEach(subj=>{ const v=map[d+'|'+subj]; html+=v!==undefined?`<td style="text-align:center"><span class="score-pill" style="color:${scoreColor(v)};background:${scoreColor(v)}22;font-size:10px">${v}</span></td>`:`<td style="text-align:center;color:var(--text3);font-size:10px">—</td>`; }); });
+    dates.forEach(d=>{ colsByDate[d].forEach(subj=>{ const v=map[d+'|'+subj]; html+=v!==undefined?`<td style="text-align:center"><span class="score-pill" style="color:${scoreColor(v)};background:${scoreColor(v)}22;font-size:10px">${v}</span></td>`:`<td style="text-align:center;color:var(--text3);font-size:10px">—</td>`; }); });
     html += `<td style="text-align:center"><span class="score-pill" style="color:${a?scoreColor(a):'var(--text3)'};background:${a?scoreColor(a)+'22':'transparent'};font-weight:700">${a||'—'}</span></td></tr>`;
   });
   html += '</tbody>';
@@ -2718,7 +2832,7 @@ function initAttSelects() {
   const attCls = document.getElementById('att-class');
   if(attCls) attCls.innerHTML = getAllClasses().map(c=>`<option>${c}</option>`).join('');
   const attDate = document.getElementById('att-date');
-  if(attDate && !attDate.value) attDate.value = new Date().toISOString().slice(0,10);
+  if(attDate && !attDate.value) attDate.value = todayYmd();
   renderAttList();
 }
 async function loadAttHwFromSheets() {
@@ -2756,7 +2870,7 @@ function hwStatusCell(s, week, date, curStatus) {
 function renderAttList() {
   const cls = document.getElementById('att-class')?.value; if(!cls) return;
   const ss = getStudents(cls);
-  const date = document.getElementById('att-date')?.value || new Date().toISOString().slice(0,10);
+  const date = document.getElementById('att-date')?.value || todayYmd();
   const week = dateToWeek(date);
   const allCls = getAllClasses();
 
@@ -2781,7 +2895,6 @@ function renderAttList() {
       var retestDone = isRetestDone(s.id, week, s.cls);
       var isRetest = !retestDone && isRetestCandidate(s.id, week, s.cls);
       var retestInfo = (retests[s.id]||{})[retestTW]||{};
-      var hwTotal = calcHwTotal(s.id, week, s.cls);
       var attBtns = ['present','late','absent'].map(function(st, i) {
         var labels = ['출석','지각','결석'];
         var cols = ['var(--green)','var(--yellow)','var(--red)'];
@@ -2819,7 +2932,6 @@ function renderAttList() {
     var retestDone = isRetestDone(s.id, week, s.cls);
     var isRetest = !retestDone && isRetestCandidate(s.id, week, s.cls);
     var retestInfo = (retests[s.id]||{})[retestTW]||{};
-    var hwTotal = currentClass==='KG6' ? calcHwTotal(s.id, week, s.cls) : null;
     var mdp = currentClass==='KG6' ? getCumulativeMdp(s.id) : 0;
 
     var attBtns = ['present','late','absent'].map(function(st, i) {
@@ -2856,7 +2968,7 @@ function renderAttList() {
     var curObs = ((obsTags[s.id]||{})[week])||{};
     var strVal = (curObs.strength||[]).join(',');
     var wkVal = (curObs.weakness||[]).join(',');
-    var obsCell = '<div style="display:flex;gap:3px;margin-top:4px;align-items:center;flex-wrap:wrap">'
+    var obsCell = '<div style="display:flex;gap:3px;margin-top:4px;align-items:center;flex-wrap:nowrap">'
       + '<span style="font-size:9px;font-weight:700;color:var(--green)">S</span>'
       + '<input class="fi" type="text" data-sid="' + s.id + '" data-week="' + week + '" data-field="strength" value="' + strVal + '" placeholder="번호" style="width:44px;padding:1px 3px;font-size:10px" onblur="saveObsTagEl(this)" title="강점 번호 입력 (예: 2,7)">'
       + '<span style="font-size:9px;font-weight:700;color:var(--red);margin-left:2px">W</span>'
@@ -2939,18 +3051,23 @@ async function setBogangDate(sid, date, targetDate) {
   await postToSheets({action:'saveAtt', name:st?.name||'', cls:st?.cls||'', date, status:JSON.stringify(attendance[sid][date])});
 }
 async function saveAttendance() {
-  // 반 필터 무관하게 항상 전체 학생 데이터 전송 — 부분 저장 시 다른 반 이력 소실 방지
-  const ss = students[currentClass]||[];
-  const attData = [];
-  ss.forEach(s => {
-    Object.entries(attendance[s.id]||{}).forEach(([date, val]) => {
-      const statusStr = typeof val === 'object' ? JSON.stringify(val) : (val||'');
-      if(statusStr) attData.push({name:s.name, cls:s.cls, classGroup:currentClass, date, status:statusStr});
-    });
-  });
-  showToast('출석 저장 중...','i');
-  await postToSheets({action:'saveAllAtt', attData});
-  showToast('출석 저장됨 ✓','s');
+  // 화면에 보이는 반·날짜의 출석만 학생별로 다시 저장 (다른 날짜·다른 반 기록은 건드리지 않음)
+  const cls = document.getElementById('att-class')?.value;
+  const date = document.getElementById('att-date')?.value;
+  if(!cls || !date) return;
+  const list = getStudents(cls).concat(getBogangStudentsForClass(cls, date));
+  const items = list.map(s=>{
+    const v = (attendance[s.id]||{})[date];
+    return {s, status: typeof v==='object'&&v ? JSON.stringify(v) : (v||'')};
+  }).filter(x=>x.status);
+  if(!items.length) { showToast('이 날짜에 입력된 출석이 없습니다','i'); return; }
+  showToast('출석 저장 중... ('+items.length+'명)','i');
+  let fail = 0;
+  for(const {s, status} of items) {
+    const res = await postToSheets({action:'saveAtt', name:s.name, cls:s.cls, date, status});
+    if(!res || res.ok === false) fail++;
+  }
+  if(!fail) showToast('출석 저장됨 ✓','s');
 }
 async function saveRetestResult(sid, displayWeek, result) {
   const st = (students[currentClass]||[]).find(s=>s.id===sid);
@@ -3181,7 +3298,7 @@ function initReport() {
   el.innerHTML = getAllClasses().map(c=>`<option>${c}</option>`).join('');
   el.onchange = updateRptStudents;
   updateRptStudents();
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayYmd();
   document.getElementById('rpt-from').value = today.slice(0,8)+'01';
   document.getElementById('rpt-to').value = today;
   const savedKey = localStorage.getItem('emax_api_key');
@@ -3406,7 +3523,7 @@ function renderGrowthReport(s, from, to, cats, j) {
       <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="copyReport()">📋 텍스트 복사</button><button class="btn btn-primary btn-sm" onclick="downloadReportPng()">📥 이미지 저장</button></div>
     </div><div class="card-body" style="overflow-x:auto">${posterHtml}</div></div>`;
 }
-function copyReport() { navigator.clipboard.writeText(document.getElementById('report-output').innerText).then(()=>showToast('복사됨','s')); }
+function copyReport() { copyText(document.getElementById('report-output').innerText, '복사됨'); }
 function wrapCanvasText(ctx, text, maxWidth) {
   if(!text) return [];
   const lines = []; let line = '';
@@ -3565,6 +3682,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y, x+w, y, r);
   ctx.closePath();
 }
+function copyRetestMsg(sid, week) { copyText(generateRetestMsg(sid, week), '재시험 안내 문자 복사됨'); }
 function generateRetestMsg(sid, triggerWeek) {
   const st=(students[currentClass]||[]).find(s=>s.id===sid);
   if(!st) return '';
@@ -3583,7 +3701,7 @@ function generateRetestMsg(sid, triggerWeek) {
   // G5TFS — 다음 주 목/금/토 자동 계산
   let thu='목',fri='금',sat='토';
   if(testDate) {
-    const d=new Date(testDate);
+    const d=parseYmd(testDate);
     const dow=d.getDay()===0?7:d.getDay();
     const mon=new Date(d); mon.setDate(d.getDate()-dow+1+7); // next week Monday
     const th=new Date(mon); th.setDate(mon.getDate()+3);
@@ -3645,7 +3763,7 @@ async function generateMessage() {
   if(msgMode==='individual') {
     const sid = document.getElementById('msg-student').value;
     const s = (students[currentClass]||[]).find(st=>st.id===sid);
-    if(!s) return;
+    if(!s) { out.textContent = '학생을 선택해주세요.'; return; }
     const a = studentAvg(sid);
     const ar = attRate(sid);
     const cw = currentWeek();
@@ -3680,7 +3798,7 @@ async function generateMessage() {
     out.textContent = data.content?.map(b=>b.text||'').join('')||'오류';
   } catch(e){ out.style.color='var(--red)'; out.textContent='오류: '+(e.message||'알 수 없는 오류'); }
 }
-function copyMessage() { navigator.clipboard.writeText(document.getElementById('msg-output').textContent).then(()=>showToast('복사됨','s')); }
+function copyMessage() { copyText(document.getElementById('msg-output').textContent, '복사됨'); }
 function saveMsgToLib() {
   const text = document.getElementById('msg-output').textContent;
   if(!text||text.includes('선택한 후')) { showToast('생성된 메시지가 없습니다','e'); return; }
@@ -3783,15 +3901,15 @@ ${ctx}
     } catch(e){ return {s, text:'생성 실패: '+e.message, ok:false}; }
   }));
   out.innerHTML = cards.map(({s,text,ok})=>`
-    <div style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div class="fb-card" style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
         <span style="font-weight:700">${s.name} <span class="badge b-blue" style="font-size:10px">${s.cls}</span></span>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" onclick="this.closest('div[style]').querySelector('.fb-txt').style.display=this.closest('div[style]').querySelector('.fb-txt').style.display==='none'?'block':'none'" style="font-size:10px">표시/숨김</button>
-          <button class="btn btn-ghost btn-sm" style="font-size:10px" onclick="navigator.clipboard.writeText(this.closest('div[style]').querySelector('.fb-txt').textContent.trim()).then(()=>showToast('${s.name} 메시지 복사됨','s'))">📋 복사</button>
+          <button class="btn btn-ghost btn-sm" onclick="const t=this.closest('.fb-card').querySelector('.fb-txt');t.style.display=t.style.display==='none'?'block':'none'">표시/숨김</button>
+          <button class="btn btn-ghost btn-sm" onclick="copyText(this.closest('.fb-card').querySelector('.fb-txt').textContent.trim(),'${s.name} 메시지 복사됨')">📋 복사</button>
         </div>
       </div>
-      <pre class="fb-txt comment-box" style="font-size:12px;white-space:pre-wrap;${ok?'':'color:var(--red)'}">${text}</pre>
+      <pre class="fb-txt comment-box" style="font-size:12px;white-space:pre-wrap;${ok?'':'color:var(--red)'}">${escHtml(text)}</pre>
     </div>
   `).join('');
 }
@@ -3844,6 +3962,7 @@ function setupResizableCards() {
     rh.className = 'card-rh';
     rh.title = '드래그로 크기 조절';
     rh.innerHTML = '&#8943;';
+    rh._rhi = true; // initCardResize가 같은 손잡이에 또 붙이지 않게
     rh.addEventListener('mousedown', e=>{
       e.preventDefault();
       const startY = e.clientY;
