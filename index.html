@@ -302,6 +302,18 @@ textarea.rts-tpl{font-size:13px;line-height:1.6;min-height:280px;font-family:inh
 .rt-row.changed.sent{opacity:1}
 tr.changed td{background:rgba(79,156,249,.08)}
 .rt-pick{display:flex;gap:4px;flex-wrap:nowrap}
+/* 반 비서 판정 */
+.jd-item{padding:10px 16px;border-top:1px solid var(--border);cursor:pointer}
+.jd-item:hover{background:rgba(255,255,255,.02)}
+.jd-item.sent{opacity:.55}
+.jd-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.jd-why{font-size:13px;line-height:1.6}
+.jd-tip{font-size:12px;color:var(--accent);margin-top:4px;line-height:1.5}
+.jr-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--border)}
+.jr-row:first-child{border-top:none}
+.jr-lbl{flex:1;font-size:13px;line-height:1.4}
+.jr-val{min-width:44px;text-align:center;font-family:'DM Mono',monospace;font-size:15px;font-weight:700}
+.jr-btn{width:36px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer}
 .stage.on.pass{background:rgba(52,211,153,.15);border-color:var(--green);color:var(--green)}
 .stage.on.fail{background:rgba(248,113,113,.15);border-color:var(--red);color:var(--red)}
 @media(max-width:1200px){
@@ -510,7 +522,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
         <div class="grid-2">
           <div style="display:flex;flex-direction:column;gap:14px">
             <div class="card">
-              <div class="card-header"><div class="card-title">📋 이번 주 숙제 미완성</div></div>
+              <div class="card-header"><div class="card-title">📋 이번 주 숙제 미완성</div><button class="btn btn-ghost btn-sm" id="hw-save-btn" onclick="saveHwDrafts()">💾 저장</button></div>
               <div id="d-hw-incomplete" style="max-height:340px;overflow-y:auto"><div style="padding:14px 16px;color:var(--text3);font-size:13px">데이터 로딩 중...</div></div>
             </div>
             <div class="card">
@@ -519,11 +531,8 @@ tr.changed td{background:rgba(79,156,249,.08)}
             </div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title">⚠️ 주의 학생 <span style="font-size:10px;font-weight:400;color:var(--text3)">(반별 평균 최하위)</span></div></div>
-            <div style="overflow-x:auto">
-              <table class="tbl"><thead><tr><th>학생</th><th>반</th><th>이슈</th><th class="num">평균</th></tr></thead>
-              <tbody id="d-alerts"><tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px">없음</td></tr></tbody></table>
-            </div>
+            <div class="card-header"><div class="card-title">🧭 학생 판정 <span style="font-size:10px;font-weight:400;color:var(--text3)">(반 비서 · 자동)</span></div><button class="btn btn-ghost btn-sm" onclick="openJudgeRules()">판정 기준</button></div>
+            <div id="d-judge" style="max-height:560px;overflow-y:auto"><div class="wk-empty" style="padding:12px 16px">데이터 로딩 중...</div></div>
           </div>
         </div>
       </div>
@@ -790,6 +799,20 @@ tr.changed td{background:rgba(79,156,249,.08)}
   </div>
 </div>
 
+<!-- JUDGE RULES (판정 기준) -->
+<div class="modal-overlay" id="modal-judge-rules">
+  <div class="modal">
+    <div class="modal-title">🧭 판정 기준 <span id="jr-group" class="class-badge" style="vertical-align:middle"></span></div>
+    <div class="rts-help" style="margin-top:0">− / + 로 숫자를 바꾸고 저장하면 바로 다시 판정합니다. KG6와 G5 TFS는 따로 저장돼요.</div>
+    <div id="jr-list"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="resetJudgeRules()">초안 값으로</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-judge-rules')">닫기</button>
+      <button class="btn btn-primary" onclick="saveJudgeRules()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- RETEST NOTICE SENDER (재시험 안내 반자동 발송) -->
 <div class="modal-overlay" id="modal-retest-send">
   <div class="modal wide">
@@ -866,7 +889,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.2.3';
+const APP_VERSION = '1.3.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -1949,34 +1972,9 @@ function renderDashboard() {
       rtRefreshCount('dash');
     }
   }
-  // 주의 학생: 각 반에서 평균 꼴찌 학생만, 이슈 기준(과목 75점 미만) 동일
-  const alertRows = [];
-  getAllClasses().forEach(cls=>{
-    const clsStudents = all.filter(s=>s.cls===cls);
-    if(!clsStudents.length) return;
-    const withAvg = clsStudents.map(s=>({s, a:studentAvg(s.id)})).filter(x=>x.a!==null&&x.a!==undefined);
-    if(!withAvg.length) return;
-    withAvg.sort((a,b)=>a.a-b.a);
-    const {s, a} = withAvg[0];
-    const sc = scores[s.id]||[];
-    const subjs = getSubjects().filter(sub=>sub!=='MarketDay Points');
-    const issues = [];
-    subjs.forEach(subj=>{
-      const ss = sc.filter(x=>x.type===subj).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
-      if(!ss.length) return;
-      const latest = ss[0].score;
-      if(latest<75){
-        const trend = ss.length>=2?(ss[0].score>ss[1].score?'📈':ss[0].score<ss[1].score?'📉':'➡️'):'—';
-        issues.push({subj, score:latest, trend, level:latest<60?'위험':'주의'});
-      }
-    });
-    if(issues.length) alertRows.push({s, issues, avg:a});
-  });
-  document.getElementById('d-alerts').innerHTML = alertRows.length ? alertRows.map(({s,issues,avg:a})=>{
-    const issueHtml = issues.map(i=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span class="badge ${i.level==='위험'?'b-red':'b-yellow'}" style="font-size:9px">${subjShort(i.subj)}</span><span style="font-family:'DM Mono';font-size:11px;color:${scoreColor(i.score)}">${i.score}점</span><span>${i.trend}</span></div>`).join('');
-    return `<tr><td style="font-weight:600;vertical-align:top">${s.name}</td><td style="vertical-align:top"><span class="badge b-blue" style="font-size:9px">${s.cls}</span></td><td>${issueHtml}</td><td class="num" style="color:${scoreColor(a)};vertical-align:top;font-family:'DM Mono'">${a}</td></tr>`;
-  }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px">주의 학생 없음 ✓</td></tr>';
+  renderJudgeCard();
   renderDashboardHwIncomplete();
+  hwRefreshCount();
   renderDashboardHwConsult();
   renderScheduleCards();
 }
@@ -2016,6 +2014,7 @@ function getEffectiveHwWeek(cls) {
 function renderDashboardHwIncomplete() {
   const el=document.getElementById('d-hw-incomplete');
   if(!el) return;
+  hwPickIdx = 0; hwPickInfo = {};
   const today=todayYmd();
   const all=getStudents(null);
   const isKG6=currentClass==='KG6';
@@ -2066,32 +2065,13 @@ function renderDashboardHwIncomplete() {
     const rows=byCls[cls];
     const clsDate=(effHwCache[cls]||{}).classDate||'';
     const tableRows=rows.map(({s,cw,itemKey,itemLabel,isKG6})=>{
-      const sid=s.id; const ek=itemKey.replace(/[^a-zA-Z0-9_]/g,'_');
-      if(isKG6) {
-        return `<tr>
+      const i = hwPickIdx++;
+      hwPickInfo[i] = {sid:s.id, week:cw, itemKey, isKG6};
+      return `<tr id="hwrow-${i}"${hwDrafts[hwKey(hwPickInfo[i])]?' class="changed"':''}>
           <td style="font-weight:600">${s.name}</td>
           <td style="font-size:12px">${itemLabel}</td>
-          <td style="white-space:nowrap">
-            <select class="fi fi-sm" id="hwi-sel-${sid}-${ek}" style="width:auto" onchange="onHwItemStatusChange('${sid}','${cw}','${s.cls}','${itemKey}')">
-              <option value="미흡">미흡</option><option value="완성">완성</option>
-            </select>
-            <span id="hwi-btns-${sid}-${ek}" style="display:none;gap:4px;margin-left:4px;align-items:center">
-              <button class="btn btn-sm" style="background:rgba(74,222,128,.15);border:1px solid var(--green);color:var(--green)" onclick="markHwItemComplete('${sid}','${cw}','${s.cls}','${itemKey}',100)">100%</button>
-              <button class="btn btn-sm" style="background:rgba(250,204,21,.15);border:1px solid var(--yellow);color:var(--yellow)" onclick="markHwItemComplete('${sid}','${cw}','${s.cls}','${itemKey}',50)">50% 늦제출</button>
-            </span>
-          </td>
+          <td id="hwp-${i}">${hwPickHtml(i)}</td>
         </tr>`;
-      } else {
-        return `<tr>
-          <td style="font-weight:600">${s.name}</td>
-          <td style="font-size:12px">${itemLabel}</td>
-          <td>
-            <select class="fi fi-sm" style="width:auto" onchange="onHwItemG5Change('${sid}','${cw}','${s.cls}','${itemKey}',this.value)">
-              <option value="미흡">미흡</option><option value="완성">완성</option>
-            </select>
-          </td>
-        </tr>`;
-      }
     }).join('');
     return `<details${ci===0?' open':''}  style="border-bottom:1px solid var(--border)">
       <summary style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap;list-style:none;-webkit-appearance:none;user-select:none">
@@ -2108,35 +2088,50 @@ function renderDashboardHwIncomplete() {
   }).join('');
 }
 
-function onHwItemStatusChange(sid, week, cls, itemKey) {
-  const ek=itemKey.replace(/[^a-zA-Z0-9_]/g,'_');
-  const sel=document.getElementById(`hwi-sel-${sid}-${ek}`);
-  const btns=document.getElementById(`hwi-btns-${sid}-${ek}`);
-  if(!sel||!btns) return;
-  btns.style.display=sel.value==='완성'?'inline-flex':'none';
+// 숙제 미완성 처리: 항목마다 미흡/완성(/늦제출 50%)을 고르고 [💾 저장]으로 한 번에 저장
+let hwPickIdx = 0, hwPickInfo = {}, hwDrafts = {};
+function hwKey(x) { return x.sid + '|' + x.week + '|' + x.itemKey; }
+function hwPickHtml(i) {
+  const x = hwPickInfo[i], cur = hwDrafts[hwKey(x)] || '';
+  const opts = x.isKG6 ? [['','미흡'],['done','완성'],['late','늦제출 50%']] : [['','미흡'],['done','완성']];
+  return '<span class="rt-pick">' + opts.map(function(p){
+    return '<button class="stage' + (cur === p[0] ? ' on' + (p[0] ? ' pass' : '') : '') + '" onclick="pickHw(' + i + ',\'' + p[0] + '\')">' + p[1] + '</button>';
+  }).join('') + '</span>';
 }
-
-async function markHwItemComplete(sid, week, cls, itemKey, percent) {
-  if(!homework[sid]) homework[sid]={};
-  if(!homework[sid][week]) homework[sid][week]={};
-  const h=getHwItems(cls, sid).find(x=>x.key===itemKey);
-  if(h) homework[sid][week][h.key]={done:true,score:h.max||0,late:percent===50};
-  const st=(students[currentClass]||[]).find(s=>s.id===sid);
-  const total=calcHwTotal(sid,week,cls);
-  await postToSheets({action:'saveHw',name:st?.name||'',cls:st?.cls||'',week,total,detail:JSON.stringify(homework[sid][week]||{})});
-  renderDashboard();
-  showToast(`${st?.name||''} [${h?.label||itemKey}] ${percent}% 인정 ✓`,'s');
+function pickHw(i, v) {
+  const x = hwPickInfo[i]; if(!x) return;
+  if(v) hwDrafts[hwKey(x)] = v; else delete hwDrafts[hwKey(x)];
+  document.getElementById('hwp-' + i).innerHTML = hwPickHtml(i);
+  const row = document.getElementById('hwrow-' + i); if(row) row.classList.toggle('changed', !!v);
+  hwRefreshCount();
 }
-
-async function onHwItemG5Change(sid, week, cls, itemKey, value) {
-  if(value!=='완성') return;
-  if(!homework[sid]) homework[sid]={};
-  if(!homework[sid][week]) homework[sid][week]={};
-  homework[sid][week][itemKey]={done:true};
-  const st=(students[currentClass]||[]).find(s=>s.id===sid);
-  await postToSheets({action:'saveHw',name:st?.name||'',cls:st?.cls||'',week,total:null,detail:JSON.stringify(homework[sid][week]||{})});
+function hwRefreshCount() {
+  const n = Object.keys(hwDrafts).length, btn = document.getElementById('hw-save-btn');
+  if(btn) { btn.textContent = '💾 저장' + (n ? ' (' + n + ')' : ''); btn.className = 'btn btn-sm ' + (n ? 'btn-primary' : 'btn-ghost'); }
+}
+async function saveHwDrafts() {
+  const keys = Object.keys(hwDrafts);
+  if(!keys.length) { showToast('바꾼 항목이 없습니다','i'); return; }
+  const groups = {};
+  keys.forEach(function(k){
+    const p = k.split('|'), sid = p[0], week = p[1], itemKey = p.slice(2).join('|'), v = hwDrafts[k];
+    const st = (students[currentClass]||[]).find(function(x){ return x.id === sid; }); if(!st) return;
+    if(!homework[sid]) homework[sid] = {};
+    if(!homework[sid][week]) homework[sid][week] = {};
+    if(currentClass === 'KG6') {
+      const h = getHwItems(st.cls, sid).find(function(x){ return x.key === itemKey; });
+      if(h) homework[sid][week][h.key] = {done:true, score:h.max||0, late: v === 'late'};
+    } else homework[sid][week][itemKey] = {done:true};
+    groups[sid + '|' + week] = {st:st, sid:sid, week:week};
+  });
+  hwDrafts = {};
   renderDashboard();
-  showToast(`${st?.name||''} [${itemKey}] 완성 처리 ✓`,'s');
+  showToast(keys.length + '개 항목 저장 중...','i');
+  const res = await Promise.all(Object.values(groups).map(function(g){
+    return postToSheets({action:'saveHw', name:g.st.name, cls:g.st.cls, week:g.week,
+      total: currentClass === 'KG6' ? calcHwTotal(g.sid, g.week, g.st.cls) : null, detail: JSON.stringify(homework[g.sid][g.week]||{})});
+  }));
+  if(res.every(function(r){ return r && r.ok; })) showToast(keys.length + '개 항목 저장됨 ✓','s');
 }
 
 /* ── 3주 연속 미완성 + 상담 ── */
@@ -2670,6 +2665,7 @@ function openStudentDetail(sid) {
           : `<div style="font-size:13px;color:var(--text2)">${hwDone}</div>`}
       </div></div>
     </div>
+    ${renderJudgeBox(s)}
     <div class="grid-2">${renderStudentLogCard(s)}${renderTagSummary(sid)}</div>
     <div class="card"><div class="card-header">
       <div class="card-title">날짜별 성적 조회</div>
@@ -4074,8 +4070,10 @@ async function loadTable(key) {
 function saveRecord(table, record) { return postToSheets({action:'upsertRecord', table, record}); }
 function removeRecord(table, id) { return postToSheets({action:'deleteRecord', table, id}); }
 async function loadWorkTables() {
-  const res = await Promise.all([loadTable('studentLog'), loadTable('reports'), loadTable('inbox')]);
+  const res = await Promise.all([loadTable('studentLog'), loadTable('reports'), loadTable('inbox'), loadTable('appSettings')]);
   studentLog = res[0]; reportItems = res[1]; inboxItems = res[2];
+  appSettings = {}; res[3].forEach(function(r){ appSettings[r.id] = r['값']; });
+  judgeRules = null;
   if(document.getElementById('tab-work').classList.contains('active')) renderWork();
 }
 
@@ -4179,18 +4177,24 @@ function renderStudentLogCard(s) {
   return '<div class="card"><div class="card-header"><div class="card-title">📝 학생 기록 <span style="font-size:10px;font-weight:400;color:var(--text3)">(상담·학부모 연락·클리닉·메모)</span></div></div>'
     + '<div class="card-body"><div class="log-form">'
     +   '<input type="date" class="fi fi-sm" id="log-date" value="' + todayYmd() + '" style="width:auto">'
-    +   '<select class="fi fi-sm" id="log-type" style="width:auto">' + LOG_TYPES.map(function(t){ return '<option>' + t + '</option>'; }).join('') + '</select>'
+    +   '<span class="rt-pick" id="log-type-pick" style="flex-wrap:wrap">' + logTypeHtml() + '</span>'
     +   '<textarea class="fi" id="log-text" rows="2" placeholder="내용 (예: 단어 재시험 관련 어머님과 통화)"></textarea>'
     +   '<input type="text" class="fi fi-sm" id="log-next" placeholder="후속 조치 (선택)">'
     +   '<button class="btn btn-primary btn-sm" onclick="addStudentLog(\'' + s.id + '\')">기록 추가</button>'
     + '</div><div style="margin-top:10px">' + list + '</div></div></div>';
+}
+let logTypePick = '상담';
+function logTypeHtml() {
+  return LOG_TYPES.map(function(t){
+    return '<button class="stage' + (t === logTypePick ? ' on' : '') + '" onclick="logTypePick=\'' + t + '\';document.getElementById(\'log-type-pick\').innerHTML=logTypeHtml()">' + t + '</button>';
+  }).join('');
 }
 async function addStudentLog(sid) {
   const s = (students[currentClass]||[]).find(function(x){ return x.id === sid; }); if(!s) return;
   const text = document.getElementById('log-text').value.trim();
   if(!text) { showToast('내용을 입력해주세요','e'); return; }
   const rec = {id:newId('L'), '반구분':currentClass, '반':s.cls, '이름':s.name,
-    '날짜':document.getElementById('log-date').value || todayYmd(), '종류':document.getElementById('log-type').value,
+    '날짜':document.getElementById('log-date').value || todayYmd(), '종류':logTypePick,
     '내용':text, '후속조치':document.getElementById('log-next').value.trim(), '상태':'', '작성':nowStamp()};
   studentLog.push(rec);
   openStudentDetail(sid);
@@ -4615,6 +4619,188 @@ async function shareRetest(sid) {
 function copyRetest(sid) {
   const t = rts.targets.find(function(x){ return x.s.id === sid; }); if(!t || !rts.confirmed) return;
   copyText(retestMessage(t), t.s.name + ' 문구 복사됨 — 카톡에 붙여넣고 [보냄 표시]를 눌러주세요');
+}
+
+/* ═══════════════════════════════════════════════════════
+   3단계 — 반 비서 자동 판정 (집중 관리 · 주의 관찰 · 우수·개선)
+   점수·숙제·출석·관찰 태그를 보고 학생마다 단계와 근거를 붙임
+═══════════════════════════════════════════════════════ */
+const JUDGE_DEFAULT = {vocWarn:2, vocFocus:3, hwWarn:2, hwFocus:3, drop:15, rise:15, tagWeeks:3, absMonth:2, watch:2, sciDrop:15};
+const JUDGE_LABELS = [
+  ['vocWarn',  '단어시험 연속 미통과 → 주의', '회'],
+  ['vocFocus', '단어시험 연속 미통과 → 집중 관리 (재시험도 미통과면 바로 집중)', '회'],
+  ['hwWarn',   '숙제 연속 미흡 → 주의', '주'],
+  ['hwFocus',  '최근 4주 중 숙제 미흡 → 집중 관리', '주'],
+  ['drop',     '최근 3주 평균이 직전 3주보다 떨어짐 → 주의', '점'],
+  ['rise',     '최근 3주 평균이 직전 3주보다 오름 → 우수·개선', '점'],
+  ['tagWeeks', '같은 약점 태그 연속 → 주의', '주'],
+  ['absMonth', '한 달 결석 → 주의', '회'],
+  ['watch',    '주의가 이만큼 이어지면 집중 관리로', '주'],
+  ['sciDrop',  'Science Test 직전보다 떨어짐 → 주의 (G5 TFS)', '점'],
+];
+const JUDGE_TIPS = {
+  voc:'단어 복습 방법·시간 점검, 재시험 결과 같이 공유', hw:'자주 빠지는 숙제 항목과 집에서 숙제하는 시간 확인',
+  drop:'점수가 떨어진 과목 위주로 원인 확인', tag:'반복되는 약점과 관련된 수업 모습 공유', att:'결석 사유와 보강 계획 확인',
+  sci:'Science Test 범위 복습 상태 확인', watch:'2주 넘게 변화가 없어 가정과 함께 방법 조정',
+};
+const JUDGE_STAGE = {focus:['집중 관리','b-red'], warn:['주의 관찰','b-yellow'], good:['우수·개선','b-green']};
+let judgeRules = null;
+let judgeView = 'focus';
+function getJudgeRules() {
+  if(judgeRules && judgeRules._g === currentClass) return judgeRules;
+  let r = {};
+  try { r = JSON.parse(appSettings['rules|judge|' + currentClass] || '{}'); } catch(e) { r = {}; }
+  judgeRules = Object.assign({}, JUDGE_DEFAULT, r, {_g: currentClass});
+  return judgeRules;
+}
+function weeksBack(ref, n) { const out = [ref]; let w = ref; for(let i = 1; i < n; i++) { w = prevWeek(w); out.push(w); } return out; }
+function hwBad(s, w) {
+  const d = (homework[s.id]||{})[w];
+  if(!d || !Object.keys(d).some(function(k){ return !k.startsWith('_'); })) return null;
+  if(currentClass === 'KG6') { const t = calcHwTotal(s.id, w, s.cls); return t === null ? null : t < 100; }
+  return getHwItems(s.cls, s.id).some(function(h){ return !(d[h]||{}).done; });
+}
+// ref 주를 기준으로 한 학생의 판정 근거 (warn·focus·good)
+function judgeStudent(s, ref, R) {
+  const sid = s.id, warn = [], focus = [], good = [], sc = scores[sid] || [];
+  // 1) 단어시험 연속 미통과 (점수 있는 주만 셈)
+  const subj = cfg().retestSubject, cutoff = getRetestCutoff(s.cls, sid);
+  const voc = sc.filter(function(x){ return x.type === subj && x.week && x.week <= ref; }).sort(function(a,b){ return a.week.localeCompare(b.week); });
+  const run = [];
+  for(let i = voc.length - 1; i >= 0 && voc[i].score < cutoff; i--) run.unshift(voc[i]);
+  if(run.length) {
+    const last = run[run.length-1];
+    const txt = '단어 ' + run.length + '회 연속 미통과 (' + run.map(function(x){ return x.score; }).join('·') + ', 기준 ' + cutoff + ')';
+    if(run.length >= R.vocFocus) focus.push({k:'voc', t:txt});
+    else if(((retests[sid]||{})[last.week]||{}).result === 'fail') focus.push({k:'voc', t:'단어 미통과 + 재시험도 미통과 (' + last.score + ')'});
+    else if(run.length >= R.vocWarn) warn.push({k:'voc', t:txt});
+  }
+  // 2) 숙제 미흡 (최근 4주 중 기록 있는 주)
+  const hw = weeksBack(ref, 4).map(function(w){ return hwBad(s, w); }).filter(function(b){ return b !== null; });
+  if(hw.length) {
+    const badN = hw.filter(Boolean).length;
+    let streak = 0; for(const b of hw) { if(b) streak++; else break; }
+    if(hw.length >= 3 && badN >= R.hwFocus) focus.push({k:'hw', t:'최근 4주 중 숙제 미흡 ' + badN + '주'});
+    else if(streak >= R.hwWarn) warn.push({k:'hw', t:'숙제 ' + streak + '주 연속 미흡'});
+  }
+  // 3) 점수 흐름: 최근 3주 평균 vs 직전 3주 (숙제·Market Day 제외)
+  const w6 = weeksBack(ref, 6);
+  const avgOf = function(ws){ return avg(sc.filter(function(x){ return ws.includes(x.week) && x.type !== 'MarketDay Points' && x.type !== '숙제' && typeof x.score === 'number' && !isNaN(x.score); }).map(function(x){ return x.score; })); };
+  const a1 = avgOf(w6.slice(0,3)), a0 = avgOf(w6.slice(3));
+  if(a1 !== null && a0 !== null) {
+    if(a0 - a1 >= R.drop) warn.push({k:'drop', t:'최근 3주 평균 ' + a1 + '점 (직전 3주 ' + a0 + '점 → ' + (a1 - a0) + ')'});
+    else if(a1 - a0 >= R.rise) good.push({k:'rise', t:'최근 3주 평균 ' + a1 + '점 (직전 3주 ' + a0 + '점 → +' + (a1 - a0) + ')'});
+  }
+  // 4) 관찰 태그: 같은 약점 연속 / '개선' 강점 반복
+  const tags = getObsTags(), tw = weeksBack(ref, Math.max(R.tagWeeks, 4));
+  const wk = tw.slice(0, R.tagWeeks).map(function(w){ return (((obsTags[sid]||{})[w])||{}).weakness || []; });
+  if(R.tagWeeks > 0 && wk.every(function(a){ return a.length; })) {
+    const common = wk[0].filter(function(n){ return wk.every(function(a){ return a.includes(n); }); });
+    if(common.length) warn.push({k:'tag', t:'약점 태그 ' + R.tagWeeks + '주 연속: ' + common.map(function(n){ return tags.weakness[n-1]; }).filter(Boolean).join(', ')});
+  }
+  const imp = tags.strength.map(function(t, i){ return t.includes('개선') ? i + 1 : 0; }).filter(Boolean);
+  const impN = tw.slice(0,4).filter(function(w){ return ((((obsTags[sid]||{})[w])||{}).strength||[]).some(function(n){ return imp.includes(n); }); }).length;
+  if(impN >= 2) good.push({k:'imp', t:'"개선" 강점 태그 최근 4주 중 ' + impN + '주'});
+  // 5) 출석: 그 달 결석
+  const refDay = ref === currentWeek() ? todayYmd() : addDays(weekStartYmd(ref), 6), ym = refDay.slice(0,7);
+  const abs = Object.entries(attendance[sid]||{}).filter(function(e){ return e[0].slice(0,7) === ym && e[0] <= refDay && resolveAttStatus(e[1]) === 'absent'; }).length;
+  if(abs >= R.absMonth) warn.push({k:'att', t:parseInt(ym.slice(5)) + '월 결석 ' + abs + '회'});
+  // 6) G5 TFS: Science Test 하락
+  if(currentClass === 'G5TFS') {
+    const st = sc.filter(function(x){ return x.type === 'Sci Test' && x.week && x.week <= ref; }).sort(function(a,b){ return a.week.localeCompare(b.week); });
+    if(st.length >= 2) {
+      const a = st[st.length-2].score, b = st[st.length-1].score;
+      if(a - b >= R.sciDrop) warn.push({k:'sci', t:'Science Test ' + b + '점 (직전 ' + a + '점 → ' + (b - a) + ')'});
+    }
+  }
+  return {warn:warn, focus:focus, good:good};
+}
+// 이번 주 기준 단계. 주의가 R.watch주 전에도 있었으면 집중 관리로 올림
+function judgeStage(s) {
+  const R = getJudgeRules(), cw = currentWeek(), now = judgeStudent(s, cw, R);
+  let stage = now.focus.length ? 'focus' : now.warn.length ? 'warn' : now.good.length ? 'good' : '';
+  let reasons = now.focus.concat(now.warn);
+  if(stage === 'warn' && R.watch > 0) {
+    let w = cw; for(let i = 0; i < R.watch; i++) w = prevWeek(w);
+    const past = judgeStudent(s, w, R);
+    if(past.focus.length || past.warn.length) { stage = 'focus'; reasons = [{k:'watch', t:'주의 상태가 ' + R.watch + '주 넘게 계속'}].concat(reasons); }
+  }
+  return {stage:stage, reasons: stage === 'good' ? now.good : reasons};
+}
+// 최근 14일 안에 상담 기록이 있으면 그 날짜 (명단에서 흐리게)
+function lastConsult(s) {
+  const since = addDays(todayYmd(), -14);
+  return studentLog.filter(function(r){ return r['이름'] === s.name && r['종류'] === '상담' && String(r['날짜']) >= since; })
+    .map(function(r){ return String(r['날짜']); }).sort().pop() || '';
+}
+function judgeTips(reasons) {
+  return [...new Set(reasons.map(function(r){ return JUDGE_TIPS[r.k]; }).filter(Boolean))].join(' / ');
+}
+function renderJudgeCard() {
+  const el = document.getElementById('d-judge'); if(!el) return;
+  const groups = {focus:[], warn:[], good:[]};
+  getStudents(null).forEach(function(s){
+    const j = judgeStage(s);
+    if(j.stage) groups[j.stage].push({s:s, reasons:j.reasons, consulted:lastConsult(s)});
+  });
+  let h = '<div class="rt-pick" style="padding:10px 16px 6px;flex-wrap:wrap">'
+    + [['focus','fail'],['warn',''],['good','pass']].map(function(t){
+        return '<button class="stage' + (judgeView === t[0] ? ' on' + (t[1] ? ' ' + t[1] : '') : '') + '" onclick="judgeView=\'' + t[0] + '\';renderJudgeCard()">' + JUDGE_STAGE[t[0]][0] + ' ' + groups[t[0]].length + '</button>';
+      }).join('') + '</div>';
+  const list = groups[judgeView].sort(function(a,b){ return (a.consulted ? 1 : 0) - (b.consulted ? 1 : 0) || a.s.cls.localeCompare(b.s.cls) || a.s.name.localeCompare(b.s.name,'ko'); });
+  h += list.length ? list.map(function(x){
+    return '<div class="jd-item' + (x.consulted ? ' sent' : '') + '" onclick="openStudentFromDash(\'' + x.s.id + '\')">'
+      + '<div class="jd-head"><span class="rt-name">' + escHtml(x.s.name) + '</span><span class="badge b-blue">' + escHtml(x.s.cls) + '</span>'
+      + (x.consulted ? '<span class="badge b-purple">상담 ' + mdLabel(x.consulted) + '</span>' : '') + '</div>'
+      + x.reasons.map(function(r){ return '<div class="jd-why">• ' + escHtml(r.t) + '</div>'; }).join('')
+      + (judgeView !== 'good' ? '<div class="jd-tip">상담 포인트: ' + escHtml(judgeTips(x.reasons)) + '</div>' : '')
+      + '</div>';
+  }).join('') : '<div class="wk-empty" style="padding:12px 16px">해당 학생 없음 ✓</div>';
+  el.innerHTML = h;
+}
+function openStudentFromDash(sid) {
+  goTab('students');
+  openStudentDetail(sid);
+}
+function renderJudgeBox(s) {
+  const j = judgeStage(s); if(!j.stage) return '';
+  const st = JUDGE_STAGE[j.stage];
+  return '<div class="card"><div class="card-header"><div class="card-title">🧭 반 비서 판정 <span class="badge ' + st[1] + '">' + st[0] + '</span></div></div><div class="card-body">'
+    + j.reasons.map(function(r){ return '<div class="jd-why">• ' + escHtml(r.t) + '</div>'; }).join('')
+    + (j.stage !== 'good' ? '<div class="jd-tip">상담 포인트: ' + escHtml(judgeTips(j.reasons)) + '</div>' : '')
+    + '</div></div>';
+}
+/* 판정 기준 창 — − / + 버튼으로 숫자 조정 */
+let jrDraft = {};
+function openJudgeRules() {
+  jrDraft = Object.assign({}, getJudgeRules());
+  document.getElementById('jr-group').textContent = cfg().label;
+  renderJudgeRules();
+  document.getElementById('modal-judge-rules').classList.add('open');
+}
+function renderJudgeRules() {
+  document.getElementById('jr-list').innerHTML = JUDGE_LABELS.filter(function(l){ return l[0] !== 'sciDrop' || currentClass === 'G5TFS'; }).map(function(l){
+    return '<div class="jr-row"><div class="jr-lbl">' + l[1] + '</div>'
+      + '<button class="jr-btn" onclick="stepJudgeRule(\'' + l[0] + '\',-1)">−</button>'
+      + '<span class="jr-val">' + jrDraft[l[0]] + '<span style="font-size:11px;color:var(--text3);font-weight:400">' + l[2] + '</span></span>'
+      + '<button class="jr-btn" onclick="stepJudgeRule(\'' + l[0] + '\',1)">+</button></div>';
+  }).join('');
+}
+function stepJudgeRule(k, d) {
+  const step = ['drop','rise','sciDrop'].includes(k) ? 5 : 1;
+  jrDraft[k] = Math.max(['watch','tagWeeks'].includes(k) ? 0 : 1, (jrDraft[k]||0) + d * step);
+  renderJudgeRules();
+}
+function resetJudgeRules() { jrDraft = Object.assign({}, JUDGE_DEFAULT); renderJudgeRules(); }
+async function saveJudgeRules() {
+  const v = {}; Object.keys(JUDGE_DEFAULT).forEach(function(k){ v[k] = jrDraft[k]; });
+  const rec = {id:'rules|judge|' + currentClass, '반구분':currentClass, '값':JSON.stringify(v), '수정':nowStamp()};
+  appSettings[rec.id] = rec['값'];
+  judgeRules = null;
+  closeModal('modal-judge-rules');
+  renderJudgeCard();
+  const res = await saveRecord('appSettings', rec);
+  if(res && res.ok) showToast('판정 기준 저장됨 ✓','s');
 }
 
 /* ═══════════════════════════════════════════════════════
