@@ -285,6 +285,19 @@ details>summary.wk-sec{cursor:pointer}
 .cs-row .fi{width:auto}
 .cs-lbl{font-size:11px;color:var(--text3)}
 .profile-hero{flex-wrap:wrap}
+/* 재시험 안내 발송 */
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.rts-sec{margin-bottom:18px}
+.rts-title{font-size:14px;font-weight:700;margin:2px 0 8px}
+.rts-row{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap}
+.rts-row .fi{width:auto}
+.rts-cls{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border)}
+.rts-cls .fi{width:auto}
+textarea.rts-tpl{font-size:13px;line-height:1.6;min-height:280px;font-family:inherit}
+.rts-help{font-size:11px;color:var(--text3);margin:6px 0 10px;line-height:1.7}
+.rts-preview{font-size:13px;max-height:300px;overflow-y:auto;margin:4px 0 10px;font-family:inherit}
+.rts-list .rt-row{padding:10px 0}
+.rt-row.sent{opacity:.55}
 @media(max-width:1200px){
   .grid-4{grid-template-columns:repeat(2,1fr)}
 }
@@ -471,7 +484,7 @@ details>summary.wk-sec{cursor:pointer}
 
         <!-- 재시험 대상자 카드 (대상자 있을 때만 표시) -->
         <div class="card" id="d-retest-card" style="display:none;margin-bottom:18px">
-          <div class="card-header"><div class="card-title">🔁 VOC 재시험 대상자 — 이번 주</div></div>
+          <div class="card-header"><div class="card-title">🔁 VOC 재시험 대상자 — 이번 주</div><button class="btn btn-primary btn-sm" onclick="openRetestSender()">📨 재시험 안내 보내기</button></div>
           <div id="d-retest-list" style="max-height:360px;overflow-y:auto"></div>
         </div>
 
@@ -515,7 +528,10 @@ details>summary.wk-sec{cursor:pointer}
           <div class="card">
             <div class="card-header">
               <div class="card-title">📊 보고서·발송 현황</div>
-              <button class="btn btn-ghost btn-sm" onclick="openClassSettings()">🏫 반 설정</button>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" onclick="openRetestSender()">📨 재시험 안내</button>
+                <button class="btn btn-ghost btn-sm" onclick="openClassSettings()">🏫 반 설정</button>
+              </div>
             </div>
             <div class="card-body">
               <div class="rp-form">
@@ -768,6 +784,15 @@ details>summary.wk-sec{cursor:pointer}
   </div>
 </div>
 
+<!-- RETEST NOTICE SENDER (재시험 안내 반자동 발송) -->
+<div class="modal-overlay" id="modal-retest-send">
+  <div class="modal wide">
+    <div class="modal-title">📨 단어 재시험 안내 <span id="rts-group" class="class-badge" style="vertical-align:middle"></span></div>
+    <div id="rts-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-retest-send')">닫기</button></div>
+  </div>
+</div>
+
 <!-- CLASS SETTINGS (반 설정) -->
 <div class="modal-overlay" id="modal-class-settings">
   <div class="modal wide">
@@ -835,7 +860,7 @@ details>summary.wk-sec{cursor:pointer}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -1916,7 +1941,6 @@ function renderDashboard() {
                 <option value="pass"${ri.result==='pass'?' selected':''}>통과</option>
                 <option value="fail"${ri.result==='fail'?' selected':''}>미통과</option>
               </select>
-              <button class="btn btn-ghost btn-sm" onclick="copyRetestMsg('${s.id}','${triggerWeek}')">📋 문자 복사</button>
               <button class="btn btn-primary btn-sm" onclick="saveDashboardRetest('${s.id}','${triggerWeek}')">저장</button>
             </div>
           </div>`;
@@ -3786,44 +3810,6 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y, x+w, y, r);
   ctx.closePath();
 }
-function copyRetestMsg(sid, week) { copyText(generateRetestMsg(sid, week), '재시험 안내 문자 복사됨'); }
-function generateRetestMsg(sid, triggerWeek) {
-  const st=(students[currentClass]||[]).find(s=>s.id===sid);
-  if(!st) return '';
-  const wkNum=(triggerWeek.match(/W(\d+)/)||[])[1]||triggerWeek;
-  const failedSc=(scores[sid]||[]).find(sc=>sc.week===triggerWeek&&sc.type===cfg().retestSubject);
-  const testDate=failedSc?.date||'';
-  if(currentClass==='KG6') {
-    return `[[ 단어 재시험 안내 ]]
-안녕하세요 어머님!
-안타깝게도 아이가 WK${wkNum} 단어 시험에 불통하게 되어 재시험 대상자로 확인되어 아래와 같이 6학년 재시험 안내드립니다!
-▶장소 : 304호실
-▶시간 : 오후 3:30분 또는 오후 6:40
-▶소요시간 : 20분
-▶내용 : 재시험 진행 및 간단한 단어 시험 클리닉 진행`;
-  }
-  // G5TFS — 다음 주 목/금/토 자동 계산
-  let thu='목',fri='금',sat='토';
-  if(testDate) {
-    const d=parseYmd(testDate);
-    const dow=d.getDay()===0?7:d.getDay();
-    const mon=new Date(d); mon.setDate(d.getDate()-dow+1+7); // next week Monday
-    const th=new Date(mon); th.setDate(mon.getDate()+3);
-    const fr=new Date(mon); fr.setDate(mon.getDate()+4);
-    const sa=new Date(mon); sa.setDate(mon.getDate()+5);
-    const fmt=x=>`${x.getMonth()+1}/${x.getDate()}(${['일','월','화','수','목','금','토'][x.getDay()]})`;
-    thu=fmt(th); fri=fmt(fr); sat=fmt(sa);
-  }
-  return `[[ 단어 재시험 안내 ]]
-안녕하세요 어머님!
-안타깝게도 아이가 WK${wkNum} 단어 시험에 불통하게 되어 재시험 대상자로 확인되어 아래와 같이 5학년 재시험 안내드립니다!
-▶장소 : 304호실
-▶날짜 : ${thu}, ${fri}, ${sat}
-▶시간 : 오후 3:30분(목, 금요일) 또는 오전 9:30 or 오후 4:10 (토요일)
-▶소요시간 : 20분
-▶내용 : 재시험 진행 및 간단한 단어 시험 클리닉 진행`;
-}
-
 /* ═══════════════════════════════════════════════════════
    MESSAGE
 ═══════════════════════════════════════════════════════ */
@@ -4044,7 +4030,7 @@ async function loadWorkTables() {
 /* ── 반 설정 ── */
 function defaultClassRows(group) {
   return (DEFAULT_CLASSES[group]||[]).map(function(c){
-    return {'반':c, '요일':DOW_KO[nameDayOfWeek(c)]||'', '시작':'', '끝':'', '재시험장소':'304호', '사용':'Y', '메모':''};
+    return {'반':c, '요일':DOW_KO[nameDayOfWeek(c)]||'', '시작':'', '끝':'', '재시험장소':'304호실', '사용':'Y', '메모':''};
   });
 }
 function applyClassSettings() {
@@ -4105,7 +4091,7 @@ function renderClassSettingRows() {
   }).join('') || '<div class="wk-empty">반이 없습니다. + 반 추가를 눌러주세요.</div>';
 }
 function addClassSettingRow() {
-  csDraft.push({'반':'', '요일':'', '시작':'', '끝':'', '재시험장소':'304호', '사용':'Y', '메모':''});
+  csDraft.push({'반':'', '요일':'', '시작':'', '끝':'', '재시험장소':'304호실', '사용':'Y', '메모':''});
   renderClassSettingRows();
 }
 async function saveClassSettings() {
@@ -4300,6 +4286,283 @@ async function deleteInboxItem(id) {
   inboxItems = inboxItems.filter(function(x){ return x.id !== id; });
   renderInboxList();
   await removeRecord('inbox', id);
+}
+
+/* ═══════════════════════════════════════════════════════
+   2단계 — 단어 재시험 안내 반자동 발송
+   이번 설정 → 문구 확인(전원 공통) → 확인 완료 → 학생별 카톡 보내기/복사 → 보냄 표시
+═══════════════════════════════════════════════════════ */
+const RT_TPL_DEFAULT = {
+  KG6: '[eMAX 어학원 - 단어 재시험 안내]\n안녕하세요 어머님!\n{이름}가 이번 WK {주차} 단어 시험을 아쉽게 통과하지 못해서 재시험 안내드립니다.\n\n▶장소 : {장소}\n▶시간 : {날짜} {시간} (수업 20분 전)\n▶소요시간 : 20분 정도\n▶내용 : 재시험 보고, 틀린 단어 위주로 간단하게 클리닉 진행합니다\n\n재시험 전에 WK {주차} 단어 한 번만 더 보고 오면 좋겠습니다.\n감사합니다!',
+  G5TFS: '[eMAX 어학원 - 단어 재시험 안내]\n안녕하세요 어머님!\n{이름}가 이번 WK {주차} 단어 시험을 아쉽게 통과하지 못해서 재시험 안내드립니다.\n아래 시간 중 편한 때 한 번 오시면 됩니다.\n\n▶장소 : {장소}\n▶날짜/시간\n - {날짜1}(목) 오후 3:30\n - {날짜2}(금) 오후 3:30\n - {날짜3}(토) 오전 9:30 또는 오후 4:10\n▶소요시간 : 20분 정도\n▶내용 : 재시험 보고, 틀린 단어 위주로 간단하게 클리닉 진행합니다\n\n재시험 전에 WK {주차} 단어 한 번만 더 보고 오면 좋겠습니다.\n감사합니다!',
+};
+let appSettings = {};   // 앱설정 시트: id → 값 (문구, 단어 WK 번호 등)
+let sendLogRows = [];   // 발송기록 시트
+let rts = null;         // 지금 열린 발송 화면 상태
+
+// 부르는 이름: 성 빼고, 받침 있으면 '이' 붙임 → {이름}가 = 민준이가 / 서아가
+function callName(name) {
+  let n = String(name||'').replace(/^\[[^\]]*\]\s*/, '').trim();
+  if(/^[가-힣]{3}$/.test(n)) n = n.slice(1);
+  const c = n.charCodeAt(n.length-1);
+  const batchim = c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 !== 0;
+  return n + (batchim ? '이' : '');
+}
+function addDays(ds, n) { const d = parseYmd(ds); d.setDate(d.getDate()+n); return ymd(d); }
+function mdLabel(ds, withDow) { if(!ds) return ''; const d = parseYmd(ds); return (d.getMonth()+1) + '/' + d.getDate() + (withDow ? '(' + DOW_KO[d.getDay()] + ')' : ''); }
+function weekStartYmd(weekStr) { const p = String(weekStr).split('-W').map(Number); const j = new Date(p[0],0,1); return ymd(new Date(p[0], 0, 1 - j.getDay() + (p[1]-1)*7)); }
+function weekRangeLabel(w) { const st = weekStartYmd(w); return mdLabel(st) + '~' + mdLabel(addDays(st,6)) + ' (' + w.slice(5) + ')'; }
+function minus20(t) {
+  if(!/^\d{1,2}:\d{2}$/.test(String(t||''))) return '';
+  const p = t.split(':').map(Number); let x = p[0]*60 + p[1] - 20; if(x < 0) x += 1440;
+  return String(Math.floor(x/60)).padStart(2,'0') + ':' + String(x%60).padStart(2,'0');
+}
+function plus20(t) {
+  const p = String(t).split(':').map(Number); const x = (p[0]*60 + p[1] + 20) % 1440;
+  return String(Math.floor(x/60)).padStart(2,'0') + ':' + String(x%60).padStart(2,'0');
+}
+function koTime(t) {
+  if(!/^\d{1,2}:\d{2}$/.test(String(t||''))) return '';
+  const p = t.split(':').map(Number);
+  return (p[0] < 12 ? '오전 ' : '오후 ') + (p[0] % 12 === 0 ? 12 : p[0] % 12) + ':' + String(p[1]).padStart(2,'0');
+}
+function fillTpl(tpl, v) { return String(tpl).replace(/\{([^{}]+)\}/g, function(m, k){ return v[k] !== undefined ? v[k] : m; }); }
+
+// 단어시험 점수가 있는 주 (최근 순)
+function vocWeeks() {
+  const subj = cfg().retestSubject, cw = currentWeek(), set = new Set();
+  getStudents(null).forEach(function(s){ (scores[s.id]||[]).forEach(function(sc){ if(sc.type === subj && sc.week && sc.week <= cw) set.add(sc.week); }); });
+  return [...set].sort().reverse();
+}
+// 그 주 단어시험 커트라인 미달 학생
+function retestTargets(week) {
+  const subj = cfg().retestSubject;
+  return getStudents(null).map(function(s){
+    const sc = (scores[s.id]||[]).find(function(x){ return x.week === week && x.type === subj; });
+    if(!sc) return null;
+    const cut = getRetestCutoff(s.cls, s.id);
+    return sc.score < cut ? {s:s, score:sc.score, cutoff:cut, date:sc.date} : null;
+  }).filter(Boolean).sort(function(a,b){ return a.s.cls.localeCompare(b.s.cls) || a.s.name.localeCompare(b.s.name,'ko'); });
+}
+function guessVocWk(week) {
+  let w = week;
+  for(let n = 1; n <= 8; n++) { w = prevWeek(w); const v = appSettings['vocwk|' + currentClass + '|' + w]; if(v) return String(parseInt(v) + n); }
+  return '';
+}
+async function openRetestSender(week) {
+  const weeks = vocWeeks();
+  if(!weeks.length) { showToast('아직 단어시험 점수가 없습니다','i'); return; }
+  document.getElementById('rts-group').textContent = cfg().label;
+  document.getElementById('rts-body').innerHTML = '<div class="wk-empty">불러오는 중...</div>';
+  document.getElementById('modal-retest-send').classList.add('open');
+  try {
+    const res = await Promise.all([loadTable('appSettings'), loadTable('sendLog')]);
+    appSettings = {}; res[0].forEach(function(r){ appSettings[r.id] = r['값']; });
+    sendLogRows = res[1];
+  } catch(e) { /* 못 불러와도 기본값으로 진행 */ }
+  rts = {weeks: weeks};
+  setupRetestWeek(week && weeks.includes(week) ? week : weeks[0]);
+}
+function setupRetestWeek(week) {
+  rts.week = week; rts.confirmed = false; rts.names = {};
+  rts.targets = retestTargets(week);
+  rts.tpl = appSettings['tpl|retest|' + currentClass] || RT_TPL_DEFAULT[currentClass];
+  rts.wk = appSettings['vocwk|' + currentClass + '|' + week] || guessVocWk(week);
+  if(currentClass === 'KG6') {
+    // 재시험 = 시험 다음 주 같은 반 수업 날, 수업 20분 전 (휴강이면 그다음 주)
+    rts.classRows = {};
+    [...new Set(rts.targets.map(function(t){ return t.s.cls; }))].forEach(function(cls){
+      const row = classSettings.find(function(r){ return r['반'] === cls; }) || {};
+      let d = weekToClassDate(week, cls);
+      if(d) { d = addDays(d, 7); for(let g=0; g<6 && isHoliday(d); g++) d = addDays(d, 7); }
+      rts.classRows[cls] = {date: d || '', time: minus20(row['시작']), place: row['재시험장소'] || '304호실'};
+    });
+  } else {
+    // G5 TFS: 다음 주 목·금·토 중 편한 때 (전원 같은 문구)
+    const ws = weekStartYmd(week);
+    rts.g5 = {place: appSettings['place|retest|G5TFS'] || '304호실', d1: addDays(ws,11), d2: addDays(ws,12), d3: addDays(ws,13)};
+  }
+  renderRetestSender();
+}
+function retestVars(t) {
+  const v = {'이름': rts.names[t.s.id] || callName(t.s.name), '주차': rts.wk || '?'};
+  if(currentClass === 'KG6') {
+    const c = rts.classRows[t.s.cls] || {};
+    v['장소'] = c.place || ''; v['날짜'] = c.date ? mdLabel(c.date, true) : '(날짜 확인)'; v['시간'] = koTime(c.time) || '(시간 확인)';
+  } else {
+    v['장소'] = rts.g5.place; v['날짜1'] = mdLabel(rts.g5.d1); v['날짜2'] = mdLabel(rts.g5.d2); v['날짜3'] = mdLabel(rts.g5.d3);
+  }
+  return v;
+}
+function retestMessage(t) { return fillTpl(rts.tpl, retestVars(t)); }
+function rtsSentId(t) { return 'retest|' + rts.week + '|' + t.s.cls + '|' + t.s.name; }
+function rtsIsSent(t) { const id = rtsSentId(t); return sendLogRows.some(function(r){ return r.id === id && r['상태'] === '보냄'; }); }
+function rtsCanShare() { return !!navigator.share && window.matchMedia('(pointer:coarse)').matches; }
+
+function renderRetestSender() {
+  const isKG6 = currentClass === 'KG6', n = rts.targets.length;
+  let h = '<div class="rts-sec"><div class="rts-row">'
+    + '<span class="cs-lbl">시험 주</span><select class="fi fi-sm" onchange="setupRetestWeek(this.value)">'
+    + rts.weeks.map(function(w){ return '<option value="' + w + '"' + (w === rts.week ? ' selected' : '') + '>' + weekRangeLabel(w) + '</option>'; }).join('')
+    + '</select><span class="cs-lbl">단어 WK</span>'
+    + '<input type="number" class="fi fi-sm" style="width:76px" min="1" value="' + escHtml(rts.wk) + '" placeholder="번호" oninput="rts.wk=this.value.trim();rtsChanged()">'
+    + '<span class="wk-sub" id="rts-count"></span></div></div>';
+  if(!n) {
+    document.getElementById('rts-body').innerHTML = h + '<div class="wk-empty">이 주에는 커트라인 미달 학생이 없습니다 ✓</div>';
+    return;
+  }
+  h += '<div class="rts-sec"><div class="rts-title">① 이번 재시험 일정</div>';
+  if(isKG6) {
+    h += '<div class="rts-help" style="margin-top:0">반마다 다음 주 수업 날, 수업 시작 20분 전으로 자동 계산했습니다 (🏫 반 설정의 시작 시간 기준). 반 설정에 시작 시간이 없는 반은 여기 적은 시간이 반 설정에도 저장돼 다음부터 자동으로 들어갑니다.</div>';
+    Object.keys(rts.classRows).forEach(function(cls){
+      const c = rts.classRows[cls], k = rts.targets.filter(function(t){ return t.s.cls === cls; }).length;
+      h += '<div class="rts-cls"><span class="badge b-blue">' + escHtml(cls) + '</span><span class="wk-sub">' + k + '명</span>'
+        + '<input type="date" class="fi fi-sm" value="' + c.date + '" onchange="rts.classRows[\'' + cls + '\'].date=this.value;rtsChanged()">'
+        + '<input type="time" class="fi fi-sm" value="' + c.time + '" onchange="rts.classRows[\'' + cls + '\'].time=this.value;rtsChanged()"' + (c.time ? '' : ' style="border-color:var(--yellow)"') + '>'
+        + '<input class="fi fi-sm" style="width:96px" value="' + escHtml(c.place) + '" placeholder="장소" oninput="rts.classRows[\'' + cls + '\'].place=this.value;rtsChanged()">'
+        + (c.time ? '' : '<span class="wk-sub" style="color:var(--yellow)">시간을 적어주세요</span>')
+        + '</div>';
+    });
+  } else {
+    h += '<div class="rts-help" style="margin-top:0">시험 다음 주 목·금·토로 자동 계산했습니다. 시간대는 아래 문구에서 고치면 돼요.</div>'
+      + '<div class="rts-row"><span class="cs-lbl">장소</span><input class="fi fi-sm" style="width:96px" value="' + escHtml(rts.g5.place) + '" oninput="rts.g5.place=this.value;rtsChanged()">'
+      + ['d1','d2','d3'].map(function(k, i){ return '<span class="cs-lbl">' + ['목','금','토'][i] + '</span><input type="date" class="fi fi-sm" value="' + rts.g5[k] + '" onchange="rts.g5.' + k + '=this.value;rtsChanged()">'; }).join('')
+      + '</div>';
+  }
+  h += '</div><div class="rts-sec"><div class="rts-title">② 문구 확인 <span class="wk-sub" style="font-weight:400">— 고치면 대상 전원에게 똑같이 적용</span></div>'
+    + '<textarea class="fi rts-tpl" oninput="rts.tpl=this.value;rtsChanged()">' + escHtml(rts.tpl) + '</textarea>'
+    + '<div class="rts-help">{이름} 받침에 맞춰 자동(민준이가·서아가) · {주차} 단어 WK · {장소} · '
+    + (isKG6 ? '{날짜} {시간} 반별 재시험 날짜·시간' : '{날짜1} {날짜2} {날짜3} 다음 주 목·금·토') + '</div>'
+    + '<div class="wk-sub" id="rts-preview-lbl"></div><pre class="comment-box rts-preview" id="rts-preview"></pre>'
+    + '<div class="rts-row"><button class="btn btn-ghost btn-sm" onclick="resetRetestTpl()">기본 문구로</button>'
+    + '<button class="btn btn-primary" id="rts-confirm" onclick="confirmRetestTpl()">확인 완료</button></div></div>'
+    + '<div class="rts-sec"><div class="rts-title">③ 학부모께 보내기</div><div id="rts-send" class="rts-list"></div></div>';
+  document.getElementById('rts-body').innerHTML = h;
+  rtsRefresh();
+}
+// 문구·일정이 바뀌면 다시 확인해야 보낼 수 있음
+function rtsChanged() { rts.confirmed = false; rtsRefresh(); }
+function rtsRefresh() {
+  const n = rts.targets.length, sent = rts.targets.filter(rtsIsSent).length;
+  const cnt = document.getElementById('rts-count'); if(cnt) cnt.textContent = '대상 ' + n + '명' + (n ? ' · 보냄 ' + sent + '/' + n : '');
+  if(!n) return;
+  const first = rts.targets[0];
+  document.getElementById('rts-preview-lbl').textContent = '미리보기 — ' + first.s.name;
+  document.getElementById('rts-preview').textContent = retestMessage(first);
+  const cb = document.getElementById('rts-confirm');
+  cb.textContent = rts.confirmed ? '✓ 확인 완료됨' : '확인 완료';
+  cb.className = 'btn ' + (rts.confirmed ? 'btn-green' : 'btn-primary');
+  renderRetestSendList();
+}
+function renderRetestSendList() {
+  const dis = rts.confirmed ? '' : ' disabled';
+  const share = rtsCanShare();
+  let h = rts.confirmed ? '' : '<div class="rts-help" style="margin-top:0;color:var(--yellow)">② 문구를 확인하고 [확인 완료]를 누르면 보낼 수 있어요.</div>';
+  h += rts.targets.map(function(t){
+    const sent = rtsIsSent(t), sid = t.s.id;
+    return '<div class="rt-row' + (sent ? ' sent' : '') + '"><div class="rt-who">'
+      + '<span class="rt-name">' + escHtml(t.s.name) + '</span><span class="badge b-blue">' + escHtml(t.s.cls) + '</span>'
+      + '<span class="score-pill" style="color:' + scoreColor(t.score) + ';background:' + scoreColor(t.score) + '22">' + t.score + '</span>'
+      + '<span class="rt-date">기준 ' + t.cutoff + '</span></div>'
+      + '<div class="rt-actions">'
+      + '<button class="btn btn-ghost btn-sm" title="문구에 들어갈 이름 고치기" onclick="editCallName(\'' + sid + '\')">✏️ ' + escHtml(rts.names[sid] || callName(t.s.name)) + '</button>'
+      + (share ? '<button class="btn btn-primary btn-sm"' + dis + ' onclick="shareRetest(\'' + sid + '\')">카톡 보내기</button>' : '')
+      + '<button class="btn btn-ghost btn-sm"' + dis + ' onclick="copyRetest(\'' + sid + '\')">📋 복사</button>'
+      + '<button class="btn btn-sm ' + (sent ? 'btn-green' : 'btn-ghost') + '"' + dis + ' onclick="toggleRetestSent(\'' + sid + '\')">' + (sent ? '✓ 보냄' : '보냄 표시') + '</button>'
+      + '</div></div>';
+  }).join('');
+  document.getElementById('rts-send').innerHTML = h;
+}
+function resetRetestTpl() {
+  rts.tpl = RT_TPL_DEFAULT[currentClass];
+  const ta = document.querySelector('#rts-body .rts-tpl'); if(ta) ta.value = rts.tpl;
+  rtsChanged();
+}
+function editCallName(sid) {
+  const t = rts.targets.find(function(x){ return x.s.id === sid; }); if(!t) return;
+  const v = prompt('문구에 들어갈 이름 (뒤에 "가"가 붙어요)', rts.names[sid] || callName(t.s.name));
+  if(v === null) return;
+  rts.names[sid] = v.trim() || callName(t.s.name);
+  rtsRefresh();
+}
+async function confirmRetestTpl() {
+  if(rts.confirmed) return;
+  if(!rts.wk) { showToast('단어 WK 번호를 적어주세요','e'); return; }
+  if(currentClass === 'KG6') {
+    const miss = Object.keys(rts.classRows).filter(function(c){ return !rts.classRows[c].date || !rts.classRows[c].time; });
+    if(miss.length) { showToast(miss.join(', ') + ' 반의 재시험 날짜·시간을 적어주세요','e'); return; }
+  }
+  const left = retestMessage(rts.targets[0]).match(/\{[^{}]+\}/g);
+  if(left) { showToast('문구에 알 수 없는 칸이 있어요: ' + left.join(' '),'e'); return; }
+  rts.confirmed = true;
+  rtsRefresh();
+  // 다음에도 그대로 쓰도록 문구·WK 번호 저장 (아이폰·PC 공유)
+  const saves = [
+    {id:'tpl|retest|' + currentClass, '반구분':currentClass, '값':rts.tpl, '수정':nowStamp()},
+    {id:'vocwk|' + currentClass + '|' + rts.week, '반구분':currentClass, '값':rts.wk, '수정':nowStamp()},
+  ];
+  if(currentClass === 'G5TFS') saves.push({id:'place|retest|G5TFS', '반구분':currentClass, '값':rts.g5.place, '수정':nowStamp()});
+  saves.forEach(function(r){ appSettings[r.id] = r['값']; saveRecord('appSettings', r); });
+  // KG6: 반 설정에 시작 시간이 비어 있던 반은 이번에 적은 재시험 시간 + 20분을 수업 시작으로 저장
+  if(currentClass === 'KG6') {
+    let changed = false;
+    Object.keys(rts.classRows).forEach(function(cls){
+      const row = classSettings.find(function(r){ return r['반'] === cls; });
+      if(row && !row['시작'] && rts.classRows[cls].time) { row['시작'] = plus20(rts.classRows[cls].time); changed = true; }
+    });
+    if(changed) postToSheets({action:'replaceGroupRows', table:'classes', group:currentClass, rows:classSettings});
+  }
+  syncRetestReport(true);
+}
+// 업무 현황의 '단어 재시험 안내' 항목을 대상 수·보낸 수에 맞춰 갱신
+function syncRetestReport(create) {
+  const id = 'rt|' + currentClass + '|' + rts.week;
+  const n = rts.targets.length, sent = rts.targets.filter(rtsIsSent).length;
+  const stage = n && sent >= n ? '발송 완료' : '확인';
+  let r = reportItems.find(function(x){ return x.id === id; });
+  if(!r) {
+    if(!create) return;
+    const dates = currentClass === 'KG6' ? Object.values(rts.classRows).map(function(c){ return c.date; }).filter(Boolean).sort() : [rts.g5.d1];
+    r = {id:id, '반구분':currentClass, '보고서':'단어 재시험 안내', '대상':'WK' + rts.wk + ' · ' + weekRangeLabel(rts.week), '대상수':String(n),
+      '단계':stage, '마감':dates.length ? addDays(dates[0], -1) : '', '메모':'', '작성':nowStamp()};
+    reportItems.push(r);
+    saveRecord('reports', r);
+    return;
+  }
+  if(r['단계'] !== stage || String(r['대상수']) !== String(n)) {
+    r['단계'] = stage; r['대상수'] = String(n);
+    saveRecord('reports', {id:id, '단계':stage, '대상수':String(n)});
+  }
+}
+async function markRetestSent(t, on) {
+  const id = rtsSentId(t);
+  sendLogRows = sendLogRows.filter(function(r){ return r.id !== id; });
+  const rec = {id:id, '반구분':currentClass, '종류':'단어 재시험 안내', '시험주':rts.week, '반':t.s.cls, '이름':t.s.name, '상태':'보냄', '시각':nowStamp()};
+  if(on) sendLogRows.push(rec);
+  rtsRefresh();
+  syncRetestReport(false);
+  if(on) await saveRecord('sendLog', rec); else await removeRecord('sendLog', id);
+}
+function toggleRetestSent(sid) {
+  const t = rts.targets.find(function(x){ return x.s.id === sid; });
+  if(t && rts.confirmed) markRetestSent(t, !rtsIsSent(t));
+}
+// 아이폰: 공유창 → 카카오톡 → 어머님 대화방 선택
+async function shareRetest(sid) {
+  const t = rts.targets.find(function(x){ return x.s.id === sid; }); if(!t || !rts.confirmed) return;
+  const text = retestMessage(t);
+  try {
+    await navigator.share({text: text});
+    await markRetestSent(t, true);
+  } catch(e) {
+    if(e && e.name === 'AbortError') return; // 공유창을 그냥 닫음
+    copyText(text, '공유가 안 돼서 복사했어요 — 카톡에 붙여넣어 주세요');
+  }
+}
+// PC: 복사 → PC 카톡에 붙여넣기 → [보냄 표시]
+function copyRetest(sid) {
+  const t = rts.targets.find(function(x){ return x.s.id === sid; }); if(!t || !rts.confirmed) return;
+  copyText(retestMessage(t), t.s.name + ' 문구 복사됨 — 카톡에 붙여넣고 [보냄 표시]를 눌러주세요');
 }
 
 /* ═══════════════════════════════════════════════════════
