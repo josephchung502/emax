@@ -545,6 +545,41 @@ tr.changed td{background:rgba(79,156,249,.08)}
   .dash-col .grid-4{grid-template-columns:repeat(4,1fr);gap:10px}
   .dash-col .stat-card{padding:12px 14px}
 }
+@media(min-width:641px){
+  .att-tbl th:nth-child(n+2):nth-child(-n+5),.att-tbl td:nth-child(n+2):nth-child(-n+5){width:1%;padding-left:3px;padding-right:3px;text-align:center}
+  .att-tbl td:first-child,.att-tbl th:first-child{width:180px}
+}
+@media(min-width:1180px){
+  .work-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+  .work-col{min-width:0;display:flex;flex-direction:column;gap:18px}
+  .work-col>.card,.work-col>div>.card{margin:0!important}
+  .snd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;padding:14px 16px 18px}
+  .snd-tile{position:relative;display:flex;flex-direction:column;gap:8px;padding:16px 16px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);cursor:pointer;transition:border-color .15s}
+  .snd-tile:hover{border-color:var(--accent)}
+  .snd-tile.done{background:transparent}
+  .snd-tile.empty{cursor:default;opacity:.6}.snd-tile.empty:hover{border-color:var(--border)}
+  .st-head{display:flex;align-items:center;gap:8px}
+  .st-t{font-size:14px;font-weight:700;color:var(--text)}
+  .st-num{display:flex;align-items:baseline;gap:4px;margin-top:4px}
+  .st-num b{font-family:'DM Mono',monospace;font-size:34px;font-weight:600;line-height:1;color:var(--text)}
+  .st-num span{font-size:13px;color:var(--text2)}
+  .st-num b.st-ok{font-family:inherit;font-size:17px;color:var(--green)}
+  .st-num b.st-none{font-family:inherit;font-size:15px;color:var(--text3)}
+  .snd-tile .snd-bar{margin-top:0;background:var(--border)}
+  .snd-tile .st-go{align-self:flex-start;margin-top:4px}
+  #tab-report.active{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;align-items:start}
+  #tab-report #rep-recent{margin-top:0!important}
+  #tab-report .card{margin-bottom:0}
+  .org-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:18px;align-items:start}
+  .org-side{position:sticky;top:0;max-height:calc(100vh - 110px);overflow-y:auto;border-radius:12px}
+  .org-split .card{margin-bottom:0}
+  .org-row.on{background:rgba(79,156,249,.12);box-shadow:inset 3px 0 0 var(--accent)}
+}
+@media(max-width:1179px){
+  .work-cols,.work-col{display:contents}
+  #tab-work.active{display:flex;flex-direction:column}
+  #tab-work .wk-o1{order:1}#tab-work .wk-o2{order:2}#tab-work .wk-o3{order:3}#tab-work .wk-o4{order:4}#tab-work .wk-o5{order:5}
+}
 @media(min-width:1360px){
   #tab-message.active{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:0 18px;align-items:start}
   #tab-message #weekly-card{grid-column:1;grid-row:1 / span 3}
@@ -712,14 +747,22 @@ tr.changed td{background:rgba(79,156,249,.08)}
 
       <!-- ══════════ WORK (보고서 현황 + 전달함) ══════════ -->
       <div class="tab-page" id="tab-work">
-        <div id="sched-card"></div>
-        <div id="mnm-card"></div>
-        <div class="card">
+       <div class="work-cols"><div class="work-col">
+        <div class="card wk-o3">
           <div class="card-header"><div class="card-title">✅ 확인 대기함 <span class="wk-sub" id="cw-count" style="font-weight:400"></span></div><span class="wk-sub">마감 빠른 순</span></div>
           <div id="cw-list"></div>
         </div>
-        <div class="grid-2">
-          <div class="card">
+          <div class="card wk-o5">
+            <div class="card-header"><div class="card-title">📥 전달함</div></div>
+            <div class="card-body">
+              <button class="btn btn-primary" style="width:100%;padding:12px" onclick="openCompose()">📥 메인 비서에게 전달 (글·음성·사진)</button>
+              <div id="ib-list" style="margin-top:4px"></div>
+            </div>
+          </div>
+       </div><div class="work-col">
+        <div id="sched-card" class="wk-o1"></div>
+        <div id="mnm-card" class="wk-o2"></div>
+          <div class="card wk-o4">
             <div class="card-header">
               <div class="card-title">📊 보고서·발송 현황</div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -738,14 +781,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
               <div id="rp-list" style="margin-top:4px"></div>
             </div>
           </div>
-          <div class="card">
-            <div class="card-header"><div class="card-title">📥 전달함</div></div>
-            <div class="card-body">
-              <button class="btn btn-primary" style="width:100%;padding:12px" onclick="openCompose()">📥 메인 비서에게 전달 (글·음성·사진)</button>
-              <div id="ib-list" style="margin-top:4px"></div>
-            </div>
-          </div>
-        </div>
+       </div></div>
       </div>
 
       <!-- ══════════ 비서 조직도 ══════════ -->
@@ -1158,7 +1194,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '1.13.1';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -2735,6 +2771,17 @@ function sendRowHtml(r, compact) {
   }
   return x;
 }
+function sendTileHtml(r) {
+  const left = Math.max(0, r.n - r.sent), done = r.n > 0 && left === 0, pct = r.n ? Math.round(r.sent / r.n * 100) : 0;
+  const big = !r.n ? '<b class="st-none">대상 없음</b>' : done ? '<b class="st-ok">✓ 모두 보냄</b>' : '<b>' + left + '</b><span>명 남음</span>';
+  return '<div class="snd-tile' + (done ? ' done' : '') + (!r.n ? ' empty' : '') + '"' + (r.go ? ' onclick="' + r.go + '"' : '') + '>'
+    + '<div class="st-head"><span class="snd-ic">' + r.ic + '</span><span class="st-t">' + escHtml(r.t) + '</span></div>'
+    + '<div class="st-num">' + big + '</div>'
+    + (r.n ? '<div class="snd-bar"><i style="width:' + pct + '%"></i></div>' : '')
+    + '<div class="snd-s">' + escHtml([r.n ? '대상 ' + r.n + '명 · 보냄 ' + r.sent + '명' : '', r.s].filter(Boolean).join(' · ')) + '</div>'
+    + (r.go ? '<button class="btn ' + (left ? 'btn-primary' : 'btn-ghost') + ' btn-sm st-go" onclick="event.stopPropagation();' + r.go + '">열기</button>' : '')
+    + '</div>';
+}
 function renderSend() {
   const el = document.getElementById('send-view'); if(!el) return;
   const cw = currentWeek(), w = sendWeek || cw, rows = sendSummary(w);
@@ -2742,9 +2789,16 @@ function renderSend() {
     + (w !== cw ? '<button class="btn btn-ghost btn-sm" onclick="sendWeek=\'\';renderSend()">이번 주</button>' : '')
     + '<button class="btn btn-ghost btn-sm"' + (w >= cw ? ' disabled' : '') + ' onclick="sendWeek=nextWeek(\'' + w + '\');renderSend()">▶</button></div>';
   const left = sendPending(rows);
-  el.innerHTML = '<div class="card"><div class="card-header"><div class="card-title">📨 ' + (w === cw ? '이번 주' : '') + ' 학부모 발송 · ' + weekRangeLabel(w) + '</div>' + nav + '</div>'
-    + '<div class="rts-help" style="margin:10px 16px 2px">' + (left ? '안 보낸 안내 ' + left + '건 (주별 피드백 제외)' : '보낼 안내를 모두 보냈어요 ✓') + ' · 각 화면에서 문구 확인 → 카톡 보내기 → 보냄 표시</div>'
-    + rows.map(function(r){ return sendRowHtml(r, false); }).join('') + '</div>';
+  const head = '<div class="card-header"><div class="card-title">📨 ' + (w === cw ? '이번 주' : '') + ' 학부모 발송 · ' + weekRangeLabel(w) + '</div>' + nav + '</div>'
+    + '<div class="rts-help" style="margin:10px 16px 2px">' + (left ? '안 보낸 안내 ' + left + '건 (주별 피드백 제외)' : '보낼 안내를 모두 보냈어요 ✓') + ' · 각 화면에서 문구 확인 → 카톡 보내기 → 보냄 표시</div>';
+  if(isWide()) {
+    const rep = rows.find(function(r){ return r.k === 'report'; });
+    el.innerHTML = '<div class="card">' + head + '<div class="snd-grid">' + rows.filter(function(r){ return r.k !== 'report'; }).map(sendTileHtml).join('') + '</div></div>'
+      + (rep ? '<div class="card"><div class="card-header"><div class="card-title">' + rep.ic + ' ' + escHtml(rep.t) + (rep.n ? ' <span class="cnt-pill' + (rep.n > rep.sent ? ' red' : '') + '">' + Math.max(0, rep.n - rep.sent) + '</span>' : '') + '</div><span class="wk-sub">' + escHtml(rep.s || '') + '</span></div>'
+        + (rep.list && rep.list.length ? sendRowHtml(rep, false).replace(/^[\s\S]*?<div class="snd-sub">/, '<div class="snd-sub" style="padding:6px 16px 12px">') : '<div class="wk-empty" style="padding:12px 16px">최근 3주에 들어온 학생별 리포트가 없어요</div>') + '</div>' : '');
+    return;
+  }
+  el.innerHTML = '<div class="card">' + head + rows.map(function(r){ return sendRowHtml(r, false); }).join('') + '</div>';
 }
 function renderDashSend() {
   const el = document.getElementById('d-send'); if(!el) return;
@@ -3996,7 +4050,7 @@ function renderAttList() {
   html += '</div></div>';
 
   // main table
-  html += '<div style="overflow-x:auto"><table class="tbl"><thead><tr>'
+  html += '<div style="overflow-x:auto"><table class="tbl att-tbl"><thead><tr>'
     + '<th>학생</th><th>출석</th><th>지각</th><th>결석</th><th>보강&rarr;</th><th>이번주 재시험</th><th>숙제 상세</th>'
     + '</tr></thead><tbody>';
   var bogangOut = [];
@@ -4525,7 +4579,10 @@ async function weeklyDoneNext(sid) {
   await weeklyMark(sid, true);
   if(!next) showToast('이 목록의 준비된 문안을 모두 보냈어요 ✓', 's');
 }
-try { window.matchMedia('(min-width: 1180px)').addEventListener('change', function(){ const t = document.getElementById('tab-message'); if(t && t.classList.contains('active')) renderWeeklyCard(); }); } catch(e) {}
+try { window.matchMedia('(min-width: 1180px)').addEventListener('change', function(){
+  const on = function(id){ const t = document.getElementById('tab-' + id); return t && t.classList.contains('active'); };
+  if(on('message')) renderWeeklyCard(); if(on('send')) renderSend(); if(on('org')) renderOrg();
+}); } catch(e) {}
 function weeklyRowHtml(s, w) {
   const t = weeklyText(s, w), ok = sendIsSent(weeklySentId(s, w)), open = wkv.open[s.id], ed = wkv.edit === s.id;
   const first = t === null ? '' : String(t).split('\n').map(function(l){ return l.replace(/^[•·\-▪>»\s]+/, '').trim(); }).filter(Boolean)[0] || '';
@@ -6823,11 +6880,17 @@ function orgBadges(n, J) {
   if(open.length - late - wait > 0) b.push('<span class="badge b-blue">할 일 ' + (open.length - late - wait) + '</span>');
   return b.join('');
 }
-function orgOpen(id) { orgView = id; renderOrg(); const c = document.querySelector('#tab-org'); if(c) c.scrollIntoView({block:'start'}); window.scrollTo(0, 0); }
+function orgOpen(id) { orgView = id; renderOrg(); if(isWide()) return; const c = document.querySelector('#tab-org'); if(c) c.scrollIntoView({block:'start'}); window.scrollTo(0, 0); }
 function renderOrg() {
   const el = document.getElementById('org-view'); if(!el) return;
   const J = orgJudge(), nodes = orgNodes();
   const n = orgView && nodes.find(function(x){ return x.id === orgView; });
+  if(isWide()) {
+    const tree = orgTreeHtml(nodes, J), cut = tree.indexOf('<div class="card"><div class="card-header"><div class="card-title">🏢');
+    el.innerHTML = '<div class="org-split"><div>' + tree.slice(cut) + '</div><div class="org-side">' + (n ? orgDetailHtml(n, J) : tree.slice(0, cut)) + '</div></div>';
+    if(n) { const row = el.querySelector('.org-row[data-id="' + CSS.escape(n.id) + '"]'); if(row) row.classList.add('on'); }
+    return;
+  }
   el.innerHTML = n ? orgDetailHtml(n, J) : orgTreeHtml(nodes, J);
 }
 function orgTreeHtml(nodes, J) {
@@ -6838,7 +6901,7 @@ function orgTreeHtml(nodes, J) {
     + '</div></div>';
   const rows = nodes.map(function(n){
     const other = n.track && n.track !== currentClass && !n.cls;
-    return '<div class="org-row" style="padding-left:' + (12 + n.d * 18) + 'px" onclick="orgOpen(decodeURIComponent(\'' + encodeURIComponent(n.id) + '\'))">'
+    return '<div class="org-row" data-id="' + escHtml(n.id) + '" style="padding-left:' + (12 + n.d * 18) + 'px" onclick="orgOpen(decodeURIComponent(\'' + encodeURIComponent(n.id) + '\'))">'
       + (n.d ? '<span class="org-br">└</span>' : '')
       + '<span class="org-ic">' + n.icon + '</span>'
       + '<div class="org-main"><div class="org-name">' + escHtml(n.name) + (n.make ? '<span class="org-ai">AI</span>' : '') + '</div>'
