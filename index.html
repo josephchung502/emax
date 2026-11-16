@@ -1051,7 +1051,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.11.0';
+const APP_VERSION = '1.11.1';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -1691,10 +1691,10 @@ function bootUrl(track) {
   const cl = CLASS_CONFIG[track].classes.map(function(c){ return encodeURIComponent(c); }).join(',');
   return gasUrl + '?action=bootstrap&class=' + encodeURIComponent(track) + '&classes=' + cl;
 }
-// 두 묶음을 동시에 받아 합침 (서버는 한 번에 한 묶음씩 읽어서, 나누면 더 빠름). 한쪽이 실패하면 그쪽만 예전처럼 하나씩
+// 세 묶음(1 반·학생·출석·숙제 / 2 기록·설정 / 3 점수)을 동시에 받아 합침 — 서버는 한 요청씩 차례로 읽어서 나누면 더 빠름. 한쪽이 실패하면 그쪽만 예전처럼 하나씩
 async function bootFetch(track) {
   const u = bootUrl(track);
-  const res = await Promise.allSettled([jsonpFetch(u + '&part=1', 45000), jsonpFetch(u + '&part=2', 45000)]);
+  const res = await Promise.allSettled([jsonpFetch(u + '&part=1', 45000), jsonpFetch(u + '&part=2', 45000), jsonpFetch(u + '&part=3', 45000)]);
   if(res.some(function(r){ return r.status === 'rejected' && r.reason && r.reason.message === 'unauthorized'; })) throw new Error('unauthorized');
   const d = {}; let any = false;
   res.forEach(function(r){ if(r.status === 'fulfilled' && r.value && r.value.ok && r.value.d) { Object.assign(d, r.value.d); any = true; } });
