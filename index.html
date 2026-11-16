@@ -1061,26 +1061,36 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.9.2';
+const APP_VERSION = '1.9.3';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
 });
 /* ── 아이폰 상단 가림 방지 (iOS 26) ──
    1) 홈 화면 앱이 상태 표시줄 밑까지 그려지는데 안전 영역 값이 0으로 오는 경우 → 상단 바를 상태 표시줄 높이만큼 내림
-   2) 키보드를 닫은 뒤 화면이 위로 밀린 채 남는 경우 → 입력이 끝나면 화면을 제자리로 */
+   2) 키보드를 닫은 뒤 화면이 위로 밀린 채 남는 경우 → 입력이 끝나면 화면을 제자리로
+   3) 앱을 다시 띄웠을 때 새 버전이 있으면 알려 주고 한 번에 새로고침 */
 (function() {
   const isIPhone = /iPhone|iPod/.test(navigator.userAgent);
   function standalone() { return window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches); }
-  function fixTopInset() {
+  function measureInset() {
     const pr = document.createElement('div');
     pr.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:env(safe-area-inset-top);visibility:hidden;pointer-events:none';
     document.body.appendChild(pr);
-    const inset = pr.offsetHeight; pr.remove();
-    let top = inset;
-    if(isIPhone && standalone() && inset < 1 && window.innerWidth < window.innerHeight && Math.abs(window.innerHeight - screen.height) < 2)
-      top = screen.height >= 852 ? 59 : (screen.height >= 812 ? 47 : 20);
-    document.documentElement.style.setProperty('--sat', top + 'px');
+    const v = pr.offsetHeight; pr.remove(); return v;
+  }
+  function fixTopInset() {
+    if(!document.body) return;
+    const root = document.documentElement, inset = measureInset();
+    const vh = Math.max(window.innerHeight, root.clientHeight), sh = screen.height;
+    const portrait = window.innerWidth < window.innerHeight;
+    // 보이는 높이가 화면 전체와 거의 같다 = 상태 표시줄 밑까지 그려지는 중 → 안전 영역이 0이면 직접 내림
+    if(isIPhone && standalone() && portrait && inset < 1 && sh - vh < 20) {
+      root.style.setProperty('--sat', (sh >= 874 ? 62 : sh >= 852 ? 59 : sh >= 812 ? 48 : 20) + 'px');
+      root.classList.add('sat-fix');
+    } else {
+      root.style.removeProperty('--sat'); root.classList.remove('sat-fix');
+    }
   }
   function isField(a) { return !!(a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)); }
   let tmr = null;
@@ -1092,11 +1102,32 @@ document.addEventListener('DOMContentLoaded', function() {
       if(window.scrollY || window.pageYOffset || (vv && vv.offsetTop)) window.scrollTo(0, 0);
     }, 150);
   }
-  document.addEventListener('DOMContentLoaded', fixTopInset);
+  let lastCheck = 0;
+  async function checkNewVersion() {
+    if(Date.now() - lastCheck < 3 * 60 * 1000 || location.protocol === 'file:') return;
+    lastCheck = Date.now();
+    try {
+      const r = await fetch('./index.html?vc=' + Date.now(), {cache: 'no-store'});
+      if(!r.ok) return;
+      const m = (await r.text()).match(/const APP_VERSION = '([\d.]+)'/);
+      if(!m || m[1] === APP_VERSION || document.getElementById('upd-bar')) return;
+      const bar = document.createElement('div');
+      bar.id = 'upd-bar';
+      bar.style.cssText = 'position:fixed;left:12px;right:84px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:9000;background:var(--accent);color:#fff;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.45)';
+      bar.innerHTML = '<span style="flex:1">새 버전 v' + m[1] + '이 있어요</span><button type="button" style="border:none;border-radius:8px;padding:6px 12px;font-weight:700;background:#fff;color:#1d4ed8;font-family:inherit">새로고침</button>';
+      bar.querySelector('button').onclick = function(){ location.replace(location.pathname + '?r=' + Date.now()); };
+      document.body.appendChild(bar);
+    } catch(e) { /* 오프라인 등은 무시 */ }
+  }
+  function refreshAll() { fixTopInset(); settle(); }
+  document.addEventListener('DOMContentLoaded', function(){ fixTopInset(); setTimeout(fixTopInset, 600); setTimeout(fixTopInset, 2000); });
+  window.addEventListener('load', fixTopInset);
+  window.addEventListener('pageshow', refreshAll);
+  window.addEventListener('resize', fixTopInset);
   window.addEventListener('orientationchange', function(){ setTimeout(fixTopInset, 300); });
   document.addEventListener('focusout', settle, true);
   if(window.visualViewport) window.visualViewport.addEventListener('resize', settle);
-  document.addEventListener('visibilitychange', function(){ if(!document.hidden) { fixTopInset(); settle(); } });
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) { refreshAll(); checkNewVersion(); } });
 })();
 /* ═══════════════════════════════════════════════════════
    DATA
