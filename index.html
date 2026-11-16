@@ -68,6 +68,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .topbar-right{display:flex;align-items:center;gap:8px}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);flex-shrink:0}
 .sync-dot.on{background:var(--green)}
+.sync-dot.wait{background:var(--yellow)}
+.ob-chip{border:1px solid var(--yellow);background:rgba(234,179,8,.12);color:var(--yellow);border-radius:999px;padding:3px 9px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap}
 .sync-label{font-size:11px;color:var(--text3)}
 
 .btn{padding:6px 14px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap}
@@ -419,6 +421,22 @@ tr.changed td{background:rgba(79,156,249,.08)}
 .more-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .more-grid button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:72px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer}
 .more-grid button .mg-i{font-size:22px}
+.bk-help{font-size:12px;color:var(--text2);line-height:1.6}
+.bk-sum{font-size:13px;margin:10px 0 6px}
+.bk-list{max-height:34vh;overflow-y:auto;border:1px solid var(--border);border-radius:10px}
+.bk-list:empty{display:none}
+.bk-row{display:flex;align-items:center;gap:10px;padding:6px 10px;font-size:13px;border-bottom:1px solid var(--border)}
+.bk-row:last-child{border-bottom:none}
+.bk-row .bk-c{min-width:74px;color:var(--text2);font-size:12px}
+.bk-row b{flex:1;font-weight:600}
+.bk-row .bk-d{font-size:11px;color:var(--text3)}
+.bk-row em{font-style:normal;font-size:11px;color:var(--green)}
+.bk-row.dup{opacity:.55}.bk-row.dup em{color:var(--text3)}
+.bk-row.warn em{color:var(--yellow)}
+.bkp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bkp-grid div{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:3px}
+.bkp-grid span{font-size:11px;color:var(--text3)}
+.bkp-grid b{font-size:13px}
 .card.collapsible .card-title{cursor:pointer;user-select:none}
 .card.collapsible .card-title .chev{display:inline-block;width:14px;color:var(--text3);transition:transform .15s}
 .card.collapsible:not(.collapsed) .card-title .chev{transform:rotate(90deg)}
@@ -586,6 +604,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
       <div class="topbar-right">
         <div class="sync-dot" id="syncDot" title="동기화 상태"></div>
         <span class="sync-label" id="syncLabel">미연결</span>
+        <button type="button" class="ob-chip" id="outbox-chip" style="display:none" onclick="flushOutbox(true)" title="연결이 끊겨 못 보낸 저장 — 눌러서 다시 보내기">📦 저장 대기</button>
         <button class="btn btn-primary btn-sm tb-compose" onclick="openCompose()" title="메인 비서에게 전달 (Ctrl+K)">📥 전달</button>
         <button class="btn btn-ghost btn-sm" onclick="syncNow()" title="동기화">↻<span class="tb-txt"> 동기화</span></button>
         <button class="btn btn-ghost btn-sm" onclick="switchClass()" title="반 전환">⇄<span class="tb-txt"> 반 전환</span></button>
@@ -796,6 +815,8 @@ tr.changed td{background:rgba(79,156,249,.08)}
       <button onclick="goTab('org')"><span class="mg-i">🏢</span>비서 조직도</button>
       <button onclick="closeModal('modal-more');openCompose()"><span class="mg-i">📥</span>메인 비서에게</button>
       <button onclick="closeModal('modal-more');openAddStudent()"><span class="mg-i">➕</span>학생 추가</button>
+      <button onclick="closeModal('modal-more');openBulkStudents()"><span class="mg-i">📋</span>명단 붙여넣기</button>
+      <button onclick="openBackup()"><span class="mg-i">💾</span>백업</button>
       <button onclick="closeModal('modal-more');syncNow()"><span class="mg-i">↻</span>동기화</button>
       <button onclick="closeModal('modal-more');switchClass()"><span class="mg-i">⇄</span>반 전환</button>
       <button onclick="closeModal('modal-more');openSettings()"><span class="mg-i">⚙️</span>설정</button>
@@ -819,9 +840,40 @@ tr.changed td{background:rgba(79,156,249,.08)}
       <div class="form-group"><label>반</label><select class="fi" id="ns-class"></select></div>
       <div class="form-group"><label>등록일</label><input class="fi" type="date" id="ns-regdate"></div>
     </div>
+    <button type="button" class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:4px" onclick="openBulkStudents()">📋 여러 명 한 번에 — 엑셀 명단 붙여넣기</button>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-add-student')">취소</button>
       <button class="btn btn-primary" onclick="addStudent()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK STUDENTS (v1.12) -->
+<div class="modal-overlay" id="modal-bulk-stu">
+  <div class="modal wide">
+    <div class="modal-title">📋 명단 한 번에 등록</div>
+    <div class="bk-help">엑셀에서 <b>반·이름</b> 열을 함께 복사해 아래에 붙여넣으세요 (한 줄에 한 명). 이름만 붙여넣으면 아래에서 고른 반으로 들어가요. 등록일 열이 있으면 그 날짜를 써요.<br><b id="bk-track">KG6</b> 반만 등록돼요: <span id="bk-classes"></span> — 다른 트랙 명단은 ⇄ 반 전환 후 붙여넣어 주세요.</div>
+    <div class="form-row" style="margin:10px 0">
+      <div class="form-group"><label>반 (이름만 있는 줄)</label><select class="fi" id="bk-cls" onchange="bulkPreview()"></select></div>
+      <div class="form-group"><label>등록일 (기본)</label><input class="fi" type="date" id="bk-reg"></div>
+    </div>
+    <textarea class="fi" id="bk-text" rows="7" style="width:100%;font-family:inherit;resize:vertical" placeholder="G6-42M	김민준&#10;G6-42M	이서아&#10;G6-32M	박지호" oninput="bulkPreview()"></textarea>
+    <div id="bk-sum" class="bk-sum"></div>
+    <div id="bk-list" class="bk-list"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-bulk-stu')">취소</button>
+      <button class="btn btn-primary" id="bk-go" onclick="bulkAddStudents()" disabled>등록</button>
+    </div>
+  </div>
+</div>
+<!-- BACKUP (v1.12) -->
+<div class="modal-overlay" id="modal-backup" onclick="if(event.target===this)closeModal('modal-backup')">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-title">💾 자동 백업</div>
+    <div id="bkp-info"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-backup')">닫기</button>
+      <button class="btn btn-primary" id="bkp-now" onclick="backupNow()">지금 백업</button>
     </div>
   </div>
 </div>
@@ -1051,7 +1103,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.11.1';
+const APP_VERSION = '1.12.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -1701,6 +1753,7 @@ async function bootFetch(track) {
   return any ? {ok: true, d: d} : null;
 }
 async function freshLoad(track, shown, attempt) {
+  if(_outbox.length) await flushOutbox();
   const seq = _writeSeq;
   let boot = null, failed = 0;
   try { boot = await bootFetch(track); }
@@ -1709,6 +1762,7 @@ async function freshLoad(track, shown, attempt) {
   if(boot && boot.ok && boot.d) {
     // 받는 사이에 저장한 것이 있으면 그 저장이 반영된 뒤 한 번 더 받음
     if(_writeSeq !== seq && attempt < 2) { await new Promise(r => setTimeout(r, 2500)); return freshLoad(track, shown, attempt + 1); }
+    if(_outbox.length) _resyncAfterFlush = true;   // 아직 못 보낸 저장이 있으면 다 보낸 뒤 한 번 더 받음
     idbSet('boot|' + track, {at: Date.now(), d: boot.d});
     _boot = Object.assign({}, boot.d); _quietLoad = shown;   // 얕은 사본 — 읽으면서 지워도 저장본은 그대로
     try { failed = await runLoadPipeline(); } catch(e) { failed = 1; } finally { _boot = null; _quietLoad = false; }
@@ -1760,10 +1814,13 @@ function switchClass() {
    - POST → form-urlencoded (no-cors, fire-and-forget)
 ═══════════════════════════════════════════════════════ */
 function setSyncStatus(st) {
+  const nOut = (typeof _outbox !== 'undefined' && _outbox) ? _outbox.length : 0;
+  if(st === 'synced' && nOut) st = 'pending';
   const dot = document.getElementById('syncDot');
   const lbl = document.getElementById('syncLabel');
-  dot.className = 'sync-dot ' + (st==='synced'?'on':'');
-  lbl.textContent = st==='synced'?'Sheets 연동됨':st==='syncing'?'동기화 중...':st==='cached'?'저장본 · 새로 받는 중':st==='error'?'오류':'미연결';
+  dot.className = 'sync-dot ' + (st==='synced'?'on':st==='pending'?'wait':'');
+  lbl.textContent = st==='synced'?'Sheets 연동됨':st==='syncing'?'동기화 중...':st==='cached'?'저장본 · 새로 받는 중':st==='pending'?'저장 대기 ' + nOut + '건':st==='error'?'오류':'미연결';
+  if(typeof renderOutboxChip === 'function') renderOutboxChip();
 }
 
 // JSONP 요청 — Apps Script GET CORS 우회
@@ -1936,18 +1993,26 @@ let _writeFailToastAt = 0;
 function postToSheets(payload) {
   if(!gasUrl) return Promise.resolve();
   _writeSeq++;
-  const json = JSON.stringify({...payload, classGroup:currentClass});
-  const url = gasUrl + '?writeData=' + encodeURIComponent(json);
+  const body = Object.assign({}, payload, {classGroup: currentClass});
   const run = function() {
-    return jsonpFetch(url, 20000).then(function(res) {
-      if(res && res.ok === false) { reportWriteFail(res.error); return res; }
+    // 보내지 못한 저장이 남아 있으면 순서를 지키려고 뒤에 붙임
+    if(_outbox.length || (typeof navigator !== 'undefined' && navigator.onLine === false)) { outboxAdd(body); return {ok: true, queued: true}; }
+    return sendWrite(body).then(function(r) {
+      if(r.net) { outboxAdd(body); return {ok: true, queued: true}; }
+      if(r.res && r.res.ok === false) { reportWriteFail(r.res.error); return r.res; }
       setSyncStatus('synced');
-      return res;
-    }).catch(function(e) { reportWriteFail(e && e.message); return null; });
+      return r.res;
+    });
   };
   const p = _writeQueue.then(run, run);
   _writeQueue = p;
   return p;
+}
+// 한 건 보내기 — 연결 문제(시간 초과·끊김·로그인 만료)는 net:true 로 돌려줌 → 대기열에 보관
+function sendWrite(body) {
+  const url = gasUrl + '?writeData=' + encodeURIComponent(JSON.stringify(body));
+  return jsonpFetch(url, 20000).then(function(res){ return {res: res}; })
+    .catch(function(e){ return {net: true, why: (e && e.message) || ''}; });
 }
 function reportWriteFail(reason) {
   setSyncStatus('error');
@@ -1958,9 +2023,76 @@ function reportWriteFail(reason) {
   const why = {timeout:'응답 시간 초과', 'script error':'연결 오류'}[reason] || reason || '';
   showToast('Sheets 저장 실패' + (why ? ' (' + why + ')' : '') + ' — 다시 저장해주세요', 'e');
 }
+/* ── v1.12 저장 대기열: 와이파이가 끊겨 못 보낸 저장을 이 기기에 보관했다가 연결되면 순서대로 다시 보냄 ── */
+const OUTBOX_KEY = 'emax_outbox';
+var _outbox = [], _flushing = null, _flushTimer = null, _resyncAfterFlush = false, _queuedToastAt = 0, _lastQueuedAt = 0;
+try { _outbox = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]') || []; if(!Array.isArray(_outbox)) _outbox = []; } catch(e) { _outbox = []; }
+function outboxSave() {
+  try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(_outbox)); } catch(e) {}
+  renderOutboxChip();
+}
+function outboxAdd(body) {
+  _outbox.push({at: Date.now(), tries: 0, p: body});
+  _lastQueuedAt = Date.now();
+  outboxSave();
+  setSyncStatus('pending');
+  if(Date.now() - _queuedToastAt > 20000) { _queuedToastAt = Date.now(); showToast('📦 연결이 불안정해요 — 이 기기에 보관했다가 연결되면 자동으로 저장할게요', 'w'); }
+  scheduleFlush(4000);
+}
+function scheduleFlush(ms) {
+  clearTimeout(_flushTimer);
+  if(!_outbox.length) return;
+  _flushTimer = setTimeout(function(){ flushOutbox(); }, ms);
+}
+function renderOutboxChip() {
+  const n = _outbox.length;
+  ['outbox-chip'].forEach(function(id){
+    const el = document.getElementById(id); if(!el) return;
+    el.style.display = n ? '' : 'none';
+    el.innerHTML = '📦<span class="tb-txt"> 저장 대기</span> ' + n;
+  });
+}
+// 같은 학생을 다시 추가하려다 '이미 존재'가 나오면 앞선 시도가 실제로는 저장된 것 → 성공으로 봄
+function outboxDupOk(p, res) { return p && p.action === 'addStudent' && /이미 존재/.test(String(res && res.error || '')); }
+function flushOutbox(manual) {
+  if(_flushing) return _flushing;
+  if(!_outbox.length) { renderOutboxChip(); return Promise.resolve(true); }
+  if(!gasUrl || !appKey) return Promise.resolve(false);
+  clearTimeout(_flushTimer);
+  _flushing = (async function() {
+    let sent = 0;
+    const rejected = [];
+    setSyncStatus('syncing');
+    while(_outbox.length) {
+      const it = _outbox[0];
+      const r = await sendWrite(it.p);
+      if(r.net) {
+        it.tries = (it.tries || 0) + 1; outboxSave();
+        setSyncStatus('pending');
+        if(r.why !== 'unauthorized') scheduleFlush(Math.min(60000, 5000 * Math.pow(2, Math.min(it.tries, 4))));
+        if(manual) showToast('아직 연결이 안 돼요 — 저장 대기 ' + _outbox.length + '건은 이 기기에 그대로 있어요', 'w');
+        return false;
+      }
+      _outbox.shift(); outboxSave(); sent++;
+      if(r.res && r.res.ok === false && !outboxDupOk(it.p, r.res)) rejected.push(r.res.error || '오류');
+    }
+    setSyncStatus('synced');
+    _lastQueuedAt = 0;
+    if(rejected.length) showToast('보관했던 저장 중 ' + rejected.length + '건은 서버가 받지 않았어요 (' + rejected[0] + ')', 'e');
+    else if(sent) showToast('📦 보관했던 저장 ' + sent + '건을 모두 보냈어요 ✓', 's');
+    if(_resyncAfterFlush && currentClass) { _resyncAfterFlush = false; freshLoad(currentClass, true, 0); }
+    return true;
+  })();
+  _flushing.finally(function(){ _flushing = null; });
+  return _flushing;
+}
+window.addEventListener('online', function(){ flushOutbox(); });
+document.addEventListener('visibilitychange', function(){ if(!document.hidden && _outbox.length) flushOutbox(); });
 
 async function syncNow() {
   if(!gasUrl){openSettings();return;}
+  // 못 보낸 저장이 남았으면 먼저 보냄 — 못 보내면 화면을 새로 받지 않음 (입력한 내용이 옛 값으로 덮이지 않게)
+  if(_outbox.length && !(await flushOutbox(true))) { setSyncStatus('pending'); return; }
   setSyncStatus('syncing');
   const track = currentClass, seq = _writeSeq;
   try {
@@ -3378,6 +3510,155 @@ async function addStudent() {
   renderStudentList(); renderDashboard();
   const res = await postToSheets({action:'addStudent', name, cls, grade, regDate});
   if(res && res.ok) showToast(name+' 추가됨 — Sheets 동기화됨','s');
+}
+/* ── v1.12 명단 한 번에 등록: 엑셀에서 반·이름 열을 복사해 붙여넣기 → 미리보기 → 한 번에 등록 ── */
+let bulkRows = [];
+function openBulkStudents(text) {
+  const sel = document.getElementById('bk-cls');
+  sel.innerHTML = getAllClasses().map(function(c){ return '<option>' + escHtml(c) + '</option>'; }).join('');
+  const ns = document.getElementById('ns-class');
+  if(ns && ns.value && getAllClasses().indexOf(ns.value) >= 0) sel.value = ns.value;
+  document.getElementById('bk-reg').value = todayYmd();
+  document.getElementById('bk-track').textContent = CLASS_CONFIG[currentClass].label || currentClass;
+  document.getElementById('bk-classes').textContent = getAllClasses().join(' · ');
+  document.getElementById('bk-text').value = text || '';
+  closeModal('modal-add-student');
+  document.getElementById('modal-bulk-stu').classList.add('open');
+  bulkPreview();
+  setTimeout(function(){ document.getElementById('bk-text').focus(); }, 50);
+}
+const BULK_HEAD = /^(반|반명|반이름|이름|학생|학생명|성명|name|class|no\.?|번호|순번|등록일|학년)$/i;
+function bulkDate(c) {
+  const m = String(c).match(/^(\d{4})[-./]\s*(\d{1,2})[-./]\s*(\d{1,2})\.?$/);
+  return m ? m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2) : '';
+}
+function bulkParse(text) {
+  const grp = currentClass, mine = getAllClasses();
+  const findMine = function(c){ return mine.find(function(x){ return normalizeStr(x) === normalizeStr(c); }) || ''; };
+  const otherRe = grp === 'KG6' ? /^G5[-\s]?\w/i : /^G6[-\s]?\w/i;
+  const def = document.getElementById('bk-cls').value;
+  const have = {}; (students[grp] || []).forEach(function(s){ have[normalizeStr(s.cls) + '|' + normalizeStr(s.name)] = true; });
+  const seen = {}, out = [];
+  let lastCls = '';
+  String(text || '').split(/\r?\n/).forEach(function(line) {
+    if(!line.trim()) return;
+    let cells = line.split(/\t|,/).map(function(c){ return c.trim(); });
+    const filled = cells.filter(Boolean);
+    if(filled.length === 1 && /\s/.test(filled[0])) cells = filled[0].split(/\s+/);   // "G6-42M 김민준" 처럼 띄어쓰기로만 나뉜 줄
+    if(cells.some(function(c){ return BULK_HEAD.test(c); })) return;                // 머리글 줄
+    let cls = '', name = '', reg = '', bad = '', other = '';
+    cells.forEach(function(c) {
+      if(!c) return;
+      const m = findMine(c);
+      if(m) { if(!cls) cls = m; return; }
+      if(otherRe.test(c)) { other = c; return; }
+      const d = bulkDate(c); if(d) { reg = d; return; }
+      if(/^\d+$/.test(c)) return;                                   // 번호 열
+      if(/^(G[56]|초\s?[56]|[56]\s?학년)$/i.test(c)) return;           // 학년 열
+      if(/^G\d/i.test(c) && /[-_]/.test(c)) { bad = c; return; }      // 반처럼 생겼는데 반 설정에 없음
+      if(!name) name = c;
+    });
+    if(!name) return;
+    if(cls) lastCls = cls;
+    else if(!bad && !other) cls = lastCls || def;                    // 병합된 반 칸·이름만 있는 줄
+    const row = {cls: cls, name: name, reg: reg, st: 'new', note: ''};
+    const k = normalizeStr(cls) + '|' + normalizeStr(name);
+    if(other) { row.st = 'warn'; row.note = '다른 트랙 반 (' + other + ')'; row.cls = other; }
+    else if(bad) { row.st = 'warn'; row.note = '반 설정에 없는 반 (' + bad + ')'; row.cls = bad; }
+    else if(name.length > 20) { row.st = 'warn'; row.note = '이름이 너무 길어요'; }
+    else if(have[k]) { row.st = 'dup'; row.note = '이미 있음'; }
+    else if(seen[k]) { row.st = 'dup'; row.note = '붙여넣은 목록에 두 번'; }
+    seen[k] = true;
+    out.push(row);
+  });
+  return out;
+}
+function bulkPreview() {
+  bulkRows = bulkParse(document.getElementById('bk-text').value);
+  const n = {new: 0, dup: 0, warn: 0};
+  bulkRows.forEach(function(r){ n[r.st]++; });
+  const sum = document.getElementById('bk-sum'), list = document.getElementById('bk-list'), go = document.getElementById('bk-go');
+  if(!bulkRows.length) { sum.innerHTML = ''; list.innerHTML = ''; go.disabled = true; go.textContent = '등록'; return; }
+  sum.innerHTML = '<b style="color:var(--green)">새로 등록 ' + n.new + '명</b>'
+    + (n.dup ? ' · <span style="color:var(--text3)">건너뜀 ' + n.dup + '명</span>' : '')
+    + (n.warn ? ' · <span style="color:var(--yellow)">확인 필요 ' + n.warn + '줄</span>' : '');
+  const byCls = {}; bulkRows.forEach(function(r){ if(r.st === 'new') byCls[r.cls] = (byCls[r.cls] || 0) + 1; });
+  const clsLine = Object.keys(byCls).map(function(c){ return escHtml(c) + ' ' + byCls[c] + '명'; }).join(' · ');
+  if(clsLine) sum.innerHTML += '<div style="margin-top:4px;color:var(--text2)">' + clsLine + '</div>';
+  list.innerHTML = bulkRows.slice(0, 400).map(function(r) {
+    return '<div class="bk-row ' + r.st + '"><span class="bk-c">' + escHtml(r.cls) + '</span><b>' + escHtml(r.name) + '</b>'
+      + (r.reg ? '<span class="bk-d">' + r.reg.slice(5) + '</span>' : '')
+      + '<em>' + (r.st === 'new' ? '새로 등록' : escHtml(r.note)) + '</em></div>';
+  }).join('');
+  go.disabled = !n.new;
+  go.textContent = n.new ? n.new + '명 등록' : '등록';
+}
+async function bulkAddStudents() {
+  const rows = bulkRows.filter(function(r){ return r.st === 'new'; });
+  if(!rows.length || !gasUrl) return;
+  const go = document.getElementById('bk-go');
+  go.disabled = true; go.textContent = '등록 중...';
+  const grp = currentClass, grade = grp === 'G5TFS' ? 'G5' : 'G6';
+  const regDef = document.getElementById('bk-reg').value || '';
+  const list = rows.map(function(r){ return {name: r.name, cls: r.cls, grade: grade, regDate: r.reg || regDef}; });
+  _writeSeq++;
+  try {
+    const res = await postJson({action: 'addStudents', students: list});
+    if(!res || res.ok === false) throw new Error((res && res.error) || '오류');
+    const added = {}; (res.addedKeys || list.map(function(s){ return s.cls + '|' + s.name; })).forEach(function(k){ added[k] = true; });
+    if(!students[grp]) students[grp] = [];
+    list.forEach(function(x) {
+      if(!added[x.cls + '|' + x.name]) return;
+      const id = 'sh_' + x.cls.replace(/[^a-zA-Z0-9가-힣]/g,'') + '_' + x.name.replace(/[^a-zA-Z0-9가-힣]/g,'');
+      if(students[grp].find(function(s){ return s.id === id; })) return;
+      students[grp].push({id: id, name: x.name, cls: x.cls, grade: grade, active: true, regDate: x.regDate || null});
+      scores[id] = []; attendance[id] = {}; homework[id] = {}; retests[id] = {};
+      if(x.regDate) setRegDate(id, x.regDate, true);
+    });
+    closeModal('modal-bulk-stu');
+    renderStudentList(); renderDashboard();
+    const sk = (res.skipped || []).length;
+    showToast((res.added != null ? res.added : list.length) + '명 등록됨 ✓' + (sk ? ' · 이미 있던 ' + sk + '명은 건너뜀' : ''), 's');
+  } catch(e) {
+    showToast('등록 실패: ' + ((e && e.message) || '오류') + ' — 연결을 확인하고 다시 눌러 주세요', 'e');
+    go.disabled = false; go.textContent = rows.length + '명 등록';
+  }
+}
+/* ── v1.12 자동 백업 상태 · 지금 백업 ── */
+function backupWhen(s) { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}:\d{2})/); return m ? (+m[2]) + '/' + (+m[3]) + ' ' + m[4] : (s || ''); }
+function backupInfoHtml(r) {
+  const last = r && r.last;
+  const age = last && last.at ? Math.floor((Date.now() - new Date(last.at.replace(' ', 'T') + ':00+09:00').getTime()) / 86400000) : null;
+  return '<div class="bk-help" style="margin-bottom:12px">매주 일요일 새벽 3시에 Google Sheets 전체를 Drive <b>' + escHtml((r && r.folderName) || 'eMAX 학생관리 백업') + '</b> 폴더에 사본으로 저장해요. 최근 ' + ((r && r.keep) || 8) + '개만 남기고, 더 오래된 사본은 휴지통으로 가요 (30일 안에는 되살릴 수 있어요).</div>'
+    + '<div class="bkp-grid">'
+    + '<div><span>마지막 백업</span><b' + (age != null && age > 9 ? ' style="color:var(--red)"' : '') + '>' + (last ? escHtml(backupWhen(last.at)) + (last.why ? ' · ' + escHtml(last.why) : '') : '아직 없음') + '</b></div>'
+    + '<div><span>보관 중</span><b>' + ((r && r.count != null) ? r.count + '개' : '—') + '</b></div>'
+    + '<div><span>자동 백업</span><b style="color:' + (r && r.trigger ? 'var(--green)">켜짐 (매주 일 03:00)' : 'var(--red)">꺼짐') + '</b></div>'
+    + '</div>'
+    + (r && r.folderUrl ? '<a class="btn btn-ghost btn-sm" style="margin-top:10px;display:inline-block" href="' + escHtml(r.folderUrl) + '" target="_blank" rel="noopener">📂 백업 폴더 열기</a>' : '')
+    + '<div class="bk-help" style="margin-top:12px">되살릴 때: 백업 사본을 열어 필요한 시트나 행을 복사해 원본 시트(학생_성적)에 붙여넣어요.</div>';
+}
+async function openBackup() {
+  closeModal('modal-more');
+  const box = document.getElementById('bkp-info');
+  box.innerHTML = '<div class="bk-help">불러오는 중...</div>';
+  document.getElementById('modal-backup').classList.add('open');
+  try {
+    const r = await jsonpFetch(gasUrl + '?action=backupInfo', 20000);
+    if(!r || r.ok === false) throw new Error((r && r.error) || '오류');
+    box.innerHTML = backupInfoHtml(r);
+  } catch(e) { box.innerHTML = '<div class="bk-help" style="color:var(--red)">백업 정보를 불러오지 못했어요 (' + escHtml((e && e.message) || '오류') + ')</div>'; }
+}
+async function backupNow() {
+  const btn = document.getElementById('bkp-now');
+  btn.disabled = true; btn.textContent = '백업 중... (30초쯤)';
+  try {
+    const r = await jsonpFetch(gasUrl + '?action=backupNow', 150000);
+    if(!r || r.ok === false) throw new Error((r && r.error) || '오류');
+    document.getElementById('bkp-info').innerHTML = backupInfoHtml(r);
+    showToast('백업 완료 ✓ — Drive 백업 폴더에 사본을 저장했어요', 's');
+  } catch(e) { showToast('백업 실패: ' + ((e && e.message) === 'timeout' ? '응답 시간 초과' : ((e && e.message) || '오류')), 'e'); }
+  btn.disabled = false; btn.textContent = '지금 백업';
 }
 /* 등록일: 시트에 컬럼이 있으면 그 값을 우선 사용하고, 없으면 로컬 저장값을 사용 */
 function getRegDate(sid) {
@@ -6671,6 +6952,7 @@ function initResizable() {
 let toastT;
 function showToast(msg,type='i'){
   if(_quietLoad && type !== 'e') return;
+  if(type === 's' && typeof _lastQueuedAt !== 'undefined' && Date.now() - _lastQueuedAt < 2500) { msg = '📦 이 기기에 보관됨 — 연결되면 자동으로 저장돼요'; type = 'w'; }
   const t=document.getElementById('toast');
   t.textContent=msg; t.className=`toast show ${type}`;
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3000);
