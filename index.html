@@ -728,6 +728,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
               <input type="date" class="fi fi-sm" id="att-date" onchange="rtDrafts.att={};renderAttList()" style="width:auto">
               <button class="btn btn-ghost btn-sm" onclick="loadAttHwFromSheets()">↻ 불러오기</button>
               <button class="btn btn-ghost btn-sm" onclick="obsWholeClass()">🏷 반 전체 태그</button>
+              <button class="btn btn-ghost btn-sm" onclick="openHwFeedback()">📨 숙제 피드백</button>
               <button class="btn btn-primary btn-sm" id="att-save-btn" onclick="saveAttendance()">💾 저장</button>
             </div>
           </div>
@@ -949,6 +950,14 @@ tr.changed td{background:rgba(79,156,249,.08)}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-hwfb">
+  <div class="modal wide">
+    <div class="modal-title">📨 숙제 피드백 <span id="hwfb-group" class="class-badge" style="vertical-align:middle"></span></div>
+    <div id="hwfb-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-hwfb')">닫기</button></div>
+  </div>
+</div>
+
 <!-- 학생 리포트 보기 -->
 <div class="modal-overlay" id="modal-report">
   <div class="modal wide" style="max-width:860px;width:100%">
@@ -1061,7 +1070,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.9.3';
+const APP_VERSION = '1.10.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -4801,13 +4810,17 @@ async function deleteInboxItem(id) {
    이번 설정 → 문구 확인(전원 공통) → 확인 완료 → 학생별 카톡 보내기/복사 → 보냄 표시
 ═══════════════════════════════════════════════════════ */
 const RT_TPL_DEFAULT = {
-  KG6: '[eMAX 어학원 - 단어 재시험 안내]\n안녕하세요 어머님!\n{이름}가 이번 WK {주차} 단어 시험을 아쉽게 통과하지 못해서 재시험 안내드립니다.\n\n▶장소 : {장소}\n▶시간 : {날짜} {시간} (수업 20분 전)\n▶소요시간 : 20분 정도\n▶내용 : 재시험 보고, 틀린 단어 위주로 간단하게 클리닉 진행합니다\n\n재시험 전에 WK {주차} 단어 한 번만 더 보고 오면 좋겠습니다.\n감사합니다!',
-  G5TFS: '[eMAX 어학원 - 단어 재시험 안내]\n안녕하세요 어머님!\n{이름}가 이번 WK {주차} 단어 시험을 아쉽게 통과하지 못해서 재시험 안내드립니다.\n아래 시간 중 편한 때 한 번 오시면 됩니다.\n\n▶장소 : {장소}\n▶날짜/시간\n - {날짜1}(목) 오후 3:30\n - {날짜2}(금) 오후 3:30\n - {날짜3}(토) 오전 9:30 또는 오후 4:10\n▶소요시간 : 20분 정도\n▶내용 : 재시험 보고, 틀린 단어 위주로 간단하게 클리닉 진행합니다\n\n재시험 전에 WK {주차} 단어 한 번만 더 보고 오면 좋겠습니다.\n감사합니다!',
+  KG6: '[eMAX 어학원 - 단어 재시험 안내]\n{이름} 어머님 안녕하세요!\n{이름}가 이번 WK {주차} 단어 시험을 아쉽게 통과하지 못해서 재시험 안내드립니다.\n\n▶장소 : {장소}\n▶시간 : {날짜} {시간} (수업 20분 전)\n▶소요시간 : 20분 정도\n▶내용 : 재시험 보고, 틀린 단어 위주로 간단하게 클리닉 진행합니다\n\n재시험 전에 WK {주차} 단어 한 번만 더 보고 오면 좋겠습니다.\n감사합니다!',
+  G5TFS: '[eMAX 어학원 - 단어 재시험 안내]\n{이름} 어머님 안녕하세요!\n{이름}가 이번 WK {주차} 단어 시험을 아쉽게 통과하지 못해서 재시험 안내드립니다.\n아래 시간 중 편한 때 한 번 오시면 됩니다.\n\n▶장소 : {장소}\n▶날짜/시간\n - {날짜1}(목) 오후 3:30\n - {날짜2}(금) 오후 3:30\n - {날짜3}(토) 오전 9:30 또는 오후 4:10\n▶소요시간 : 20분 정도\n▶내용 : 재시험 보고, 틀린 단어 위주로 간단하게 클리닉 진행합니다\n\n재시험 전에 WK {주차} 단어 한 번만 더 보고 오면 좋겠습니다.\n감사합니다!',
 };
 let appSettings = {};   // 앱설정 시트: id → 값 (문구, 단어 WK 번호 등)
 let sendLogRows = [];   // 발송기록 시트
 let rts = null;         // 지금 열린 발송 화면 상태
 
+// 예전에 저장한 문구의 인사 줄을 학생 이름 인사로 바꿈 ("안녕하세요 어머님!" / "어머님 안녕하세요!" → "{이름} 어머님 안녕하세요!")
+function nameGreeting(tpl) {
+  return String(tpl || '').replace(/^(\[[^\]\n]*\]\n)?(안녕하세요\s*어머님!?|어머님\s*안녕하세요!?)[ \t]*(?=\n|$)/, function(m, head){ return (head || '') + '{이름} 어머님 안녕하세요!'; });
+}
 // 부르는 이름: 성 빼고, 받침 있으면 '이' 붙임 → {이름}가 = 민준이가 / 서아가
 function callName(name) {
   let n = String(name||'').replace(/^\[[^\]]*\]\s*/, '').trim();
@@ -4875,7 +4888,7 @@ async function openRetestSender(week) {
 function setupRetestWeek(week) {
   rts.week = week; rts.confirmed = false; rts.names = {};
   rts.targets = retestTargets(week);
-  rts.tpl = appSettings['tpl|retest|' + currentClass] || RT_TPL_DEFAULT[currentClass];
+  rts.tpl = nameGreeting(appSettings['tpl|retest|' + currentClass] || RT_TPL_DEFAULT[currentClass]);
   rts.wk = appSettings['vocwk|' + currentClass + '|' + week] || guessVocWk(week);
   if(currentClass === 'KG6') {
     // 재시험 = 시험 다음 주 같은 반 수업 날, 수업 20분 전 (휴강이면 그다음 주)
@@ -5588,8 +5601,8 @@ async function deleteSched(id) {
 }
 
 /* ── 📝 월내문 (KG6) ── */
-const MNM_TPL_A = '어머님 안녕하세요!\n{월}월 월내문 클리닉 일정을 다시 한번 안내드립니다.\n■ 일시 : {날짜}({요일}) {시작}~{끝} ({시간})\n■ 내용 : 이번 시험 범위 문법 {영역 수}영역({문법 영역})과 독해 {지문 수}지문을 클리닉 문제집으로 정리합니다.\n클리닉 시간 안에 개념정리부터 문제풀이까지 마칠 수 있도록 구성했으니, 늦지 않게 참석할 수 있도록 지도 부탁드립니다.\n일정상 참여가 어려운 경우, 클리닉 자료를 문자로 보내드리겠습니다. 자료를 인쇄하여 다음 수업 전까지 끝까지 풀어 올 수 있도록 가정에서도 지도 부탁드립니다. 감사합니다^^';
-const MNM_TPL_B = '어머님 안녕하세요!\n이번 {월}월 월내문 클리닉 숙제 자료 보내드립니다.\n다음 내신영어 수업 전까지 전체를 풀고, 답지를 보고 채점까지 마쳐서 제출할 수 있도록 지도 부탁드립니다. 감사합니다^^';
+const MNM_TPL_A = '{이름} 어머님 안녕하세요!\n{월}월 월내문 클리닉 일정을 다시 한번 안내드립니다.\n■ 일시 : {날짜}({요일}) {시작}~{끝} ({시간})\n■ 내용 : 이번 시험 범위 문법 {영역 수}영역({문법 영역})과 독해 {지문 수}지문을 클리닉 문제집으로 정리합니다.\n클리닉 시간 안에 개념정리부터 문제풀이까지 마칠 수 있도록 구성했으니, 늦지 않게 참석할 수 있도록 지도 부탁드립니다.\n일정상 참여가 어려운 경우, 클리닉 자료를 문자로 보내드리겠습니다. 자료를 인쇄하여 다음 수업 전까지 끝까지 풀어 올 수 있도록 가정에서도 지도 부탁드립니다. 감사합니다^^';
+const MNM_TPL_B = '{이름} 어머님 안녕하세요!\n이번 {월}월 월내문 클리닉 숙제 자료 보내드립니다.\n다음 내신영어 수업 전까지 전체를 풀고, 답지를 보고 채점까지 마쳐서 제출할 수 있도록 지도 부탁드립니다. 감사합니다^^';
 function mnmList() {
   return Object.keys(appSettings).filter(function(k){ return k.indexOf('mnm|') === 0; }).map(function(k){
     try { const o = JSON.parse(appSettings[k]); o.id = k; o.sel = o.sel || {}; o.att = o.att || {}; o.sub = o.sub || {}; return o; } catch(e) { return null; }
@@ -5670,7 +5683,11 @@ async function openMnm(id) {
 function mnmSet(field, v) { mnm.o[field] = v; if(field === 'tplA') mnm.confA = false; if(field === 'tplB') mnm.confB = false; }
 function mnmSentId(o, kind, s) { return 'mnm|' + o.id.slice(4) + '|' + kind + '|' + s.cls + '|' + s.name; }
 function mnmIsSent(o, kind, s) { const id = mnmSentId(o, kind, s); return sendLogRows.some(function(r){ return r.id === id && r['상태'] === '보냄'; }); }
-function mnmMsg(kind) { return fillTpl(kind === 'A' ? (mnm.o.tplA || MNM_TPL_A) : (mnm.o.tplB || MNM_TPL_B), mnmVars(mnm.o)); }
+function mnmMsg(kind, sid) {
+  const st = sid ? mnmStu(sid) : null, v = mnmVars(mnm.o);
+  v['이름'] = st ? callName(st.name) : '{이름}';
+  return fillTpl(nameGreeting(kind === 'A' ? (mnm.o.tplA || MNM_TPL_A) : (mnm.o.tplB || MNM_TPL_B)), v);
+}
 function renderMnm() {
   const o = mnm.o, sc = mnmScores(o), withScore = sc.filter(function(x){ return x.score !== null; }).sort(function(a, b){ return a.score - b.score; });
   const cut = o.cut || 60, t = mnmTargets(o), share = rtsCanShare();
@@ -5709,7 +5726,7 @@ function renderMnm() {
   // ④ 안내 문자
   h += '<div class="rts-sec"><div class="rts-title">④ 클리닉 안내 (전날 밤) <span class="wk-sub" style="font-weight:400">— 고치면 대상 전원에게 똑같이</span></div>'
     + '<textarea class="fi rts-tpl" style="min-height:200px" oninput="mnmSet(\'tplA\',this.value);mnmPreview(\'A\')">' + escHtml(o.tplA || MNM_TPL_A) + '</textarea>'
-    + '<div class="rts-help">{월} {날짜} {요일} {시작} {끝} {시간} {영역 수} {문법 영역} {지문 수} — 위 회차 정보로 자동</div>'
+    + '<div class="rts-help">{이름} = 학생마다 부르는 이름(민준이·서아) · {월} {날짜} {요일} {시작} {끝} {시간} {영역 수} {문법 영역} {지문 수} — 위 회차 정보로 자동</div>'
     + '<pre class="comment-box rts-preview" id="mnm-prev-A"></pre>'
     + '<div class="rts-row"><button class="btn btn-ghost btn-sm" onclick="mnmSet(\'tplA\',\'\');renderMnm()">기본 문구로</button><button class="btn btn-primary btn-sm" onclick="mnmConfirm(\'A\')">' + (mnm.confA ? '✓ 확인됨' : '확인 완료') + '</button></div>'
     + mnmSendList('A', t, share) + '</div>';
@@ -5752,12 +5769,16 @@ function mnmSendList(kind, list, share) {
     const sent = mnmIsSent(mnm.o, kind, x.s);
     h += '<div class="rt-row' + (sent ? ' sent' : '') + '"><div class="rt-who"><span class="rt-name">' + escHtml(x.s.name) + '</span><span class="badge b-blue">' + escHtml(x.s.cls) + '</span></div><div class="rt-actions">'
       + (share ? '<button class="btn btn-primary btn-sm"' + dis + ' onclick="mnmShare(\'' + kind + '\',\'' + x.s.id + '\')">카톡 보내기</button>' : '')
-      + '<button class="btn btn-ghost btn-sm"' + dis + ' onclick="copyText(mnmMsg(\'' + kind + '\'),\'' + escHtml(x.s.name) + ' 문구 복사됨 — 카톡에 붙여넣고 [보냄 표시]\')">📋 복사</button>'
+      + '<button class="btn btn-ghost btn-sm"' + dis + ' onclick="copyText(mnmMsg(\'' + kind + '\',\'' + x.s.id + '\'),\'' + escHtml(x.s.name) + ' 문구 복사됨 — 카톡에 붙여넣고 [보냄 표시]\')">📋 복사</button>'
       + '<button class="btn btn-sm ' + (sent ? 'btn-green' : 'btn-ghost') + '"' + dis + ' onclick="mnmMark(\'' + kind + '\',\'' + x.s.id + '\',' + (!sent) + ')">' + (sent ? '✓ 보냄' : '보냄 표시') + '</button></div></div>';
   });
   return h + '</div>';
 }
-function mnmPreview(kind) { const el = document.getElementById('mnm-prev-' + kind); if(el) el.textContent = mnmMsg(kind); }
+function mnmPreview(kind) {
+  const el = document.getElementById('mnm-prev-' + kind); if(!el) return;
+  const t = mnmTargets(mnm.o), first = kind === 'B' ? t.filter(function(x){ return mnm.o.att[x.s.id] === 'X'; })[0] : t[0];
+  el.textContent = mnmMsg(kind, first ? first.s.id : null);
+}
 function mnmConfirm(kind) {
   if(kind === 'A' && (!mnm.o.clinic || !mnm.o.start || !mnm.o.end)) { showToast('클리닉 날짜·시간을 먼저 넣어주세요', 'e'); return; }
   if(kind === 'A') mnm.confA = true; else mnm.confB = true;
@@ -5769,8 +5790,8 @@ function mnmSub(sid, v) { mnm.o.sub[sid] = mnm.o.sub[sid] === v ? '' : v; render
 function mnmStu(sid) { return getStudents(null).find(function(s){ return s.id === sid; }); }
 async function mnmShare(kind, sid) {
   const s = mnmStu(sid); if(!s) return;
-  try { await navigator.share({text: mnmMsg(kind)}); await mnmMark(kind, sid, true); }
-  catch(e) { if(e && e.name === 'AbortError') return; copyText(mnmMsg(kind), '공유가 안 돼서 복사했어요 — 카톡에 붙여넣어 주세요'); }
+  try { await navigator.share({text: mnmMsg(kind, sid)}); await mnmMark(kind, sid, true); }
+  catch(e) { if(e && e.name === 'AbortError') return; copyText(mnmMsg(kind, sid), '공유가 안 돼서 복사했어요 — 카톡에 붙여넣어 주세요'); }
 }
 async function mnmMark(kind, sid, on) {
   const s = mnmStu(sid); if(!s) return;
@@ -6067,6 +6088,175 @@ async function saveReportImage() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
   } catch(e) { showToast('이미지 저장 실패 — 인쇄(PDF)로 저장해 주세요', 'e'); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   숙제 피드백 (두 트랙) — 그 주 숙제 기록으로 대상 자동 선정 → 문구 확인 → 학생별 카톡/복사 → 보냄 표시
+   미완성형: 미완성 항목이 있는 학생 / 완료형(선택): 필수 숙제를 다 해 온 학생
+═══════════════════════════════════════════════════════ */
+const HWFB_TPL_DEFAULT = {
+  G5TFS: {
+    miss: '[eMAX 어학원 - 숙제 안내]\n{이름} 어머님 안녕하세요!\n이번 주 {이름}의 숙제 중 아래 항목이 완성되지 않아 안내드립니다.\n\n▶ 미완성 숙제 : {숙제}\n\n다음 수업 전까지 완성해서 제출할 수 있도록 가정에서도 한 번 확인 부탁드립니다.\n감사합니다!^^',
+    done: '[eMAX 어학원 - 숙제 안내]\n{이름} 어머님 안녕하세요!\n이번 주 {이름}는 숙제를 모두 완성해 왔습니다.\n꾸준히 챙겨 주셔서 감사합니다!^^'
+  },
+  KG6: {
+    miss: '[eMAX어학원] {학생} 학생 보강 숙제/포인트  [미비/미흡/미제출 필수 숙제] - {숙제} 💰 현재 누적 포인트: {포인트}p',
+    done: '[eMAX어학원] {학생} 학생 보강 숙제/포인트  ▶ 필수 숙제 완료! (보강 성실도 우수) 💯 💰 현재 누적 포인트: {포인트}p'
+  }
+};
+// G5 숙제 항목 → 학부모가 알아보기 쉬운 이름
+const G5_HW_LABEL = {'VOC HW':'단어 숙제', 'Sci HW':'과학 숙제', 'Adv Reading HW':'독해 숙제(Advanced Reading)', 'TFL RCT Sum':'토플 리딩 요약',
+  'GR HW':'문법 숙제', 'GR Sum':'문법 정리', 'GR 오답노트':'문법 오답노트', 'Novel HW':'노블 숙제', 'Sci Teachback Script':'티치백 발표 준비', 'Grasp':'GraSP', 'Review+':'Review+ 복습지'};
+let hwfb = null;
+function hwItemKey(h) { return typeof h === 'string' ? h : h.key; }
+function hwItemLabel(h) { return typeof h === 'string' ? (G5_HW_LABEL[h] || h) : h.label; }
+function hwfbWeeks() {
+  const set = {};
+  getStudents(null).forEach(function(s){ Object.keys(homework[s.id]||{}).forEach(function(w){ if(/^\d{4}-W\d{2}$/.test(w)) set[w] = 1; }); });
+  return Object.keys(set).sort().reverse();
+}
+function hwfbTargets(week) {
+  const out = [];
+  getStudents(null).forEach(function(s){
+    const d = (homework[s.id]||{})[week];
+    if(!d || !Object.keys(d).length) return;            // 그 주 숙제 기록이 없으면 대상 아님
+    const items = getHwItems(s.cls, s.id);
+    const recorded = items.filter(function(h){ return d[hwItemKey(h)]; });
+    if(!recorded.length) return;
+    const miss = recorded.filter(function(h){ return !d[hwItemKey(h)].done; }).map(hwItemLabel);
+    out.push({s: s, miss: miss, kind: miss.length ? 'miss' : 'done'});
+  });
+  return out.sort(function(a, b){ return a.s.cls.localeCompare(b.s.cls) || a.s.name.localeCompare(b.s.name); });
+}
+async function openHwFeedback(week) {
+  document.getElementById('hwfb-group').textContent = cfg().label;
+  document.getElementById('hwfb-body').innerHTML = '<div class="wk-empty">불러오는 중...</div>';
+  document.getElementById('modal-hwfb').classList.add('open');
+  try {
+    const res = await Promise.all([loadTable('appSettings'), loadTable('sendLog')]);
+    appSettings = {}; res[0].forEach(function(r){ appSettings[r.id] = r['값']; });
+    sendLogRows = res[1];
+  } catch(e) { /* 기본값으로 진행 */ }
+  const weeks = hwfbWeeks();
+  if(!weeks.length) { document.getElementById('hwfb-body').innerHTML = '<div class="wk-empty">아직 숙제 기록이 없습니다. 출석/숙제 탭에서 숙제를 먼저 저장해 주세요.</div>'; return; }
+  const attDate = document.getElementById('att-date') && document.getElementById('att-date').value;
+  const want = week || (attDate ? dateToWeek(attDate) : '');
+  const T = HWFB_TPL_DEFAULT[currentClass] || HWFB_TPL_DEFAULT.G5TFS;
+  hwfb = {weeks: weeks, week: weeks.includes(want) ? want : weeks[0], cls: '', withDone: appSettings['hwfb|done|' + currentClass] === '1',
+    tpl: {miss: nameGreeting(appSettings['tpl|hwfb|miss|' + currentClass] || T.miss), done: nameGreeting(appSettings['tpl|hwfb|done|' + currentClass] || T.done)},
+    confirmed: false, names: {}};
+  renderHwFeedback();
+}
+function hwfbList() {
+  return hwfbTargets(hwfb.week).filter(function(t){ return (!hwfb.cls || t.s.cls === hwfb.cls) && (t.kind === 'miss' || hwfb.withDone); });
+}
+function hwfbSentId(t) { return 'hwfb|' + hwfb.week + '|' + t.s.cls + '|' + t.s.name; }
+function hwfbIsSent(t) { const id = hwfbSentId(t); return sendLogRows.some(function(r){ return r.id === id; }); }
+function hwfbMessage(t) {
+  return fillTpl(hwfb.tpl[t.kind], {'이름': hwfb.names[t.s.id] || callName(t.s.name), '학생': String(t.s.name).replace(/^\[[^\]]*\]\s*/, ''),
+    '숙제': t.miss.join(', '), '포인트': String(getCumulativeMdp(t.s.id) || 0), '주': weekRangeLabel(hwfb.week)});
+}
+function renderHwFeedback() {
+  const all = hwfbTargets(hwfb.week), list = hwfbList();
+  const nMiss = all.filter(function(t){ return t.kind === 'miss' && (!hwfb.cls || t.s.cls === hwfb.cls); }).length;
+  const nDone = all.filter(function(t){ return t.kind === 'done' && (!hwfb.cls || t.s.cls === hwfb.cls); }).length;
+  const classes = [...new Set(all.map(function(t){ return t.s.cls; }))].sort();
+  const wi = hwfb.weeks.indexOf(hwfb.week);
+  let h = '<div class="rts-sec"><div class="rts-row" style="flex-wrap:wrap">'
+    + '<button class="btn btn-ghost btn-sm"' + (wi < hwfb.weeks.length - 1 ? '' : ' disabled') + ' onclick="hwfbWeek(1)">◀</button>'
+    + '<b>' + escHtml(weekRangeLabel(hwfb.week)) + '</b>'
+    + '<button class="btn btn-ghost btn-sm"' + (wi > 0 ? '' : ' disabled') + ' onclick="hwfbWeek(-1)">▶</button>'
+    + '<span class="wk-sub" id="hwfb-count"></span></div>'
+    + '<div class="rt-pick" style="flex-wrap:wrap;gap:6px;margin-top:8px">'
+    + ['', ...classes].map(function(c){ return '<button type="button" class="stage' + (hwfb.cls === c ? ' on' : '') + '" onclick="hwfbCls(\'' + c + '\')">' + (c || '전체 반') + '</button>'; }).join('')
+    + '</div><div class="rts-help">그 주 숙제를 저장한 학생만 대상입니다. 미완성 ' + nMiss + '명 · 다 해 온 학생 ' + nDone + '명</div>'
+    + '<label class="rts-help" style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox"' + (hwfb.withDone ? ' checked' : '') + ' onchange="hwfbToggleDone(this.checked)"> 다 해 온 학생에게도 보내기 (완료 문구)</label></div>';
+  h += '<div class="rts-sec"><div class="rts-title">① 문구 확인 <span class="wk-sub" style="font-weight:400">— 고치면 대상 전원에게 똑같이 적용</span></div>'
+    + '<div class="wk-sub">미완성 학생용</div><textarea class="fi rts-tpl" oninput="hwfb.tpl.miss=this.value;hwfbChanged()">' + escHtml(hwfb.tpl.miss) + '</textarea>'
+    + (hwfb.withDone ? '<div class="wk-sub" style="margin-top:8px">다 해 온 학생용</div><textarea class="fi rts-tpl" style="min-height:90px" oninput="hwfb.tpl.done=this.value;hwfbChanged()">' + escHtml(hwfb.tpl.done) + '</textarea>' : '')
+    + '<div class="rts-help">{이름} 부르는 이름(민준이·서아) · {학생} 이름 전체 · {숙제} 미완성 항목 · {포인트} 누적 Market Day 포인트 · {주} 숙제 주</div>'
+    + '<div class="wk-sub" id="hwfb-prev-lbl"></div><pre class="comment-box rts-preview" id="hwfb-prev"></pre>'
+    + '<div class="rts-row"><button class="btn btn-ghost btn-sm" onclick="hwfbReset()">기본 문구로</button>'
+    + '<button class="btn btn-primary" id="hwfb-confirm" onclick="hwfbConfirm()">확인 완료</button></div></div>'
+    + '<div class="rts-sec"><div class="rts-title">② 학부모께 보내기</div><div id="hwfb-send" class="rts-list"></div></div>';
+  document.getElementById('hwfb-body').innerHTML = h;
+  hwfbRefresh();
+}
+function hwfbWeek(dir) { const i = hwfb.weeks.indexOf(hwfb.week) + dir; if(i < 0 || i >= hwfb.weeks.length) return; hwfb.week = hwfb.weeks[i]; hwfb.confirmed = false; renderHwFeedback(); }
+function hwfbCls(c) { hwfb.cls = c; renderHwFeedback(); }
+function hwfbToggleDone(on) {
+  hwfb.withDone = on; hwfb.confirmed = false;
+  const r = {id:'hwfb|done|' + currentClass, '반구분':currentClass, '값':on ? '1' : '0', '수정':nowStamp()};
+  appSettings[r.id] = r['값']; saveRecord('appSettings', r);
+  renderHwFeedback();
+}
+function hwfbChanged() { hwfb.confirmed = false; hwfbRefresh(); }
+function hwfbReset() { const T = HWFB_TPL_DEFAULT[currentClass] || HWFB_TPL_DEFAULT.G5TFS; hwfb.tpl = {miss: T.miss, done: T.done}; hwfb.confirmed = false; renderHwFeedback(); }
+function hwfbConfirm() {
+  const list = hwfbList(); if(!list.length) return;
+  const left = list.map(hwfbMessage).join('\n').match(/\{[^{}]+\}/g);
+  if(left) { showToast('문구에 알 수 없는 칸이 있어요: ' + [...new Set(left)].join(' '), 'e'); return; }
+  hwfb.confirmed = true;
+  ['miss', 'done'].forEach(function(k){
+    const r = {id:'tpl|hwfb|' + k + '|' + currentClass, '반구분':currentClass, '값':hwfb.tpl[k], '수정':nowStamp()};
+    appSettings[r.id] = r['값']; saveRecord('appSettings', r);
+  });
+  hwfbRefresh(); hwfbSyncReport(true);
+}
+function hwfbRefresh() {
+  const list = hwfbList(), sent = list.filter(hwfbIsSent).length;
+  const cnt = document.getElementById('hwfb-count'); if(cnt) cnt.textContent = '대상 ' + list.length + '명' + (list.length ? ' · 보냄 ' + sent + '/' + list.length : '');
+  const lbl = document.getElementById('hwfb-prev-lbl'), pv = document.getElementById('hwfb-prev');
+  if(!list.length) { if(lbl) lbl.textContent = ''; if(pv) pv.textContent = '이 주·반에는 보낼 대상이 없습니다 ✓'; document.getElementById('hwfb-send').innerHTML = ''; return; }
+  const first = list.find(function(t){ return t.kind === 'miss'; }) || list[0];
+  lbl.textContent = '미리보기 — ' + first.s.name; pv.textContent = hwfbMessage(first);
+  const cb = document.getElementById('hwfb-confirm');
+  cb.textContent = hwfb.confirmed ? '✓ 확인 완료됨' : '확인 완료'; cb.className = 'btn ' + (hwfb.confirmed ? 'btn-green' : 'btn-primary');
+  const dis = hwfb.confirmed ? '' : ' disabled', share = rtsCanShare();
+  document.getElementById('hwfb-send').innerHTML = (hwfb.confirmed ? '' : '<div class="rts-help" style="margin-top:0;color:var(--yellow)">① 문구를 확인하고 [확인 완료]를 누르면 보낼 수 있어요.</div>')
+    + list.map(function(t){
+      const s = hwfbIsSent(t), sid = t.s.id;
+      return '<div class="rt-row' + (s ? ' sent' : '') + '"><div class="rt-who"><span class="rt-name">' + escHtml(t.s.name) + '</span><span class="badge b-blue">' + escHtml(t.s.cls) + '</span>'
+        + (t.kind === 'miss' ? '<span class="rt-date" style="color:var(--red)">' + escHtml(t.miss.join(', ')) + '</span>' : '<span class="badge b-green">다 해 옴</span>') + '</div>'
+        + '<div class="rt-actions"><button class="btn btn-ghost btn-sm" title="문구에 들어갈 이름 고치기" onclick="hwfbEditName(\'' + sid + '\')">✏️ ' + escHtml(hwfb.names[sid] || callName(t.s.name)) + '</button>'
+        + (share ? '<button class="btn btn-primary btn-sm"' + dis + ' onclick="hwfbShare(\'' + sid + '\')">카톡 보내기</button>' : '')
+        + '<button class="btn btn-ghost btn-sm"' + dis + ' onclick="hwfbCopy(\'' + sid + '\')">📋 복사</button>'
+        + '<button class="btn btn-sm ' + (s ? 'btn-green' : 'btn-ghost') + '"' + dis + ' onclick="hwfbMark(\'' + sid + '\',' + (!s) + ')">' + (s ? '✓ 보냄' : '보냄 표시') + '</button></div></div>';
+    }).join('');
+}
+function hwfbFind(sid) { return hwfbList().find(function(t){ return t.s.id === sid; }); }
+function hwfbEditName(sid) {
+  const t = hwfbFind(sid); if(!t) return;
+  const v = prompt('문구에 들어갈 이름', hwfb.names[sid] || callName(t.s.name)); if(v === null) return;
+  hwfb.names[sid] = v.trim() || callName(t.s.name); hwfbRefresh();
+}
+function hwfbCopy(sid) { const t = hwfbFind(sid); if(t && hwfb.confirmed) copyText(hwfbMessage(t), t.s.name + ' 문구 복사됨 — 카톡에 붙여넣고 [보냄 표시]'); }
+async function hwfbShare(sid) {
+  const t = hwfbFind(sid); if(!t || !hwfb.confirmed) return;
+  try { await navigator.share({text: hwfbMessage(t)}); await hwfbMark(sid, true); }
+  catch(e) { if(e && e.name === 'AbortError') return; copyText(hwfbMessage(t), '공유가 안 돼서 복사했어요 — 카톡에 붙여넣어 주세요'); }
+}
+async function hwfbMark(sid, on) {
+  const t = hwfbFind(sid); if(!t || !hwfb.confirmed) return;
+  const id = hwfbSentId(t);
+  sendLogRows = sendLogRows.filter(function(r){ return r.id !== id; });
+  const rec = {id:id, '반구분':currentClass, '종류':'숙제 피드백', '시험주':hwfb.week, '반':t.s.cls, '이름':t.s.name, '상태':'보냄', '시각':nowStamp()};
+  if(on) sendLogRows.push(rec);
+  hwfbRefresh(); hwfbSyncReport(false);
+  if(on) await saveRecord('sendLog', rec); else await removeRecord('sendLog', id);
+}
+// 업무 현황의 '숙제 피드백' 항목 갱신
+function hwfbSyncReport(create) {
+  const id = 'hw|' + currentClass + '|' + hwfb.week;
+  const all = hwfbTargets(hwfb.week).filter(function(t){ return t.kind === 'miss' || hwfb.withDone; });
+  const n = all.length, sent = all.filter(hwfbIsSent).length, stage = n && sent >= n ? '발송 완료' : '확인';
+  let r = reportItems.find(function(x){ return x.id === id; });
+  if(!r) {
+    if(!create) return;
+    r = {id:id, '반구분':currentClass, '보고서':'숙제 피드백', '대상':weekRangeLabel(hwfb.week), '대상수':String(n), '단계':stage, '마감':'', '메모':'', '작성':nowStamp()};
+    reportItems.push(r); saveRecord('reports', r); return;
+  }
+  if(r['단계'] !== stage || String(r['대상수']) !== String(n)) { r['단계'] = stage; r['대상수'] = String(n); saveRecord('reports', {id:id, '단계':stage, '대상수':String(n)}); }
 }
 
 /* ── 확인 대기함: 선생님 확인이 필요한 것 (마감 빠른 순) ── */
