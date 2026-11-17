@@ -350,6 +350,23 @@ tr.changed td{background:rgba(79,156,249,.08)}
 .brief-sec h4{font-size:14px;margin-bottom:6px;display:flex;gap:6px;align-items:center}
 .brief-sec li{font-size:13px;line-height:1.6;margin-left:18px;color:var(--text)}
 .brief-sec .none{font-size:12px;color:var(--text3);margin-left:4px}
+.cw-help{font-size:12px;color:var(--text2);line-height:1.6;padding:10px 16px;background:rgba(79,156,249,.05);border-bottom:1px solid var(--border)}
+.cw-card{display:flex;flex-direction:column;gap:7px;padding:14px 16px;border-top:1px solid var(--border)}
+.cw-card:first-child{border-top:none}
+.cw-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cw-chip{font-size:11px;font-weight:700;color:var(--accent);background:rgba(79,156,249,.12);border-radius:999px;padding:2px 9px}
+.cw-title{font-size:14.5px;font-weight:700;line-height:1.45;color:var(--text)}
+.cw-what{font-size:12px;color:var(--text2);line-height:1.65}
+.cw-lbl{font-size:11px;font-weight:700;color:var(--text3);margin-top:2px}
+.cw-box{font-size:12.5px;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:130px;overflow-y:auto}
+.cw-note{font-size:12px;color:var(--accent);line-height:1.5}
+.cw-ask{font-size:13px;color:var(--yellow);background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:8px 10px;line-height:1.6}
+.cw-ask span{font-size:11.5px;color:var(--text2)}
+.cw-open{display:flex;flex-direction:column;gap:6px}
+.cw-file{display:flex;align-items:center;gap:6px;padding:9px 12px;border:1px solid var(--accent);border-radius:9px;background:rgba(79,156,249,.08);color:var(--accent);text-decoration:none;font-size:13px;font-weight:600;font-family:inherit;text-align:left;cursor:pointer;word-break:break-all}
+.cw-file.old{border-color:var(--border);background:transparent;color:var(--text3);font-weight:400;font-size:12px;padding:6px 12px}
+.cw-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.ib-auto{font-size:12px;color:var(--text3)}
 .cw-item{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--border)}
 .cw-item:first-child{border-top:none}
 .cw-t{flex:1;min-width:180px;font-size:13px;line-height:1.5}
@@ -750,10 +767,12 @@ tr.changed td{background:rgba(79,156,249,.08)}
        <div class="work-cols"><div class="work-col">
         <div class="card wk-o3">
           <div class="card-header"><div class="card-title">✅ 확인 대기함 <span class="wk-sub" id="cw-count" style="font-weight:400"></span></div><span class="wk-sub">마감 빠른 순</span></div>
+          <div class="cw-help">선생님이 보고 OK해야 다음으로 넘어가는 것들이에요. 항목마다 <b>내용을 열어 보고</b> ✓ 확인 완료(또는 ✏️ 고칠 점 보내기)를 누르면 목록에서 빠져요.</div>
           <div id="cw-list"></div>
         </div>
           <div class="card wk-o5">
             <div class="card-header"><div class="card-title">📥 전달함</div></div>
+            <div class="cw-help">메인 비서에게 보낸 일 목록이에요. <b>AI 비서 일은 상태가 저절로 바뀌어요</b> (접수 → 진행 중 → 확인 대기). 결과가 오면 ✅ 확인 대기함에 올라오니 거기서 확인하면 돼요. 선생님이 직접 할 일(개인·반 담당)만 상태 버튼을 눌러 관리해요.</div>
             <div class="card-body">
               <button class="btn btn-primary" style="width:100%;padding:12px" onclick="openCompose()">📥 메인 비서에게 전달 (글·음성·사진)</button>
               <div id="ib-list" style="margin-top:4px"></div>
@@ -1194,7 +1213,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.13.1';
+const APP_VERSION = '1.14.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -5062,9 +5081,11 @@ function renderInboxList() {
       + '</div><div class="ib-text">' + escHtml(r['내용']) + '</div>'
       + (r['메모'] ? '<div class="log-next">할 일: ' + escHtml(r['메모']) + '</div>' : '')
       + String(r['첨부']||'').split(/\s+/).filter(Boolean).map(function(u, i){ return '<a class="ib-att" href="' + escHtml(u) + '" target="_blank" rel="noopener">📎 첨부 ' + (i+1) + '</a>'; }).join('')
-      + aiStatusHtml(r)
+      + (isAiTask(r) && r['상태'] === '확인 대기' ? '<div class="ai-st">✅ 결과 도착 — 위 <b>확인 대기함</b>에서 열어 보고 확인해 주세요</div>' + aiResultLinks(r) : aiStatusHtml(r))
       + '<div class="wk-stages">'
-      + INBOX_STATES.map(function(st){ return '<button class="stage' + (st === (r['상태']||'접수') ? ' on' : '') + '" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'' + st + '\')">' + st + '</button>'; }).join('')
+      + (isAiTask(r)
+          ? '<span class="ib-auto">상태: <b>' + escHtml(r['상태'] || '접수') + '</b> (자동)</span>'
+          : INBOX_STATES.map(function(st){ return '<button class="stage' + (st === (r['상태']||'접수') ? ' on' : '') + '" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'' + st + '\')">' + st + '</button>'; }).join(''))
       + '<button class="btn btn-ghost btn-sm wk-del" onclick="deleteInboxItem(\'' + r.id + '\')">삭제</button>'
       + '</div></div>';
   };
@@ -6639,12 +6660,66 @@ function confirmWaitingItems() {
   }
   return out.sort(function(a,b){ return String(a.due||'9999').localeCompare(String(b.due||'9999')); });
 }
+// v1.14 확인 대기함: 항목마다 '무엇인지 · 내용 · 어떻게 확인하는지'를 한 칸에 보여 줌
+function cwShort(t, n) { t = String(t || '').trim(); return t.length > n ? t.slice(0, n) + '…' : t; }
+// AI 결과가 앱 안으로 바로 들어오는 일(주별 피드백·공통 안내·일정·리포트)은 앱 화면에서 봄
+function cwAppView(r) {
+  const t = [r['메모'], r['내용'], r['AI']].join(' ');
+  if(/공통\s*안내/.test(t)) return {label: '📢 공통 안내 보기 (주별 피드백 탭)', go: "goTab('message')"};
+  if(/주별\s*피드백/.test(t)) return {label: '💬 학생별 문안 보기 (주별 피드백 탭)', go: "goTab('message')"};
+  if(/일정\s*등록|숙제장|휴원/.test(t)) return {label: '📅 등록된 일정 보기', go: "goTab('work');setTimeout(function(){var e=document.getElementById('sched-card');if(e)e.scrollIntoView({behavior:'smooth',block:'start'})},60)"};
+  if(/리포트|분석/.test(t) && /학생|📊/.test(t)) return {label: '📁 학생별 리포트 보기 (리포트 탭)', go: "goTab('report')"};
+  return null;
+}
+function cwReportOpen(id) {
+  const m = String(id).match(/^(rt|hw)\|[^|]+\|(.+)$/);
+  if(m && m[1] === 'rt') return "openRetestSender('" + m[2] + "')";
+  if(m && m[1] === 'hw') return "openHwFeedback('" + m[2] + "')";
+  return "goTab('work');setTimeout(function(){var e=document.getElementById('rp-list');if(e)e.scrollIntoView({behavior:'smooth',block:'start'})},60)";
+}
 function cwItemHtml(x) {
   const due = x.due ? '<span class="wk-due" style="margin-left:0">마감 ' + mdLabel(x.due, true) + '</span>' : '';
-  if(x.kind === 'inbox') return '<div class="cw-item" data-iid="' + escHtml(x.id) + '" style="display:block"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="cw-t">' + escHtml(x.t) + '</div>' + due + '</div>' + aiStatusHtml(x.r) + '</div>';
-  const btn = x.kind === 'report' ? '<button class="btn btn-primary btn-sm" onclick="setReportStage(\'' + x.id + '\',\'확인\');aiRerender()">확인 완료</button>'
-    : '<button class="btn btn-primary btn-sm" onclick="openRetestSender(\'' + x.id + '\')">열기</button>';
-  return '<div class="cw-item"><div class="cw-t">' + escHtml(x.t) + '</div>' + due + btn + '</div>';
+  const head = function(chip, title){ return '<div class="cw-top"><span class="cw-chip">' + chip + '</span>' + due + '</div><div class="cw-title">' + escHtml(title) + '</div>'; };
+  if(x.kind === 'retest') {
+    const ts = retestTargets(x.id), names = ts.map(function(t){ return t.s.name; });
+    return '<div class="cw-card">' + head('📨 학부모 안내 문구', '단어 재시험 안내 — ' + weekRangeLabel(x.id))
+      + '<div class="cw-what">단어시험을 통과하지 못한 학생의 학부모님께 보낼 재시험 안내예요. [문구 보기]를 누르면 실제 문구와 날짜·시간이 보여요. 맞으면 <b>문구 확인</b>을 누른 뒤 학생별로 카톡을 보내요 (문구 확인을 누르면 여기서 빠져요).</div>'
+      + '<div class="cw-box">대상 ' + names.length + '명: ' + escHtml(names.slice(0, 10).join(', ')) + (names.length > 10 ? ' 외 ' + (names.length - 10) + '명' : '') + '</div>'
+      + '<div class="cw-acts"><button class="btn btn-primary btn-sm" onclick="openRetestSender(\'' + x.id + '\')">📨 문구 보기 · 보내기</button></div></div>';
+  }
+  if(x.kind === 'report') {
+    const r = reportItems.find(function(z){ return z.id === x.id; }) || {};
+    return '<div class="cw-card">' + head('📊 보고서·발송 현황', r['보고서'] + (r['대상'] ? ' · ' + r['대상'] : ''))
+      + '<div class="cw-what">보고서 현황에서 \'작성\' 단계에 올려 둔 일이에요. 열어서 다 만들어졌는지 보고, 됐으면 ✓ 확인 완료를 눌러 다음 단계(발송)로 넘겨요.</div>'
+      + (r['대상수'] || r['메모'] ? '<div class="cw-box">' + escHtml([r['대상수'] ? '대상 ' + r['대상수'] + '명' : '', r['메모'] || ''].filter(Boolean).join(' · ')) + '</div>' : '')
+      + '<div class="cw-acts"><button class="btn btn-ghost btn-sm" onclick="' + cwReportOpen(x.id) + '">열기</button><button class="btn btn-primary btn-sm" onclick="setReportStage(\'' + x.id + '\',\'확인\');aiRerender()">✓ 확인 완료</button></div></div>';
+  }
+  // 전달함 → 확인 대기 (AI 비서 결과물 또는 선생님이 '확인 대기'로 둔 일)
+  const r = x.r, ai = isAiTask(r), res = aiResults(r), view = cwAppView(r), note = String(r['AI'] || '');
+  const ask = /^❓/.test(note);
+  let h = '<div class="cw-card" data-iid="' + escHtml(x.id) + '">' + head(ai ? '🤖 AI 결과물 · ' + escHtml(r['담당']) + ' 비서' : '📥 전달함', r['메모'] || summarizeTask(r['내용']) || '(내용 없음)');
+  h += '<div class="cw-lbl">맡긴 일</div><div class="cw-box">' + escHtml(cwShort(r['내용'], 400)) + '</div>';
+  if(ask) h += '<div class="cw-ask">❓ 비서가 물어본 것: ' + escHtml(note.replace(/^❓\s*(질문)?\s*[:·—-]?\s*/, '')) + '<br><span>→ 아래 ✏️ 답하기에 답을 적어 보내면 이어서 만들어요</span></div>';
+  else if(ai && note) h += '<div class="cw-note">' + escHtml(note.replace('✅ 초안', '🤖 초안 도착')) + '</div>';
+  if(res.length || view) {
+    h += '<div class="cw-lbl">' + (view && !res.length ? '결과 보는 곳' : '결과물 — 눌러서 열어 보세요') + '</div><div class="cw-open">';
+    if(view) h += '<button class="cw-file" onclick="' + view.go + '">' + escHtml(view.label) + '</button>';
+    res.slice().reverse().forEach(function(z, i){
+      const t = String(z.t).replace(/^[📄📊📝🗂️\s]+/u, '');
+      // 앱 안에서 바로 보는 결과(주별 피드백 등)의 파일은 AI가 넘긴 원본 데이터 → 작게
+      h += '<a class="cw-file' + (i || view ? ' old' : '') + '" href="' + escHtml(z.u) + '" target="_blank" rel="noopener">📄 ' + escHtml(t) + (view ? ' (원본 파일)' : i ? ' (이전 버전)' : '') + '</a>';
+    });
+    h += '</div>';
+  }
+  h += '<div class="cw-what" style="margin-top:2px">' + (ask ? '답을 보내면 AI 비서가 이어서 만들어 다시 올려요.'
+      : ai ? '결과물을 열어 보고 괜찮으면 <b>✓ 확인 완료</b>, 고칠 게 있으면 <b>✏️ 고칠 점 보내기</b> (AI 비서가 바로 고쳐서 다시 올려요).'
+      : '내용을 보고 처리했으면 ✓ 확인 완료를 눌러요.') + '</div>';
+  const done = '<button class="btn ' + (ask ? 'btn-ghost' : 'btn-primary') + ' btn-sm" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'완료\');renderConfirmBox()">✓ 확인 완료</button>';
+  const fb = ai ? '<button class="btn ' + (ask ? 'btn-primary' : 'btn-ghost') + ' btn-sm" onclick="toggleAiFeedback(\'' + r.id + '\')">' + (ask ? '✏️ 답하기' : '✏️ 고칠 점 보내기') + '</button>' : '';
+  h += '<div class="cw-acts">' + (ask ? fb + done : done + fb) + '</div>';
+  if(ai && aiFbOpen === r.id) h += '<div class="ai-fb"><textarea class="fi" id="aifb-' + r.id + '" rows="3" placeholder="' + (ask ? '비서 질문에 대한 답을 적어 주세요' : '무엇을 고칠지 적어 주세요 (예: 3번 슬라이드 그림 크게, 퀴즈 5문제로)') + '"></textarea>'
+    + '<button class="btn btn-primary btn-sm" onclick="sendAiFeedback(\'' + r.id + '\')">보내기</button></div>';
+  return h + '</div>';
 }
 function renderConfirmBox() {
   const items = confirmWaitingItems();
