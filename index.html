@@ -367,6 +367,31 @@ tr.changed td{background:rgba(79,156,249,.08)}
 .cw-file.old{border-color:var(--border);background:transparent;color:var(--text3);font-weight:400;font-size:12px;padding:6px 12px}
 .cw-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
 .ib-auto{font-size:12px;color:var(--text3)}
+.cw-q{white-space:pre-wrap;margin:4px 0 2px;color:var(--text)}
+.cw-prev{position:relative;border:1px solid var(--border);border-radius:10px;background:#fff;height:300px;overflow:hidden;cursor:zoom-in}
+.cw-prev .aiv-frame.prev{height:300px;pointer-events:none}
+.cw-prev .aiv-text{max-height:300px;overflow:hidden;margin:0}
+.cw-prev .aiv-page{pointer-events:none}
+.cw-prev::after{content:'';position:absolute;left:0;right:0;bottom:0;height:46px;background:linear-gradient(rgba(255,255,255,0),#fff);pointer-events:none}
+.cw-prev .aiv-msg{color:#667}
+.modal.aiv-modal{width:min(980px,96vw);max-width:none;height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden}
+.aiv-head{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.aiv-title{font-size:15px;font-weight:700;line-height:1.4;word-break:break-word}
+.aiv-sub{font-size:12px;color:var(--text3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aiv-tabs{display:flex;gap:6px;overflow-x:auto;padding:8px 16px 0}
+.aiv-tabs:empty{display:none}
+.aiv-tabs .chip{white-space:nowrap;flex-shrink:0}.aiv-tabs .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.aiv-body{flex:1;min-height:0;overflow:auto;background:#fff;margin:10px 12px 0;border-radius:10px;-webkit-overflow-scrolling:touch}
+.aiv-frame{width:100%;height:100%;min-height:60vh;border:0;display:block;background:#fff}
+.aiv-page{display:block;width:100%;height:auto;margin:0 0 6px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.aiv-text{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:13.5px;line-height:1.7;color:#1d2433;padding:14px 16px;margin:0}
+.aiv-img{display:block;max-width:100%;margin:0 auto}
+.aiv-sheet{padding:10px 12px}.aiv-sheet-t{font-weight:700;color:#334;margin-bottom:6px}
+.aiv-sheet .tbl th,.aiv-sheet .tbl td{color:#1d2433;border-color:#dde}
+.aiv-msg{padding:28px 16px;text-align:center;color:#667;font-size:13px;line-height:1.8}
+.aiv-more{padding:10px;text-align:center;color:#667;font-size:12px}
+.aiv-foot{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+@media(max-width:640px){.modal.aiv-modal{width:100vw;height:100%;max-height:none;border-radius:0;margin:0}.aiv-body{margin:8px 6px 0}}
 .cw-item{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--border)}
 .cw-item:first-child{border-top:none}
 .cw-t{flex:1;min-width:180px;font-size:13px;line-height:1.5}
@@ -1099,6 +1124,14 @@ tr.changed td{background:rgba(79,156,249,.08)}
 </div>
 
 <!-- 학생 리포트 보기 -->
+<div class="modal-overlay" id="modal-aiview" onclick="if(event.target===this)closeModal('modal-aiview')">
+  <div class="modal aiv-modal">
+    <div class="aiv-head"><div style="min-width:0;flex:1"><div class="aiv-title" id="aiv-title">결과물</div><div class="aiv-sub" id="aiv-sub"></div></div><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-aiview')">닫기</button></div>
+    <div class="aiv-tabs" id="aiv-tabs"></div>
+    <div class="aiv-body" id="aiv-body"></div>
+    <div class="aiv-foot" id="aiv-foot"></div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-report">
   <div class="modal wide" style="max-width:860px;width:100%">
     <div class="modal-title">📊 <span id="rep-title">리포트</span></div>
@@ -1213,7 +1246,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.15.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -4969,10 +5002,151 @@ function aiResults(r) {
 }
 function aiResultLinks(r) {
   const res = aiResults(r); if(!res.length) return '';
-  return '<div class="ai-res">' + res.map(function(x, i){
-    const last = i === res.length - 1;
-    return '<a' + (last ? '' : ' class="old"') + ' href="' + escHtml(x.u) + '" target="_blank" rel="noopener">' + escHtml(x.t) + (last && res.length > 1 ? ' (최신)' : '') + '</a>';
+  return '<div class="ai-res">' + res.map(function(x, i){ return {x: x, i: i}; }).reverse().map(function(o, k){
+    return '<a' + (k ? ' class="old"' : '') + ' href="' + escHtml(o.x.u) + '" onclick="openAiView(\'' + r.id + '\',' + o.i + ');return false">👀 ' + escHtml(aiCleanTitle(o.x.t)) + '</a>';
   }).join('') + '</div>';
+}
+/* ── v1.15 AI 결과물·질문을 앱 안에서 바로 보기 (드라이브는 기록 보관용) ── */
+const aiFileCache = {};
+let aiv = null;
+function driveIdOf(u) { const m = String(u || '').match(/\/d\/([-\w]{20,})|[?&]id=([-\w]{20,})|^([-\w]{25,})$/); return m ? (m[1] || m[2] || m[3]) : ''; }
+function aiCleanTitle(t) { return String(t || '').replace(/^[📄📊📝🗂️\s]+/u, '').replace(/^\[[^\]]*\]\s*/, ''); }
+function aiIsQuestion(x) { return /질문/.test(x.t); }
+const aiFilePending = {};
+function aiFetchFile(id) {
+  if(aiFileCache[id]) return Promise.resolve(aiFileCache[id]);
+  if(aiFilePending[id]) return aiFilePending[id];
+  aiFilePending[id] = jsonpFetch(gasUrl + '?action=aiFile&id=' + encodeURIComponent(id), 120000).then(function(r){
+    delete aiFilePending[id];
+    if(!r || r.ok === false) throw new Error((r && r.error) || '불러오기 실패');
+    aiFileCache[id] = r; return r;
+  }, function(e){ delete aiFilePending[id]; throw e; });
+  return aiFilePending[id];
+}
+// 문서 HTML을 앱 화면 폭에 맞춰 보여 줌 (넓은 페이지는 줄여서)
+function aiFitHtml(html, isDoc) {
+  const inj = '<meta name="viewport" content="width=device-width,initial-scale=1"><style>html{-webkit-text-size-adjust:100%}img,svg{max-width:100%;height:auto}'
+    + (isDoc ? 'body{max-width:none!important;padding:14px 16px!important;margin:0!important;background:#fff}table{width:100%!important;max-width:100%!important}td,th{width:auto!important;word-break:break-word}' : '') + '</style>'
+    + '<script>(function(){function fit(){var d=document.documentElement;d.style.zoom="";var w=Math.max(d.scrollWidth,document.body?document.body.scrollWidth:0),v=window.innerWidth;if(w>v+4)d.style.zoom=(v/w).toFixed(3);}window.addEventListener("load",fit);setTimeout(fit,250);window.addEventListener("resize",fit);})();<\/script>';
+  return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, function(m){ return m + inj; }) : inj + html;
+}
+let _pdfjs = null;
+function loadPdfJs() {
+  if(_pdfjs) return _pdfjs;
+  _pdfjs = new Promise(function(res, rej) {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = function(){ window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(window.pdfjsLib); };
+    s.onerror = function(){ _pdfjs = null; rej(new Error('PDF 보기 도구를 불러오지 못했어요')); };
+    document.head.appendChild(s);
+  });
+  return _pdfjs;
+}
+function b64Bytes(b64) { const bin = atob(b64), u = new Uint8Array(bin.length); for(let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+async function aiRenderPdf(el, b64, maxPages) {
+  try {
+    const lib = await loadPdfJs();
+    const pdf = await lib.getDocument({data: b64Bytes(b64)}).promise;
+    const n = Math.min(pdf.numPages, maxPages || pdf.numPages);
+    el.innerHTML = '';
+    const W = Math.max(280, el.clientWidth - 4), dpr = Math.min(2, window.devicePixelRatio || 1);
+    for(let i = 1; i <= n; i++) {
+      const page = await pdf.getPage(i), vp0 = page.getViewport({scale: 1});
+      const vp = page.getViewport({scale: W / vp0.width * dpr});
+      const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height; c.className = 'aiv-page';
+      el.appendChild(c);
+      await page.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
+    }
+    if(pdf.numPages > n) el.insertAdjacentHTML('beforeend', '<div class="aiv-more">… ' + (pdf.numPages - n) + '쪽 더 있어요 — 눌러서 전체 보기</div>');
+  } catch(e) {
+    const url = URL.createObjectURL(new Blob([b64Bytes(b64)], {type: 'application/pdf'}));
+    el.innerHTML = '<div class="aiv-msg">PDF를 화면에 그리지 못했어요 (' + escHtml(e.message || '') + ')<br><a class="btn btn-primary btn-sm" href="' + url + '" target="_blank" rel="noopener">PDF 열기</a></div>';
+  }
+}
+function aiTextHtml(t) {
+  t = String(t || '');
+  try { if(/^\s*[\[{]/.test(t)) t = JSON.stringify(JSON.parse(t), null, 2); } catch(e) {}
+  return '<pre class="aiv-text">' + escHtml(t) + '</pre>';
+}
+function aiTableHtml(sheets) {
+  return (sheets || []).map(function(sh){
+    return '<div class="aiv-sheet"><div class="aiv-sheet-t">' + escHtml(sh.name) + '</div><div style="overflow:auto"><table class="tbl">'
+      + (sh.rows || []).map(function(r, i){ return '<tr>' + r.map(function(c){ return (i ? '<td>' : '<th>') + escHtml(c) + (i ? '</td>' : '</th>'); }).join('') + '</tr>'; }).join('') + '</table></div></div>';
+  }).join('');
+}
+// 받은 결과물을 el에 그림 (preview면 짧게)
+async function aiRenderInto(el, d, preview) {
+  const isDoc = /google-apps\.document/.test(d.mime || '');
+  if(d.kind === 'html') {
+    const fr = document.createElement('iframe');
+    fr.className = 'aiv-frame' + (preview ? ' prev' : '');
+    fr.setAttribute('sandbox', 'allow-scripts allow-popups allow-modals');
+    fr.srcdoc = aiFitHtml(d.html || '', isDoc);
+    el.innerHTML = ''; el.appendChild(fr);
+  } else if(d.kind === 'pdf') {
+    el.innerHTML = '<div class="aiv-msg">PDF 그리는 중…</div>';
+    await aiRenderPdf(el, d.b64, preview ? 1 : 0);
+  } else if(d.kind === 'text') {
+    el.innerHTML = aiTextHtml(preview ? String(d.text || '').slice(0, 1500) : d.text);
+  } else if(d.kind === 'image') {
+    el.innerHTML = '<img class="aiv-img" src="data:' + escHtml(d.mime || 'image/png') + ';base64,' + d.b64 + '" alt="">';
+  } else if(d.kind === 'table') {
+    el.innerHTML = aiTableHtml(d.sheets);
+  } else {
+    el.innerHTML = '<div class="aiv-msg">' + (d.kind === 'big' ? '파일이 커서 앱에서 바로 보여 주기 어려워요.' : '이 파일 형식은 앱에서 바로 보여 줄 수 없어요.')
+      + '<br><a class="btn btn-ghost btn-sm" href="' + escHtml(d.url || '') + '" target="_blank" rel="noopener">드라이브에서 열기</a></div>';
+  }
+}
+// 문서 HTML에서 글만 뽑기 (비서 질문 칸용)
+function aiPlainText(d) {
+  if(d.kind === 'text') return String(d.text || '');
+  if(d.kind !== 'html') return '';
+  const html = String(d.html || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|h[1-6]|tr|table|ul|ol)>/gi, '$&\n').replace(/<li[^>]*>/gi, '$&• ');
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('style,script,title').forEach(function(x){ x.remove(); });
+  return (doc.body ? doc.body.textContent : '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+// 결과물 보기 창
+function openAiView(iid, idx) {
+  const r = inboxItems.find(function(x){ return x.id === iid; }); if(!r) return;
+  const res = aiResults(r); if(!res.length) return;
+  aiv = {iid: iid, idx: idx == null ? res.length - 1 : idx};
+  document.getElementById('modal-aiview').classList.add('open');
+  aivRender();
+}
+function aivRender() {
+  const r = inboxItems.find(function(x){ return x.id === aiv.iid; }); if(!r) return;
+  const res = aiResults(r), cur = res[aiv.idx] || res[res.length - 1], fid = driveIdOf(cur.u);
+  document.getElementById('aiv-title').textContent = aiCleanTitle(cur.t) || '결과물';
+  document.getElementById('aiv-sub').textContent = (r['담당'] ? r['담당'] + ' 비서 · ' : '') + (r['메모'] || summarizeTask(r['내용']));
+  document.getElementById('aiv-tabs').innerHTML = res.length > 1 ? res.map(function(x, i){ return { x: x, i: i }; }).reverse().map(function(o){
+    return '<button class="chip' + (o.i === aiv.idx ? ' on' : '') + '" onclick="aiv.idx=' + o.i + ';aivRender()">' + escHtml(cwShort(aiCleanTitle(o.x.t), 34)) + '</button>';
+  }).join('') : '';
+  const wait = r['상태'] === '확인 대기', ai = isAiTask(r), ask = /^❓/.test(String(r['AI'] || ''));
+  document.getElementById('aiv-foot').innerHTML = '<a class="btn btn-ghost btn-sm" href="' + escHtml(cur.u) + '" target="_blank" rel="noopener" title="드라이브에 기록으로 보관된 원본">드라이브 원본</a><span style="flex:1"></span>'
+    + (wait && ai ? '<button class="btn btn-ghost btn-sm" onclick="closeModal(\'modal-aiview\');aiFbOpen=\'' + r.id + '\';aiRerender();setTimeout(function(){var t=document.getElementById(\'aifb-' + r.id + '\');if(t){t.scrollIntoView({block:\'center\'});t.focus();}},80)">' + (ask ? '✏️ 답하기' : '✏️ 고칠 점 보내기') + '</button>' : '')
+    + (wait ? '<button class="btn btn-primary btn-sm" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'완료\');renderConfirmBox();closeModal(\'modal-aiview\')">✓ 확인 완료</button>' : '');
+  const body = document.getElementById('aiv-body');
+  body.innerHTML = '<div class="aiv-msg">불러오는 중…</div>';
+  if(!fid) { body.innerHTML = '<div class="aiv-msg">파일 주소를 알 수 없어요</div>'; return; }
+  const my = aiv;
+  aiFetchFile(fid).then(function(d){ if(aiv === my) return aiRenderInto(body, d, false); })
+    .catch(function(e){ if(aiv !== my) return;
+      body.innerHTML = '<div class="aiv-msg">앱에서 열지 못했어요 (' + escHtml(/unknown action/.test(e.message) ? '서버 업데이트 전' : e.message) + ')<br><a class="btn btn-ghost btn-sm" href="' + escHtml(cur.u) + '" target="_blank" rel="noopener">드라이브에서 열기</a></div>'; });
+}
+// 확인 대기함 카드 안 미리보기·비서 질문 글을 채움 (렌더 뒤에 불러옴)
+function cwFillPreviews() {
+  let n = 0;
+  document.querySelectorAll('#cw-list [data-prev]').forEach(function(el){
+    if(n++ >= 4) return;
+    const fid = el.getAttribute('data-prev'), q = el.hasAttribute('data-q');
+    const run = function(d){
+      if(q) { const t = aiPlainText(d); el.innerHTML = t ? escHtml(cwShort(t, 900)) : '(질문 문서가 비어 있어요)'; return; }
+      return aiRenderInto(el, d, true);
+    };
+    if(aiFileCache[fid]) { run(aiFileCache[fid]); return; }
+    aiFetchFile(fid).then(run).catch(function(e){ el.innerHTML = '<div class="aiv-msg">' + (/unknown action/.test(e.message) ? '앱 미리보기는 서버 업데이트 뒤에 보여요' : '미리보기를 못 불러왔어요') + '</div>'; });
+  });
 }
 // AI 진행 상태 + 결과 링크 + (확인 대기면) 완료·수정 요청
 function aiStatusHtml(r) {
@@ -6699,20 +6873,22 @@ function cwItemHtml(x) {
   const ask = /^❓/.test(note);
   let h = '<div class="cw-card" data-iid="' + escHtml(x.id) + '">' + head(ai ? '🤖 AI 결과물 · ' + escHtml(r['담당']) + ' 비서' : '📥 전달함', r['메모'] || summarizeTask(r['내용']) || '(내용 없음)');
   h += '<div class="cw-lbl">맡긴 일</div><div class="cw-box">' + escHtml(cwShort(r['내용'], 400)) + '</div>';
-  if(ask) h += '<div class="cw-ask">❓ 비서가 물어본 것: ' + escHtml(note.replace(/^❓\s*(질문)?\s*[:·—-]?\s*/, '')) + '<br><span>→ 아래 ✏️ 답하기에 답을 적어 보내면 이어서 만들어요</span></div>';
-  else if(ai && note) h += '<div class="cw-note">' + escHtml(note.replace('✅ 초안', '🤖 초안 도착')) + '</div>';
-  if(res.length || view) {
-    h += '<div class="cw-lbl">' + (view && !res.length ? '결과 보는 곳' : '결과물 — 눌러서 열어 보세요') + '</div><div class="cw-open">';
-    if(view) h += '<button class="cw-file" onclick="' + view.go + '">' + escHtml(view.label) + '</button>';
-    res.slice().reverse().forEach(function(z, i){
-      const t = String(z.t).replace(/^[📄📊📝🗂️\s]+/u, '');
-      // 앱 안에서 바로 보는 결과(주별 피드백 등)의 파일은 AI가 넘긴 원본 데이터 → 작게
-      h += '<a class="cw-file' + (i || view ? ' old' : '') + '" href="' + escHtml(z.u) + '" target="_blank" rel="noopener">📄 ' + escHtml(t) + (view ? ' (원본 파일)' : i ? ' (이전 버전)' : '') + '</a>';
-    });
-    h += '</div>';
+  const qs = res.filter(aiIsQuestion), outs = res.filter(function(z){ return !aiIsQuestion(z); });
+  if(ask || qs.length) {
+    const qf = qs.length ? driveIdOf(qs[qs.length - 1].u) : '';
+    h += '<div class="cw-ask"><b>❓ 비서가 물어본 것</b><div class="cw-q"' + (qf ? ' data-prev="' + escHtml(qf) + '" data-q' : '') + '>' + escHtml(note.replace(/^❓\s*(질문)?\s*[:·—-]?\s*/, '') || '질문을 불러오는 중…') + '</div><span>→ ✏️ 답하기에 답을 적어 보내면 이어서 만들어요</span></div>';
+  } else if(ai && note) h += '<div class="cw-note">' + escHtml(note.replace('✅ 초안', '🤖 초안 도착')) + '</div>';
+  if(view) h += '<div class="cw-lbl">결과 보는 곳</div><div class="cw-open"><button class="cw-file" onclick="' + view.go + '">' + escHtml(view.label) + '</button></div>';
+  else if(outs.length) {
+    const last = outs[outs.length - 1], li = res.indexOf(last), lf = driveIdOf(last.u);
+    h += '<div class="cw-lbl">결과물 미리보기 — 누르면 크게 봐요</div>'
+      + '<div class="cw-prev" onclick="openAiView(\'' + r.id + '\',' + li + ')"' + (lf ? ' data-prev="' + escHtml(lf) + '"' : '') + '><div class="aiv-msg">불러오는 중…</div></div>'
+      + '<div class="cw-open">' + outs.map(function(z){ return z; }).reverse().map(function(z, k){
+          return '<button class="cw-file' + (k ? ' old' : '') + '" onclick="openAiView(\'' + r.id + '\',' + res.indexOf(z) + ')">👀 ' + escHtml(aiCleanTitle(z.t)) + ' 보기</button>';
+        }).join('') + '</div>';
   }
   h += '<div class="cw-what" style="margin-top:2px">' + (ask ? '답을 보내면 AI 비서가 이어서 만들어 다시 올려요.'
-      : ai ? '결과물을 열어 보고 괜찮으면 <b>✓ 확인 완료</b>, 고칠 게 있으면 <b>✏️ 고칠 점 보내기</b> (AI 비서가 바로 고쳐서 다시 올려요).'
+      : ai ? '결과물을 보고 괜찮으면 <b>✓ 확인 완료</b>, 고칠 게 있으면 <b>✏️ 고칠 점 보내기</b> (AI 비서가 바로 고쳐서 다시 올려요).'
       : '내용을 보고 처리했으면 ✓ 확인 완료를 눌러요.') + '</div>';
   const done = '<button class="btn ' + (ask ? 'btn-ghost' : 'btn-primary') + ' btn-sm" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'완료\');renderConfirmBox()">✓ 확인 완료</button>';
   const fb = ai ? '<button class="btn ' + (ask ? 'btn-primary' : 'btn-ghost') + ' btn-sm" onclick="toggleAiFeedback(\'' + r.id + '\')">' + (ask ? '✏️ 답하기' : '✏️ 고칠 점 보내기') + '</button>' : '';
@@ -6725,6 +6901,7 @@ function renderConfirmBox() {
   const items = confirmWaitingItems();
   document.getElementById('cw-count').textContent = items.length ? items.length + '건' : '';
   document.getElementById('cw-list').innerHTML = items.length ? items.map(cwItemHtml).join('') : '<div class="wk-empty" style="padding:12px 16px">확인할 것이 없습니다 ✓</div>';
+  cwFillPreviews();
 }
 
 /* ── 오늘의 브리핑 ── */
