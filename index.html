@@ -368,6 +368,42 @@ tr.changed td{background:rgba(79,156,249,.08)}
 .cw-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
 .ib-auto{font-size:12px;color:var(--text3)}
 .cw-q{white-space:pre-wrap;margin:4px 0 2px;color:var(--text)}
+.modal.ch-modal{width:min(720px,96vw);max-width:none;height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden}
+.ch-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.ch-title{font-size:15px;font-weight:700;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.ch-list{flex:1;min-height:0;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+.ch-row{display:flex;gap:8px;align-items:flex-end;max-width:100%}
+.ch-row.me{flex-direction:column;align-items:flex-end}
+.ch-av{width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;align-self:flex-start}
+.ch-bub{max-width:82%;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.6;word-break:break-word}
+.ch-bub.me{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.ch-bub.ai{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-top-left-radius:4px}
+.ch-time{font-size:10.5px;color:var(--text3);margin-top:2px}
+.ch-lbl{font-size:10.5px;font-weight:700;opacity:.75;margin-bottom:2px}
+.ch-att{display:block;color:#fff;text-decoration:underline;font-size:12px;margin-top:4px}
+.ch-res{max-width:82%;width:340px;background:var(--surface2);border:1px solid var(--accent);border-radius:14px;border-top-left-radius:4px;padding:9px 12px;cursor:pointer;font-size:13.5px;line-height:1.5}
+.ch-res b{display:block;margin-bottom:6px}
+.ch-prev{height:190px;overflow:hidden;background:#fff;border-radius:8px;position:relative}
+.ch-prev .aiv-frame.prev{height:190px;min-height:0;pointer-events:none}
+.ch-prev .aiv-page{pointer-events:none}.ch-prev .aiv-more{display:none}
+.ch-prev .aiv-text{font-size:12px;max-height:190px;overflow:hidden}
+.ch-open{display:block;margin-top:6px;font-size:12px;color:var(--accent);font-weight:700}
+.ch-dim{color:var(--text3);font-size:12.5px}
+.ch-choices{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ch-choice{border:1px solid var(--accent);background:rgba(79,156,249,.12);color:var(--accent);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
+.ch-choice:active{background:var(--accent);color:#fff}
+.ch-or{width:100%;font-size:11px;color:var(--text3)}
+.ch-typing{align-self:flex-start;display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);padding:6px 10px;background:var(--surface2);border-radius:12px}
+.ch-typing i{width:5px;height:5px;border-radius:50%;background:var(--accent);display:inline-block;animation:chdot 1.2s infinite}
+.ch-typing i:nth-child(2){animation-delay:.2s}.ch-typing i:nth-child(3){animation-delay:.4s;margin-right:4px}
+@keyframes chdot{0%,60%,100%{opacity:.25}30%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.ch-typing i{animation:none;opacity:.7}}
+.ch-sys{align-self:center;font-size:11.5px;color:var(--text3)}
+.ch-input{display:flex;gap:8px;align-items:flex-end;padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--border)}
+.ch-input textarea{flex:1;resize:none;min-height:40px;max-height:140px;font-size:15px;line-height:1.5}
+.cw-q .ch-choices{margin-top:8px}
+@media(max-width:640px){.modal.ch-modal{width:100vw;height:100%;max-height:none;border-radius:0;margin:0}.ch-bub,.ch-res{max-width:86%}}
 .cw-prev{position:relative;border:1px solid var(--border);border-radius:10px;background:#fff;height:300px;overflow:hidden;cursor:zoom-in}
 .cw-prev .aiv-frame.prev{height:300px;pointer-events:none}
 .cw-prev .aiv-text{max-height:300px;overflow:hidden;margin:0}
@@ -1124,6 +1160,13 @@ tr.changed td{background:rgba(79,156,249,.08)}
 </div>
 
 <!-- 학생 리포트 보기 -->
+ <div class="modal-overlay" id="modal-chat" onclick="if(event.target===this)closeModal('modal-chat')">
+  <div class="modal ch-modal">
+    <div class="ch-head"><div style="min-width:0;flex:1"><div class="ch-title" id="ch-title">대화</div><div class="ch-sub" id="ch-sub"></div></div><div id="ch-acts"></div><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-chat')">닫기</button></div>
+    <div class="ch-list" id="ch-list"></div>
+    <div class="ch-input"><textarea class="fi" id="ch-ta" rows="1" placeholder="비서에게 말하기 (고칠 점·답·추가 지시)" onkeydown="chatKey(event)" oninput="chatKey(event)"></textarea><button class="btn btn-primary" onclick="chatSendFromInput()">보내기</button></div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-aiview" onclick="if(event.target===this)closeModal('modal-aiview')">
   <div class="modal aiv-modal">
     <div class="aiv-head"><div style="min-width:0;flex:1"><div class="aiv-title" id="aiv-title">결과물</div><div class="aiv-sub" id="aiv-sub"></div></div><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-aiview')">닫기</button></div>
@@ -1246,7 +1289,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.15.0';
+const APP_VERSION = '1.16.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -5124,7 +5167,7 @@ function aivRender() {
   }).join('') : '';
   const wait = r['상태'] === '확인 대기', ai = isAiTask(r), ask = /^❓/.test(String(r['AI'] || ''));
   document.getElementById('aiv-foot').innerHTML = '<a class="btn btn-ghost btn-sm" href="' + escHtml(cur.u) + '" target="_blank" rel="noopener" title="드라이브에 기록으로 보관된 원본">드라이브 원본</a><span style="flex:1"></span>'
-    + (wait && ai ? '<button class="btn btn-ghost btn-sm" onclick="closeModal(\'modal-aiview\');aiFbOpen=\'' + r.id + '\';aiRerender();setTimeout(function(){var t=document.getElementById(\'aifb-' + r.id + '\');if(t){t.scrollIntoView({block:\'center\'});t.focus();}},80)">' + (ask ? '✏️ 답하기' : '✏️ 고칠 점 보내기') + '</button>' : '')
+    + (ai ? '<button class="btn btn-ghost btn-sm" onclick="openChat(\'' + r.id + '\')">💬 대화' + (ask ? '로 답하기' : '로 고칠 점 말하기') + '</button>' : '')
     + (wait ? '<button class="btn btn-primary btn-sm" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'완료\');renderConfirmBox();closeModal(\'modal-aiview\')">✓ 확인 완료</button>' : '');
   const body = document.getElementById('aiv-body');
   body.innerHTML = '<div class="aiv-msg">불러오는 중…</div>';
@@ -5148,6 +5191,145 @@ function cwFillPreviews() {
     aiFetchFile(fid).then(run).catch(function(e){ el.innerHTML = '<div class="aiv-msg">' + (/unknown action/.test(e.message) ? '앱 미리보기는 서버 업데이트 뒤에 보여요' : '미리보기를 못 불러왔어요') + '</div>'; });
   });
 }
+/* ── v1.16 AI 비서와 대화: 맡긴 일마다 대화방 (선생님 말은 '피드백' 칸에 대화 기록으로, 비서 말은 '[작업 id] 대화' 파일로) ── */
+const CHAT_RE = /^\[선생님 ([\d-]{2}\/[\d-]{2} [\d-]{2}:[\d-]{2}) · 결과 (\d+)개 뒤\] (.*)$/;
+let chatv = null, chatPollT = null;
+function isChatFile(x) { return /대화|질문/.test(String(x.t || '')); }
+function chatStamp() { const d = new Date(), p = function(n){ return String(n).padStart(2, '0'); }; return p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+function chatTeacherMsgs(r) {
+  const fb = String(r['피드백'] || '').trim(); if(!fb) return [];
+  const out = [];
+  fb.split('\n').forEach(function(l){
+    const m = l.match(CHAT_RE);
+    if(m) out.push({t: m[1].indexOf('-') >= 0 ? '' : m[1], at: +m[2], text: m[3].replace(/ ⏎ /g, '\n')});
+    else if(l.trim()) { if(out.length) out[out.length - 1].text += '\n' + l; else out.push({t: '', at: -1, text: l}); }
+  });
+  return out;
+}
+// 비서 메시지 본문 → 글 + 선택지 ('선택: A | B' 줄)
+function chatParseAi(text) {
+  const lines = String(text || '').replace(/\r/g, '').split('\n'); let choices = [];
+  for(let i = lines.length - 1; i >= 0; i--) {
+    const m = lines[i].match(/^\s*(?:▶\s*)?선택\s*[:：]\s*(.+)$/);
+    if(m) { choices = m[1].split(/\s*[|｜]\s*/).map(function(s){ return s.trim(); }).filter(Boolean); lines.splice(i, 1); break; }
+  }
+  return {text: lines.join('\n').trim(), choices: choices};
+}
+function chatAiFill(root) {
+  (root || document).querySelectorAll('[data-chat-fid]').forEach(function(el){
+    const fid = el.getAttribute('data-chat-fid'), iid = el.getAttribute('data-iid'), live = el.hasAttribute('data-live');
+    const put = function(d){
+      const p = chatParseAi(aiPlainText(d));
+      el.innerHTML = escHtml(p.text || '(빈 메시지)').replace(/\n/g, '<br>')
+        + (live && p.choices.length ? '<div class="ch-choices">' + p.choices.map(function(c){ return '<button class="ch-choice" onclick="chatSend(\'' + iid + '\',decodeURIComponent(\'' + encodeURIComponent(c) + '\'))">' + escHtml(c) + '</button>'; }).join('') + '<span class="ch-or">또는 아래에 직접 적어 보내요</span></div>' : '');
+      if(chatv) chatScrollEnd();
+    };
+    if(aiFileCache[fid]) { put(aiFileCache[fid]); return; }
+    aiFetchFile(fid).then(put).catch(function(e){
+      el.innerHTML = '<span class="ch-dim">' + (/unknown action/.test(e.message) ? '메시지 내용은 서버 업데이트 뒤에 앱에서 보여요' : '메시지를 못 불러왔어요') + '</span>';
+    });
+  });
+}
+function chatStatusHtml(r) {
+  const st = r['상태'] || '접수';
+  if(st === '수정 요청') return '<div class="ch-typing"><i></i><i></i><i></i> 비서가 읽고 이어서 하고 있어요 · 보통 1~2분</div>';
+  if(st === '진행 중') return '<div class="ch-typing"><i></i><i></i><i></i> 비서가 작업 중이에요</div>';
+  if(st === '접수') return '<div class="ch-typing"><i></i><i></i><i></i> 비서가 곧 시작해요</div>';
+  if(st === '완료') return '<div class="ch-sys">✓ 확인 완료된 일이에요 · 말을 보내면 다시 이어서 해요</div>';
+  return '';
+}
+function chatThreadHtml(r) {
+  const res = aiResults(r), tms = chatTeacherMsgs(r);
+  const me = function(text, t){ return '<div class="ch-row me"><div class="ch-bub me">' + escHtml(text).replace(/\n/g, '<br>') + '</div>' + (t ? '<div class="ch-time">' + escHtml(t) + '</div>' : '') + '</div>'; };
+  const att = String(r['첨부'] || '').split(/\s+/).filter(Boolean);
+  let h = '<div class="ch-row me"><div class="ch-bub me"><div class="ch-lbl">맡긴 일</div>' + escHtml(r['내용'] || '').replace(/\n/g, '<br>')
+    + att.map(function(u, i){ return '<a class="ch-att" href="' + escHtml(u) + '" target="_blank" rel="noopener">📎 첨부 ' + (i + 1) + '</a>'; }).join('') + '</div><div class="ch-time">' + escHtml(String(r['시각'] || '').slice(5, 16).replace('-', '/')) + '</div></div>';
+  const emit = function(k){ tms.filter(function(m){ return m.at === k; }).forEach(function(m){ h += me(m.text, m.t); }); };
+  tms.filter(function(m){ return m.at < 0; }).forEach(function(m){ h += me(m.text, m.t); });
+  emit(0);
+  const lastAiChat = (function(){ for(let i = res.length - 1; i >= 0; i--) if(isChatFile(res[i])) return i; return -1; })();
+  const answeredAfter = function(i){ return tms.some(function(m){ return m.at > i; }); };
+  res.forEach(function(x, i){
+    const fid = driveIdOf(x.u);
+    if(isChatFile(x)) {
+      const live = i === lastAiChat && !answeredAfter(i) && r['상태'] !== '수정 요청';
+      h += '<div class="ch-row ai"><div class="ch-av">🤖</div><div class="ch-bub ai"' + (fid ? ' data-chat-fid="' + escHtml(fid) + '" data-iid="' + escHtml(r.id) + '"' + (live ? ' data-live' : '') : '') + '><span class="ch-dim">불러오는 중…</span></div></div>';
+    } else {
+      h += '<div class="ch-row ai"><div class="ch-av">📄</div><div class="ch-res" onclick="openAiView(\'' + r.id + '\',' + i + ')"><div class="ch-lbl">결과물</div><b>' + escHtml(aiCleanTitle(x.t)) + '</b>'
+        + (fid ? '<div class="ch-prev" data-prev="' + escHtml(fid) + '"><span class="ch-dim">미리보기 불러오는 중…</span></div>' : '') + '<span class="ch-open">👀 크게 보기</span></div></div>';
+    }
+    emit(i + 1);
+  });
+  tms.filter(function(m){ return m.at > res.length; }).forEach(function(m){ h += me(m.text, m.t); });
+  return h + chatStatusHtml(r);
+}
+function chatPrevFill(root) {
+  root.querySelectorAll('.ch-prev[data-prev]').forEach(function(el){
+    const fid = el.getAttribute('data-prev');
+    const run = function(d){ return aiRenderInto(el, d, true); };
+    if(aiFileCache[fid]) { run(aiFileCache[fid]); return; }
+    aiFetchFile(fid).then(run).catch(function(e){ el.innerHTML = '<span class="ch-dim">' + (/unknown action/.test(e.message) ? '앱 미리보기는 서버 업데이트 뒤에 보여요' : '미리보기를 못 불러왔어요') + '</span>'; });
+  });
+}
+function chatScrollEnd() { const l = document.getElementById('ch-list'); if(l) l.scrollTop = l.scrollHeight; }
+function openChat(iid) {
+  const r = inboxItems.find(function(x){ return x.id === iid; }); if(!r) return;
+  closeModal('modal-aiview');
+  chatv = {iid: iid, sig: ''};
+  document.getElementById('modal-chat').classList.add('open');
+  chatRender(true);
+  chatPoll();
+}
+function chatSig(r) { return [r['상태'], r['결과'], r['피드백'], r['AI']].join('§'); }
+function chatRender(force) {
+  if(!chatv) return;
+  const r = inboxItems.find(function(x){ return x.id === chatv.iid; }); if(!r) return;
+  const sig = chatSig(r); if(!force && sig === chatv.sig) return; chatv.sig = sig;
+  document.getElementById('ch-title').textContent = r['메모'] || summarizeTask(r['내용']) || '대화';
+  document.getElementById('ch-sub').textContent = (r['담당'] || '') + ' 비서 · ' + (r['상태'] || '접수');
+  document.getElementById('ch-acts').innerHTML = r['상태'] === '확인 대기'
+    ? '<button class="btn btn-primary btn-sm" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'완료\');renderConfirmBox();chatRender(true)">✓ 확인 완료</button>' : '';
+  const list = document.getElementById('ch-list');
+  list.innerHTML = chatThreadHtml(r);
+  chatAiFill(list); chatPrevFill(list);
+  setTimeout(chatScrollEnd, 30);
+}
+async function chatSend(iid, text) {
+  text = String(text || '').trim(); if(!text) return;
+  const r = inboxItems.find(function(x){ return x.id === iid; }); if(!r) return;
+  const k = aiResults(r).length;
+  let fb = String(r['피드백'] || '').trim();
+  if(fb && !fb.split('\n').some(function(l){ return CHAT_RE.test(l); })) fb = '[선생님 --/-- --:-- · 결과 ' + k + '개 뒤] ' + fb.replace(/\n/g, ' ⏎ ');
+  r['피드백'] = (fb ? fb + '\n' : '') + '[선생님 ' + chatStamp() + ' · 결과 ' + k + '개 뒤] ' + text.replace(/\n/g, ' ⏎ ');
+  r['상태'] = '수정 요청';
+  const ta = document.getElementById('ch-ta'); if(ta && chatv && chatv.iid === iid) { ta.value = ''; ta.style.height = ''; }
+  aiRerender(); renderBriefCard(); chatRender(true);
+  await saveRecord('inbox', {id: iid, '상태': '수정 요청', '피드백': r['피드백']});
+  chatPoll();
+}
+function chatSendFromInput() { if(chatv) chatSend(chatv.iid, document.getElementById('ch-ta').value); }
+function chatKey(e) {
+  const ta = e.target; ta.style.height = ''; ta.style.height = Math.min(140, ta.scrollHeight) + 'px';
+  if(e.key === 'Enter' && !e.shiftKey && !e.isComposing && window.matchMedia('(min-width: 641px)').matches) { e.preventDefault(); chatSendFromInput(); }
+}
+// 대화창이 열려 있고 비서 답을 기다리는 동안 20초마다 새로 받아 봄 (서버가 결과물 폴더도 바로 확인)
+function chatPoll() {
+  clearTimeout(chatPollT);
+  if(!chatv || !document.getElementById('modal-chat').classList.contains('open')) return;
+  chatPollT = setTimeout(async function(){
+    if(!chatv) return;
+    const r = inboxItems.find(function(x){ return x.id === chatv.iid; });
+    if(r && ['수정 요청', '진행 중', '접수'].indexOf(r['상태']) >= 0) {
+      try { await jsonpFetch(gasUrl + '?action=aiCollect', 60000); } catch(e) {}
+      try {
+        const rows = await loadTable('inbox');
+        rows.forEach(function(n){ const i = inboxItems.findIndex(function(x){ return x.id === n.id; }); if(i >= 0) inboxItems[i] = n; });
+        aiRerender(); chatRender(false);
+      } catch(e) {}
+    }
+    chatPoll();
+  }, 20000);
+}
 // AI 진행 상태 + 결과 링크 + (확인 대기면) 완료·수정 요청
 function aiStatusHtml(r) {
   if(!isAiTask(r) && !r['결과']) return '';
@@ -5156,13 +5338,15 @@ function aiStatusHtml(r) {
   if(isAiTask(r)) {
     if(st === '접수') h += '<div class="ai-st wait">' + (aiInstant() ? '🤖 AI 비서가 곧 시작해요' : '🤖 AI 비서가 다음 근무 때 시작해요 (2시간마다 · 8~22시)') + '</div>';
     else if(st === '진행 중' && /^🤖/.test(ai)) h += '<div class="ai-st">' + escHtml(ai.replace('🤖 시작', '🤖 AI 비서 작업 중 — 시작')) + '</div>';
-    else if(st === '수정 요청') h += '<div class="ai-st fb">✏️ 수정 요청 보냄 — ' + (aiInstant() ? 'AI 비서가 바로 고쳐서' : '다음 근무 때 고쳐서') + ' 다시 올려요<br>「' + escHtml(r['피드백'] || '') + '」</div>';
+    else if(st === '수정 요청') { const tm = chatTeacherMsgs(r), last = tm.length ? tm[tm.length - 1].text : ''; h += '<div class="ai-st fb">💬 보낸 말 — ' + (aiInstant() ? 'AI 비서가 읽고 바로 이어서 해요' : '다음 근무 때 이어서 해요') + (last ? '<br>「' + escHtml(cwShort(last, 120)) + '」' : '') + '</div>'; }
     else if(st === '확인 대기' && /^[✅❓]/.test(ai)) h += '<div class="ai-st">' + escHtml(ai.replace('✅ 초안', '🤖 초안 도착').replace('❓ 질문', '❓ 비서 질문')) + '</div>';
   }
   h += aiResultLinks(r);
   if(st === '확인 대기' && (r['결과'] || isAiTask(r))) {
     h += '<div class="ai-acts"><button class="btn btn-primary btn-sm" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'완료\');renderConfirmBox()">✓ 완료</button>'
-      + (isAiTask(r) ? '<button class="btn btn-ghost btn-sm" onclick="toggleAiFeedback(\'' + r.id + '\')">✏️ 수정 요청</button>' : '') + '</div>';
+      + (isAiTask(r) ? '<button class="btn btn-ghost btn-sm" onclick="openChat(\'' + r.id + '\')">💬 대화</button>' : '') + '</div>';
+  } else if(isAiTask(r)) {
+    h += '<div class="ai-acts"><button class="btn btn-ghost btn-sm" onclick="openChat(\'' + r.id + '\')">💬 대화' + (chatTeacherMsgs(r).length ? ' (' + chatTeacherMsgs(r).length + ')' : '') + '</button></div>';
     if(aiFbOpen === r.id) h += '<div class="ai-fb"><textarea class="fi" id="aifb-' + r.id + '" rows="3" placeholder="무엇을 고칠지 적어주세요 (예: 3번 슬라이드 그림 크게, 퀴즈 5문제로)"></textarea>'
       + '<button class="btn btn-primary btn-sm" onclick="sendAiFeedback(\'' + r.id + '\')">수정 요청 보내기</button></div>';
   }
@@ -6873,10 +7057,14 @@ function cwItemHtml(x) {
   const ask = /^❓/.test(note);
   let h = '<div class="cw-card" data-iid="' + escHtml(x.id) + '">' + head(ai ? '🤖 AI 결과물 · ' + escHtml(r['담당']) + ' 비서' : '📥 전달함', r['메모'] || summarizeTask(r['내용']) || '(내용 없음)');
   h += '<div class="cw-lbl">맡긴 일</div><div class="cw-box">' + escHtml(cwShort(r['내용'], 400)) + '</div>';
-  const qs = res.filter(aiIsQuestion), outs = res.filter(function(z){ return !aiIsQuestion(z); });
-  if(ask || qs.length) {
-    const qf = qs.length ? driveIdOf(qs[qs.length - 1].u) : '';
-    h += '<div class="cw-ask"><b>❓ 비서가 물어본 것</b><div class="cw-q"' + (qf ? ' data-prev="' + escHtml(qf) + '" data-q' : '') + '>' + escHtml(note.replace(/^❓\s*(질문)?\s*[:·—-]?\s*/, '') || '질문을 불러오는 중…') + '</div><span>→ ✏️ 답하기에 답을 적어 보내면 이어서 만들어요</span></div>';
+  const qs = res.filter(isChatFile), outs = res.filter(function(z){ return !isChatFile(z); });
+  const lastQ = qs.length ? qs[qs.length - 1] : null, lastQi = lastQ ? res.indexOf(lastQ) : -1;
+  const answered = chatTeacherMsgs(r).some(function(m){ return m.at > lastQi; });
+  if(lastQ && !answered) {
+    const qf = driveIdOf(lastQ.u);
+    h += '<div class="cw-ask"><b>💬 비서가 한 말' + (aiIsQuestion(lastQ) || ask ? ' — 선생님 답이 필요해요' : '') + '</b><div class="cw-q"' + (qf ? ' data-chat-fid="' + escHtml(qf) + '" data-iid="' + escHtml(r.id) + '" data-live' : '') + '>' + escHtml(note.replace(/^❓\s*(질문)?\s*[:·—-]?\s*/, '') || '불러오는 중…') + '</div></div>';
+  } else if(ask) {
+    h += '<div class="cw-ask"><b>❓ 비서가 물어본 것</b><div class="cw-q">' + escHtml(note.replace(/^❓\s*(질문)?\s*[:·—-]?\s*/, '')) + '</div></div>';
   } else if(ai && note) h += '<div class="cw-note">' + escHtml(note.replace('✅ 초안', '🤖 초안 도착')) + '</div>';
   if(view) h += '<div class="cw-lbl">결과 보는 곳</div><div class="cw-open"><button class="cw-file" onclick="' + view.go + '">' + escHtml(view.label) + '</button></div>';
   else if(outs.length) {
@@ -6887,12 +7075,13 @@ function cwItemHtml(x) {
           return '<button class="cw-file' + (k ? ' old' : '') + '" onclick="openAiView(\'' + r.id + '\',' + res.indexOf(z) + ')">👀 ' + escHtml(aiCleanTitle(z.t)) + ' 보기</button>';
         }).join('') + '</div>';
   }
-  h += '<div class="cw-what" style="margin-top:2px">' + (ask ? '답을 보내면 AI 비서가 이어서 만들어 다시 올려요.'
-      : ai ? '결과물을 보고 괜찮으면 <b>✓ 확인 완료</b>, 고칠 게 있으면 <b>✏️ 고칠 점 보내기</b> (AI 비서가 바로 고쳐서 다시 올려요).'
+  const needAns = (lastQ && !answered) || ask;
+  h += '<div class="cw-what" style="margin-top:2px">' + (needAns ? '버튼으로 고르거나 <b>💬 대화</b>에서 답을 적어 보내면 비서가 이어서 만들어요.'
+      : ai ? '결과물을 보고 괜찮으면 <b>✓ 확인 완료</b>, 고칠 게 있으면 <b>💬 대화</b>에서 말해 주세요 (비서가 바로 고쳐서 다시 올려요).'
       : '내용을 보고 처리했으면 ✓ 확인 완료를 눌러요.') + '</div>';
-  const done = '<button class="btn ' + (ask ? 'btn-ghost' : 'btn-primary') + ' btn-sm" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'완료\');renderConfirmBox()">✓ 확인 완료</button>';
-  const fb = ai ? '<button class="btn ' + (ask ? 'btn-primary' : 'btn-ghost') + ' btn-sm" onclick="toggleAiFeedback(\'' + r.id + '\')">' + (ask ? '✏️ 답하기' : '✏️ 고칠 점 보내기') + '</button>' : '';
-  h += '<div class="cw-acts">' + (ask ? fb + done : done + fb) + '</div>';
+  const done = '<button class="btn ' + (needAns ? 'btn-ghost' : 'btn-primary') + ' btn-sm" onclick="setInboxField(\'' + r.id + '\',\'상태\',\'완료\');renderConfirmBox()">✓ 확인 완료</button>';
+  const fb = ai ? '<button class="btn ' + (needAns ? 'btn-primary' : 'btn-ghost') + ' btn-sm" onclick="openChat(\'' + r.id + '\')">💬 대화' + (needAns ? '로 답하기' : '') + '</button>' : '';
+  h += '<div class="cw-acts">' + (needAns ? fb + done : done + fb) + '</div>';
   if(ai && aiFbOpen === r.id) h += '<div class="ai-fb"><textarea class="fi" id="aifb-' + r.id + '" rows="3" placeholder="' + (ask ? '비서 질문에 대한 답을 적어 주세요' : '무엇을 고칠지 적어 주세요 (예: 3번 슬라이드 그림 크게, 퀴즈 5문제로)') + '"></textarea>'
     + '<button class="btn btn-primary btn-sm" onclick="sendAiFeedback(\'' + r.id + '\')">보내기</button></div>';
   return h + '</div>';
@@ -6902,6 +7091,8 @@ function renderConfirmBox() {
   document.getElementById('cw-count').textContent = items.length ? items.length + '건' : '';
   document.getElementById('cw-list').innerHTML = items.length ? items.map(cwItemHtml).join('') : '<div class="wk-empty" style="padding:12px 16px">확인할 것이 없습니다 ✓</div>';
   cwFillPreviews();
+  chatAiFill(document.getElementById('cw-list'));
+  if(chatv) chatRender(false);
 }
 
 /* ── 오늘의 브리핑 ── */
@@ -7296,11 +7487,13 @@ if('serviceWorker' in navigator && location.protocol === 'https:') navigator.ser
 /* ═══════════════════════════════════════════════════════
    UTILS
 ═══════════════════════════════════════════════════════ */
+function chatClosed() { chatv = null; clearTimeout(chatPollT); }
 function closeModal(id) {
   const el = document.getElementById(id); if(!el) return;
   const was = el.classList.contains('open');
   el.classList.remove('open');
   if(was && ['modal-retest-send','modal-hwfb','modal-mnm','modal-report','modal-weekly'].includes(id)) { try { renderDashSend(); } catch(e) {} }
+  if(id === 'modal-chat') chatClosed();
 }
 function openSettings() {
   document.getElementById('gas-url-input').value = gasUrl;
