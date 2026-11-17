@@ -1289,7 +1289,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.16.3';
+const APP_VERSION = '1.16.4';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -5163,7 +5163,9 @@ function aivRender() {
   const res = aiResults(r), cur = res[aiv.idx] || res[res.length - 1], fid = driveIdOf(cur.u);
   document.getElementById('aiv-title').textContent = aiCleanTitle(cur.t) || '결과물';
   document.getElementById('aiv-sub').textContent = (r['담당'] ? r['담당'] + ' 비서 · ' : '') + (r['메모'] || summarizeTask(r['내용']));
-  document.getElementById('aiv-tabs').innerHTML = res.length > 1 ? res.map(function(x, i){ return { x: x, i: i }; }).reverse().map(function(o){
+  // 위 탭: 결과물을 볼 때는 결과물 버전만, 비서 말을 볼 때는 비서 말만 (학생별 폴더는 빼고)
+  const kindChat = isChatFile(cur), tabs = res.map(function(x, i){ return { x: x, i: i }; }).filter(function(o){ return isChatFile(o.x) === kindChat && !isFolderRes(o.x); });
+  document.getElementById('aiv-tabs').innerHTML = tabs.length > 1 ? tabs.reverse().map(function(o){
     return '<button class="chip' + (o.i === aiv.idx ? ' on' : '') + '" onclick="aiv.idx=' + o.i + ';aivRender()">' + escHtml(cwShort(aiCleanTitle(o.x.t), 34)) + '</button>';
   }).join('') : '';
   const wait = r['상태'] === '확인 대기', ai = isAiTask(r), ask = /^❓/.test(String(r['AI'] || ''));
