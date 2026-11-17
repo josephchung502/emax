@@ -1418,7 +1418,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.17.1';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -8188,7 +8188,7 @@ function renderGradeReview() {
   let h = '<div class="grv-sum"><b>' + named.length + '명</b> 채점 · 평균 <b>' + avg + '점</b> · ' + (check ? '<span class="grv-flag">확인할 칸 ' + check + '</span>' : '확인할 칸 없음 ✓') + '</div>'
     + '<div class="grv-legend"><span class="gi-dot"></span>노란 칸 = AI가 확신하지 못한 답 · 칸을 누르면 ✓/✗가 바뀌어요</div>';
   unk.forEach(function(g){
-    h += '<div class="grv-card unk' + (gv.sel === g.owner ? ' on' : '') + '"><div><b>🔎 이름을 못 찾은 쪽</b> — ' + (g.name ? '“' + escHtml(g.name) + '”' : '이름 없음') + ' · ' + g.pages.map(function(i){ return i + 1; }).join(', ') + '쪽</div>'
+    h += '<div class="grv-card unk' + (gv.sel === g.owner ? ' on' : '') + '"><div><b>🔎 이름을 못 찾은 쪽</b> — ' + (g.name ? '“' + escHtml(g.name) + '”' : '이름 없음') + ' · ' + g.pages.map(function(i){ return i + 1; }).join(', ') + '쪽 · <b>' + g.score + '점</b> <span class="gr-dim">(' + g.right + '/' + g.total + (g.unsure ? ' · 확인 ' + g.unsure : '') + ')</span></div>'
       + '<div class="gr-dim">누구 숙제인지 고르면 그 학생 점수로 들어가요' + (g.name ? ' — 다음부터 “' + escHtml(g.name) + '”은 이 학생으로 알아봐요' : '') + '</div>'
       + '<div class="grv-unk-acts"><select class="fi fi-sm" onchange="gradeRvAssignGroup(decodeURIComponent(\'' + gradeRvEnc(g.owner) + '\'),this.value)">' + gradeRvOwnerOptions('') + '</select>'
       + '<button class="btn btn-ghost btn-sm" onclick="gradeRvSel(decodeURIComponent(\'' + gradeRvEnc(g.owner) + '\'))">쪽 보기</button></div>'
