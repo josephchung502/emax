@@ -1289,7 +1289,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.16.1';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -5046,14 +5046,15 @@ function aiResults(r) {
 function aiResultLinks(r) {
   const res = aiResults(r); if(!res.length) return '';
   return '<div class="ai-res">' + res.map(function(x, i){ return {x: x, i: i}; }).reverse().map(function(o, k){
-    return '<a' + (k ? ' class="old"' : '') + ' href="' + escHtml(o.x.u) + '" onclick="openAiView(\'' + r.id + '\',' + o.i + ');return false">👀 ' + escHtml(aiCleanTitle(o.x.t)) + '</a>';
+    return '<a' + (k ? ' class="old"' : '') + ' href="' + escHtml(o.x.u) + '" onclick="' + (isFolderRes(o.x) ? 'goTab(\'report\')' : 'openAiView(\'' + r.id + '\',' + o.i + ')') + ';return false">' + (isFolderRes(o.x) ? '📁 ' : '👀 ') + escHtml(aiCleanTitle(o.x.t)) + '</a>';
   }).join('') + '</div>';
 }
 /* ── v1.15 AI 결과물·질문을 앱 안에서 바로 보기 (드라이브는 기록 보관용) ── */
 const aiFileCache = {};
 let aiv = null;
 function driveIdOf(u) { const m = String(u || '').match(/\/d\/([-\w]{20,})|[?&]id=([-\w]{20,})|^([-\w]{25,})$/); return m ? (m[1] || m[2] || m[3]) : ''; }
-function aiCleanTitle(t) { return String(t || '').replace(/^[📄📊📝🗂️\s]+/u, '').replace(/^\[[^\]]*\]\s*/, ''); }
+function aiCleanTitle(t) { return String(t || '').replace(/^[📄📊📝🗂️❓💬📁\s]+/u, '').replace(/^\[[^\]]*\]\s*/, '').replace(/^대화\s*[—–-]\s*/, ''); }
+function isFolderRes(x) { return /^📁/.test(String(x.t || '')) || /\/folders\//.test(String(x.u || '')); }
 function aiIsQuestion(x) { return /질문/.test(x.t); }
 const aiFilePending = {};
 function aiFetchFile(id) {
@@ -5254,6 +5255,8 @@ function chatThreadHtml(r) {
     if(isChatFile(x)) {
       const live = i === lastAiChat && !answeredAfter(i) && r['상태'] !== '수정 요청';
       h += '<div class="ch-row ai"><div class="ch-av">🤖</div><div class="ch-bub ai"' + (fid ? ' data-chat-fid="' + escHtml(fid) + '" data-iid="' + escHtml(r.id) + '"' + (live ? ' data-live' : '') : '') + '><span class="ch-dim">불러오는 중…</span></div></div>';
+    } else if(isFolderRes(x)) {
+      h += '<div class="ch-row ai"><div class="ch-av">📁</div><div class="ch-res" onclick="closeModal(\'modal-chat\');goTab(\'report\')"><div class="ch-lbl">결과물</div><b>' + escHtml(aiCleanTitle(x.t)) + '</b><span class="ch-open">📁 리포트 탭에서 학생별로 보기</span></div></div>';
     } else {
       h += '<div class="ch-row ai"><div class="ch-av">📄</div><div class="ch-res" onclick="openAiView(\'' + r.id + '\',' + i + ')"><div class="ch-lbl">결과물</div><b>' + escHtml(aiCleanTitle(x.t)) + '</b>'
         + (fid ? '<div class="ch-prev" data-prev="' + escHtml(fid) + '"><span class="ch-dim">미리보기 불러오는 중…</span></div>' : '') + '<span class="ch-open">👀 크게 보기</span></div></div>';
@@ -7057,7 +7060,7 @@ function cwItemHtml(x) {
   const ask = /^❓/.test(note);
   let h = '<div class="cw-card" data-iid="' + escHtml(x.id) + '">' + head(ai ? '🤖 AI 결과물 · ' + escHtml(r['담당']) + ' 비서' : '📥 전달함', r['메모'] || summarizeTask(r['내용']) || '(내용 없음)');
   h += '<div class="cw-lbl">맡긴 일</div><div class="cw-box">' + escHtml(cwShort(r['내용'], 400)) + '</div>';
-  const qs = res.filter(isChatFile), outs = res.filter(function(z){ return !isChatFile(z); });
+  const qs = res.filter(isChatFile), outs = res.filter(function(z){ return !isChatFile(z) && !isFolderRes(z); });
   const lastQ = qs.length ? qs[qs.length - 1] : null, lastQi = lastQ ? res.indexOf(lastQ) : -1;
   const answered = chatTeacherMsgs(r).some(function(m){ return m.at > lastQi; });
   if(lastQ && !answered) {
@@ -7209,7 +7212,7 @@ async function routeNav(url, t, atLoad) {
   if(tab === 'work' || tab === 'org') {
     goTab(tab);
     if(!atLoad) { try { await loadWorkTables(); } catch(e) { /* 보이던 것으로 */ } }
-    if(tab === 'work') setTimeout(function(){ focusWorkItem(q.get('task')); }, 120);
+    if(tab === 'work') setTimeout(function(){ if(q.get('chat') === '1' && q.get('task')) openChat(q.get('task')); else focusWorkItem(q.get('task')); }, 120);
   } else if(q.get('brief') === '1') {
     goTab('dashboard');
     if(!atLoad) { try { await loadWorkTables(); } catch(e) { /* 보이던 것으로 */ } }
