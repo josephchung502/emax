@@ -437,6 +437,101 @@ tr.changed td{background:rgba(79,156,249,.08)}
 .jr-btn{width:36px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer}
 .stage.on.pass{background:rgba(52,211,153,.15);border-color:var(--green);color:var(--green)}
 .stage.on.fail{background:rgba(248,113,113,.15);border-color:var(--red);color:var(--red)}
+/* v1.17 채점 비서 */
+.gr-modal{width:min(620px,96vw)}
+.gr-lbl{font-size:12px;font-weight:700;color:var(--text2);margin:14px 0 6px;display:flex;align-items:center;gap:8px}
+#gr-body>.gr-lbl:first-child{margin-top:0}
+.gr-link{font-weight:500;font-size:12px;color:var(--accent);text-decoration:none;margin-left:auto}
+.gr-chips{display:flex;flex-wrap:wrap;gap:6px}
+.gr-chips.sm{margin-top:6px}
+.gr-chip{border:1px solid var(--border);background:var(--surface2);color:var(--text2);border-radius:999px;padding:6px 12px;font-size:13px;font-family:inherit;cursor:pointer;min-height:34px}
+.gr-chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.gr-chip span{font-weight:400;opacity:.85;font-size:11.5px}
+.gr-chips.sm .gr-chip{padding:3px 10px;font-size:12px;min-height:28px}
+.gr-date{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.gr-date .fi{width:auto}
+.gr-dim{font-size:12px;color:var(--text3);line-height:1.6}
+.gr-bad{font-size:12px;color:var(--red);line-height:1.5}
+.gr-ok{font-size:13px;color:var(--green);font-weight:600}
+.gr-warn{font-size:13px;line-height:1.6;color:var(--yellow);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:9px 12px;margin-bottom:10px}
+.gr-warn a{color:var(--yellow);font-weight:700}
+.gr-dest{font-size:12.5px;color:var(--text2);margin-top:8px;line-height:1.6}
+.gr-key{font-size:13px;margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gr-key.ok{color:var(--green);font-weight:600}.gr-key.none{color:var(--text3)}
+.gr-drop{display:flex;flex-direction:column;align-items:center;gap:4px;border:1.5px dashed var(--accent);border-radius:12px;padding:16px 12px;color:var(--accent);font-weight:700;font-size:14px;cursor:pointer;text-align:center;background:rgba(79,156,249,.05)}
+.gr-drop span{font-weight:400;font-size:12px;color:var(--text3)}
+.gr-drop.sm{padding:10px;font-size:13px;margin-bottom:8px}
+.gr-files{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.gr-hint{font-size:12px;color:var(--text3);line-height:1.6;margin-top:8px}
+.gr-est{font-size:13px;margin-top:10px;color:var(--text2)}
+.gr-prog{font-size:13px;color:var(--accent);margin-top:8px;line-height:1.5}
+.gr-prog:empty{display:none}
+#grade-strip{border-bottom:1px solid var(--border);flex-shrink:0;max-height:40vh;overflow-y:auto}
+.gj-head{font-size:11px;font-weight:700;color:var(--text3);padding:8px 14px 2px}
+.gj-row{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-top:1px solid var(--border)}
+.gj-head+.gj-row{border-top:none}
+.gj-row.wait{background:rgba(251,191,36,.06)}
+.gj-row.err{background:rgba(248,113,113,.06)}
+.gj-ic{font-size:15px;flex-shrink:0}
+.gj-main{flex:1;min-width:0}
+.gj-t{font-size:13px;font-weight:600;line-height:1.4}
+.gj-d{font-weight:400;color:var(--text3);font-size:12px}
+.gj-s{font-size:12px;color:var(--text3);line-height:1.5}
+.gj-acts{display:flex;gap:6px;flex-shrink:0}
+.gs-sec{margin-bottom:16px}
+.gs-h{font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.gs-acts{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.gs-how{margin-top:10px;font-size:13px;line-height:1.7}
+.gs-how summary{cursor:pointer;color:var(--accent);font-weight:600}
+.gs-how ol{padding-left:20px;margin:8px 0}
+.gs-how code,#modal-grade-key code{background:var(--surface2);padding:1px 6px;border-radius:5px;font-size:12px}
+.gs-type{border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px}
+.gs-row{display:flex;gap:8px;align-items:center}
+.gs-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gs-row2 label{font-size:11px;color:var(--text3);display:flex;flex-direction:column;gap:4px}
+.modal.grv-modal{width:min(1100px,96vw);max-width:none;height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden}
+.grv-head{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.grv-title{font-size:15px;font-weight:700;line-height:1.4}
+.grv-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.grv-body{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;-webkit-overflow-scrolling:touch}
+.grv-foot{display:flex;gap:8px;align-items:center;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--border)}
+.grv-sum{font-size:14px;margin-bottom:4px}
+.grv-flag{color:var(--yellow);font-weight:700}
+.grv-legend{font-size:12px;color:var(--text3);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.gi-dot{width:12px;height:12px;border-radius:3px;background:rgba(251,191,36,.35);border:1px solid var(--yellow);display:inline-block;flex-shrink:0}
+.grv-card{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:1.6}
+.grv-card.unk{border-color:rgba(251,191,36,.6);background:rgba(251,191,36,.06)}
+.grv-card.warn{border-color:rgba(248,113,113,.5);background:rgba(248,113,113,.06)}
+.grv-unk-acts{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}.grv-unk-acts .fi{width:auto;min-width:150px}
+.grv-st{display:flex;align-items:center;gap:8px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer}
+.grv-st.on{border-color:var(--accent);background:rgba(79,156,249,.08)}
+.grv-name{font-weight:700;font-size:14px}
+.grv-meta{font-size:12px;color:var(--text3);flex:1}
+.grv-score{font-size:18px;font-weight:800;min-width:38px;text-align:right}
+.grv-none{font-size:12px;color:var(--text3);margin:10px 2px;line-height:1.6}
+.grv-detail{margin:-2px 0 12px;padding:10px;border:1px solid var(--accent);border-top:none;border-radius:0 0 10px 10px}
+.grv-card .grv-detail{border:none;padding:10px 0 0;margin:0}
+.grv-st.on{border-radius:10px 10px 0 0;margin-bottom:0}
+.grv-split{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start}
+.grv-split .grv-st.on{border-radius:10px;margin-bottom:6px}
+.grv-side{position:sticky;top:0;border:1px solid var(--border);border-radius:12px;padding:12px}
+.grv-dh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:14px}
+.grv-big{font-size:22px;font-weight:800}
+.gi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-bottom:12px}
+.gi{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;text-align:left;border:1px solid var(--border);background:var(--surface2);border-radius:9px;padding:7px 9px;font-family:inherit;color:var(--text);cursor:pointer;min-height:40px}
+.gi.ok .gi-m{color:var(--green)}.gi.ng .gi-m{color:var(--red)}
+.gi.flag{background:rgba(251,191,36,.16);border-color:var(--yellow)}
+.gi.miss{background:rgba(251,191,36,.08);border-style:dashed;border-color:var(--yellow)}
+.gi-q{font-weight:800;font-size:12px;color:var(--text3);min-width:18px}
+.gi-r{flex:1;font-size:14px;word-break:break-word}
+.gi-m{font-weight:800;font-size:15px}
+.gi-a,.gi-n{width:100%;font-size:11.5px;color:var(--text3);line-height:1.4}
+.gi-n{color:var(--yellow)}
+.grv-pages{display:flex;flex-direction:column;gap:12px}
+.grv-pgh{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--text3);margin-bottom:4px}.grv-pgh .fi{width:auto;max-width:55%}
+.grv-img{background:#fff;border-radius:8px;overflow:hidden;cursor:zoom-in;min-height:60px}
+.grv-img img{display:block;width:100%;height:auto}
+.grv-img.zoom{overflow:auto;cursor:zoom-out;max-height:80vh}.grv-img.zoom img{width:200%;max-width:none}
+@media(max-width:640px){.modal.grv-modal{width:100vw;height:100%;max-height:none;border-radius:0;margin:0}.gs-row2{grid-template-columns:1fr}.gi-grid{grid-template-columns:1fr 1fr}.grv-body{padding:10px}}
 /* 비서 조직도 */
 .org-guide{display:flex;flex-direction:column;gap:10px}
 .org-step{display:flex;gap:10px;font-size:13px;line-height:1.6;color:var(--text2)}
@@ -941,9 +1036,11 @@ tr.changed td{background:rgba(79,156,249,.08)}
               <button class="btn btn-ghost btn-sm" onclick="loadAttHwFromSheets()">↻ 불러오기</button>
               <button class="btn btn-ghost btn-sm" onclick="obsWholeClass()">🏷 반 전체 태그</button>
               <button class="btn btn-ghost btn-sm" onclick="openHwFeedback()">📨 숙제 피드백</button>
+              <button class="btn btn-ghost btn-sm" onclick="openGradeNew()">📝 숙제 채점</button>
               <button class="btn btn-primary btn-sm" id="att-save-btn" onclick="saveAttendance()">💾 저장</button>
             </div>
           </div>
+          <div id="grade-strip" style="display:none"></div>
           <div style="padding:6px 14px;background:rgba(79,156,249,.05);border-bottom:1px solid var(--border);font-size:12px;color:var(--text3);flex-shrink:0">
             💡 보강 가는 학생: <b style="color:var(--text2)">보강→</b> 버튼 클릭 → 반 선택 (현재 선택된 날짜로 자동 기록됨)
           </div>
@@ -1167,6 +1264,38 @@ tr.changed td{background:rgba(79,156,249,.08)}
     <div class="ch-input"><textarea class="fi" id="ch-ta" rows="1" placeholder="비서에게 말하기 (고칠 점·답·추가 지시)" onkeydown="chatKey(event)" oninput="chatKey(event)"></textarea><button class="btn btn-primary" onclick="chatSendFromInput()">보내기</button></div>
   </div>
 </div>
+<!-- v1.17 채점 비서 -->
+<div class="modal-overlay" id="modal-grade" onclick="if(event.target===this&&!(gn&&gn.busy))closeModal('modal-grade')">
+  <div class="modal gr-modal">
+    <div class="modal-title">📝 숙제 채점 맡기기</div>
+    <div id="gr-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="if(!(gn&&gn.busy))closeModal('modal-grade')">닫기</button><button class="btn btn-primary" id="gr-go" onclick="gradeGo()">채점 맡기기</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-grade-key" onclick="if(event.target===this)closeModal('modal-grade-key')">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title" id="gk-title">정답지</div>
+    <div class="gr-dim" style="margin-bottom:8px">한 줄에 한 문항: <b>번호 정답</b>. 정답이 여러 개면 <b>/</b>로 (예: <code>3 has been / 's been</code>), 배점이 다르면 <code>(2점)</code>을 붙여요.</div>
+    <label class="gr-drop sm"><input type="file" accept="image/*,application/pdf" multiple hidden onchange="gradeKeyFromFiles(this.files);this.value=''">📷 정답지 사진·PDF로 읽기<span>AI가 번호와 답을 뽑아 줘요 (8장까지)</span></label>
+    <div class="gr-prog" id="gk-note"></div>
+    <textarea class="fi" id="gk-ta" rows="12" style="font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.6;margin-top:8px" placeholder="1 b&#10;2 went&#10;3 has been / 's been" oninput="gradeKeyCount()"></textarea>
+    <div class="modal-footer"><span class="gr-dim" id="gk-count" style="flex:1;align-self:center"></span><button class="btn btn-ghost" onclick="closeModal('modal-grade-key')">닫기</button><button class="btn btn-primary" onclick="gradeKeySave()">저장</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-grade-set" onclick="if(event.target===this)closeModal('modal-grade-set')">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-title">⚙ 채점 설정</div>
+    <div id="gs-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-grade-set')">닫기</button><button class="btn btn-primary" onclick="gradeSaveSettings()">저장</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-grade-rv" onclick="if(event.target===this)gradeRvClose()">
+  <div class="modal grv-modal">
+    <div class="grv-head"><div style="min-width:0;flex:1"><div class="grv-title" id="grv-title">채점 결과</div><div class="grv-sub" id="grv-sub"></div></div><button class="btn btn-ghost btn-sm" onclick="gradeRvClose()">닫기</button></div>
+    <div class="grv-body" id="grv-body"></div>
+    <div class="grv-foot" id="grv-foot"></div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-aiview" onclick="if(event.target===this)closeModal('modal-aiview')">
   <div class="modal aiv-modal">
     <div class="aiv-head"><div style="min-width:0;flex:1"><div class="aiv-title" id="aiv-title">결과물</div><div class="aiv-sub" id="aiv-sub"></div></div><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-aiview')">닫기</button></div>
@@ -1289,7 +1418,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.16.4';
+const APP_VERSION = '1.17.0';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -1851,7 +1980,7 @@ function goTab(id, el) {
     initScoreSelects(); renderScoreEntry(); renderScoreView();
     if(gasUrl && Date.now() - _lastScoresLoad > 120000) { _lastScoresLoad = Date.now(); loadScoresFromSheets(true).then(()=>{ renderScoreView(); }); }
   }
-  if(id==='attendance') { initAttSelects(); renderAttList(); }
+  if(id==='attendance') { initAttSelects(); renderAttList(); renderGradeStrip(); }
   if(id==='report') initReport();
   if(id==='work') renderWork();
   if(id==='org') { orgView = ''; renderOrg(); }
@@ -4811,8 +4940,9 @@ async function loadTable(key) {
 function saveRecord(table, record) { return postToSheets({action:'upsertRecord', table, record}); }
 function removeRecord(table, id) { return postToSheets({action:'deleteRecord', table, id}); }
 async function loadWorkTables() {
-  const res = await Promise.all([loadTable('studentLog'), loadTable('reports'), loadTable('inbox'), loadTable('appSettings')]);
+  const res = await Promise.all([loadTable('studentLog'), loadTable('reports'), loadTable('inbox'), loadTable('appSettings'), loadTable('grade')]);
   studentLog = res[0]; reportItems = res[1]; inboxItems = res[2];
+  gradeJobs = res[4] || []; gradeSortJobs(); renderGradeStrip(); gradePollKick();
   appSettings = {}; res[3].forEach(function(r){ appSettings[r.id] = r['값']; });
   rebuildSched(); renderSchedCard(); renderMnmCard(); renderNoticeCard();
   if(typeof renderScheduleCards === 'function' && document.getElementById('scheduleRow')) renderScheduleCards();
@@ -7017,6 +7147,9 @@ function confirmWaitingItems() {
   inboxItems.filter(function(r){ return r['상태'] === '확인 대기'; }).forEach(function(r){
     out.push({kind:'inbox', id:r.id, t:(isAiTask(r) ? '🤖 ' + r['담당'] + ': ' : '전달함: ') + (r['메모'] || String(r['내용']).slice(0,40)), due:r['마감']||'', r:r});
   });
+  gradeJobs.filter(function(j){ return j['상태'] === '확인 대기' || j['상태'] === '오류'; }).forEach(function(j){
+    out.push({kind:'grade', id:j.id, t:'📝 채점 ' + (j['상태'] === '오류' ? '멈춤' : '확인') + ': ' + j['반'] + ' ' + j['숙제'] + (j['범위'] ? ' ' + j['범위'] : ''), due:'', j:j});
+  });
   const weeks = vocWeeks();
   if(weeks.length) {
     const w = weeks[0], n = retestTargets(w).length, rep = reportItems.find(function(r){ return r.id === 'rt|' + currentClass + '|' + w; });
@@ -7044,6 +7177,14 @@ function cwReportOpen(id) {
 function cwItemHtml(x) {
   const due = x.due ? '<span class="wk-due" style="margin-left:0">마감 ' + mdLabel(x.due, true) + '</span>' : '';
   const head = function(chip, title){ return '<div class="cw-top"><span class="cw-chip">' + chip + '</span>' + due + '</div><div class="cw-title">' + escHtml(title) + '</div>'; };
+  if(x.kind === 'grade') {
+    const j = x.j, err = j['상태'] === '오류', jid = escHtml(j.id);
+    return '<div class="cw-card">' + head('📝 채점 비서', j['반'] + ' · ' + j['숙제'] + (j['범위'] ? ' ' + j['범위'] : '') + ' (' + mdLabel(j['날짜'], true) + ' 수업)')
+      + '<div class="cw-what">' + (err ? '채점을 하다가 멈췄어요. 아래 이유를 보고 고친 뒤 <b>다시 시도</b>를 눌러 주세요.' : 'AI가 숙제 채점을 끝냈어요. <b>노란 칸</b>(AI가 확신하지 못한 답)만 사진과 비교해 고치고 <b>성적에 저장</b>을 누르면 점수가 들어가요.') + '</div>'
+      + '<div class="cw-box">' + escHtml(j['요약'] || '') + '</div>'
+      + '<div class="cw-acts">' + (err ? '<button class="btn btn-primary btn-sm" onclick="gradeRetry(\'' + jid + '\')">다시 시도</button><button class="btn btn-ghost btn-sm" onclick="gradeDelete(\'' + jid + '\')">지우기</button>'
+        : '<button class="btn btn-primary btn-sm" onclick="openGradeReview(\'' + jid + '\')">📝 채점 확인하기</button>') + '</div></div>';
+  }
   if(x.kind === 'retest') {
     const ts = retestTargets(x.id), names = ts.map(function(t){ return t.s.name; });
     return '<div class="cw-card">' + head('📨 학부모 안내 문구', '단어 재시험 안내 — ' + weekRangeLabel(x.id))
@@ -7216,6 +7357,11 @@ async function routeNav(url, t, atLoad) {
     goTab(tab);
     if(!atLoad) { try { await loadWorkTables(); } catch(e) { /* 보이던 것으로 */ } }
     if(tab === 'work') setTimeout(function(){ if(q.get('chat') === '1' && q.get('task')) openChatWhenReady(q.get('task'), 0); else focusWorkItem(q.get('task')); }, 120);
+  } else if(q.get('grade')) {
+    goTab('attendance');
+    const gid = q.get('grade');
+    setTimeout(function(){ openGradeReview(gid); }, 150);
+    if(!atLoad) { try { await loadWorkTables(); } catch(e) { /* 보이던 것으로 */ } }
   } else if(q.get('brief') === '1') {
     goTab('dashboard');
     if(!atLoad) { try { await loadWorkTables(); } catch(e) { /* 보이던 것으로 */ } }
@@ -7256,6 +7402,8 @@ const ORG_BASE = [
     duties:['전달창(글·음성·사진)으로 받은 일을 담당에게 배정','매일 12시 브리핑 + 휴대폰 알림','확인 대기함 — 선생님 확인이 필요한 결과물 모음']},
   {id:'work', d:1, icon:'🗂️', name:'업무 비서', owner:'업무', make:true, role:'회의 안건지 · 보고서·발송 현황 · 원장님 요청',
     duties:['월요일 아침 7시 KG6 회의 안건지 자동 초안, 회의 후 공유 메모','목요일 G5 TFS 회의 — 자료 상태·오류 공유 메모','보고서·발송 현황판 마감 관리, 밀린 일 알림','원장님 요청·학부모 상담 일정']},
+  {id:'grade', d:1, icon:'📝', name:'채점 비서', api:true, role:'숙제·퀴즈 사진/PDF를 정답지와 비교해 채점 → 확인 후 성적에 저장',
+    duties:['출석·숙제 탭 📝 숙제 채점: 반·날짜·숙제·범위를 고르고 사진/PDF를 올리면 채점','정답지는 범위마다 한 번 (사진으로 읽기 가능), 숙제마다 채점 규칙','끝나면 알림 → 노란 칸만 확인 → 성적에 저장 (이름 못 찾은 쪽은 학생 고르기)']},
   {id:'rnd', d:1, icon:'🔬', name:'R&D 총괄', owner:'R&D 총괄', make:true, role:'두 트랙 공통 — 문법책 · 1월 특강 · QR 채점 · 교재',
     duties:['2027 문법책, 1월 특강, QR 채점 등 공통 프로젝트','한 자료가 바뀌면 연결 자료 점검 (예: 단어책 → Reading Core·단어시험·Quizlet)']},
   {id:'kg6rnd', d:2, icon:'📘', name:'KG6 R&D', owner:'KG6 R&D', sub:'', make:true, role:'KG6 자료 제작 — 아래 세 담당이 나눠 맡아요',
@@ -7322,6 +7470,12 @@ function orgStageCount(J, cls) {
 function orgBadges(n, J) {
   const b = [], today = todayYmd();
   if(n.id === 'main') { const cw = confirmWaitingItems().length; if(cw) b.push('<span class="badge b-purple">확인 ' + cw + '</span>'); }
+  if(n.id === 'grade') {
+    const gw = gradeJobs.filter(function(j){ return j['상태'] === '확인 대기'; }).length, gb = gradeJobs.filter(gradeIsBusy).length, ge = gradeJobs.filter(function(j){ return j['상태'] === '오류'; }).length;
+    if(ge) b.push('<span class="badge b-red">멈춤 ' + ge + '</span>');
+    if(gw) b.push('<span class="badge b-purple">확인 ' + gw + '</span>');
+    if(gb) b.push('<span class="badge b-blue">채점 중 ' + gb + '</span>');
+  }
   if(n.track && n.track === currentClass) {
     const c = orgStageCount(J, n.cls);
     if(c.focus) b.push('<span class="badge b-red">집중 ' + c.focus + '</span>');
@@ -7359,7 +7513,7 @@ function orgTreeHtml(nodes, J) {
     return '<div class="org-row" data-id="' + escHtml(n.id) + '" style="padding-left:' + (12 + n.d * 18) + 'px" onclick="orgOpen(decodeURIComponent(\'' + encodeURIComponent(n.id) + '\'))">'
       + (n.d ? '<span class="org-br">└</span>' : '')
       + '<span class="org-ic">' + n.icon + '</span>'
-      + '<div class="org-main"><div class="org-name">' + escHtml(n.name) + (n.make ? '<span class="org-ai">AI</span>' : '') + '</div>'
+      + '<div class="org-main"><div class="org-name">' + escHtml(n.name) + (n.make || n.api ? '<span class="org-ai">AI</span>' : '') + '</div>'
       + '<div class="org-role">' + escHtml(other ? '⇄ 트랙을 바꾸면 반 비서·판정이 보여요' : n.role) + '</div></div>'
       + '<div class="org-cnt">' + orgBadges(n, J) + '</div><span class="org-go">›</span></div>';
   }).join('');
@@ -7392,6 +7546,7 @@ function orgDetailHtml(n, J) {
     + '<button class="btn btn-ghost btn-sm" onclick="orgView=\'\';renderOrg()">← 조직도</button>'
     + '<div class="org-dh"><span class="org-dic">' + n.icon + '</span><div><div class="org-dname">' + escHtml(n.name) + '</div><div class="org-role" style="white-space:normal">' + escHtml(n.role) + '</div></div></div>'
     + (n.make ? '<div class="ai-st" style="margin-top:10px">🤖 AI 비서 — ' + aiShiftText() + '. 맡긴 일의 초안을 직접 만들어 올려요</div>' : '')
+    + (n.api ? '<div class="ai-st" style="margin-top:10px">🤖 API로 바로 채점 — 1분마다 확인해서 4쪽씩 처리해요 (Claude 구독 사용량과 별개 · API 크레딧 사용)</div>' : '')
     + (n.duties ? '<div class="cs-lbl" style="margin-top:12px">맡은 일</div><ul class="org-duty">' + n.duties.map(function(t){ return '<li>' + escHtml(t) + '</li>'; }).join('') + '</ul>' : '')
     + (assign ? '<button class="btn btn-primary" style="width:100%;margin-top:12px;padding:11px" onclick="' + assign + '">＋ ' + (n.id === 'main' ? '메인 비서에게 전달' : '이 비서에게 맡기기') + '</button>' : '')
     + '</div></div>';
@@ -7405,6 +7560,7 @@ function orgDetailHtml(n, J) {
     if(un.length) h += '<div class="card"><div class="card-header"><div class="card-title">❔ 담당 미정 ' + un.length + '</div></div><div class="card-body">'
       + un.map(function(r){ return orgTaskHtml(r, {id:'none'}); }).join('') + '</div></div>';
   }
+  if(n.id === 'grade') h += gradeOrgHtml();
   if(n.id === 'kg6rnd' || n.id === 'kg6wb') h += workbookCardHtml();
   if(n.id === 'kg6rnd' || n.id === 'work') h += weeklyAutoCardHtml();
   if(n.id === 'work') {
@@ -7495,6 +7651,741 @@ async function enablePush() {
 }
 // 홈 화면 앱용 서비스 워커 (알림 준비)
 if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function(){});
+
+/* ═══════════════════════════════════════════════════════
+   v1.17 채점 비서 — 숙제·퀴즈 사진/PDF를 정답지와 비교해 채점 (Claude API · 서버가 1분마다 처리)
+   📝 숙제 채점 → 반·날짜·숙제·범위(정답지)·파일 → 쪽마다 JPEG로 올림 → 서버 채점 → 알림 → 확인 → 성적에 저장
+═══════════════════════════════════════════════════════ */
+let gradeJobs = [];          // 채점 시트 (이 트랙)
+let gradeInfo = null;        // 서버 상태 {hasKey, usage, ...}
+const GRADE_PX = 1800;       // 쪽 사진 긴 쪽 (손글씨가 읽히는 크기)
+const GRADE_MODELS = [
+  {id: 'claude-sonnet-5-5', name: 'Sonnet 5.5', note: '정확 · 쪽당 약 $0.015'},
+  {id: 'claude-haiku-5-5', name: 'Haiku 5.5', note: '저렴 · 쪽당 약 $0.001'}
+];
+const GRADE_PER_PAGE = {'claude-sonnet-5-5': 0.015, 'claude-haiku-5-5': 0.001};
+const GRADE_DEFAULT_TYPES = {
+  G5TFS: [
+    {k: 'gramhw', name: 'Gram HW', subj: 'Gram HW', hw: 'GR HW', rules: ''},
+    {k: 'gramtest', name: 'Grammar Test', subj: 'Grammar Test', hw: '', rules: ''},
+    {k: 'voc', name: 'VOC Test', subj: 'VOC Test', hw: '', rules: ''},
+    {k: 'scihw', name: 'Sci HW', subj: 'Sci HW', hw: 'Sci HW', rules: ''},
+    {k: 'tflr', name: 'TFL Reading', subj: 'TFL Reading', hw: '', rules: ''},
+    {k: 'novel', name: 'Novel', subj: 'Novel', hw: 'Novel HW', rules: ''},
+    {k: 'scitest', name: 'Sci Test', subj: 'Sci Test', hw: '', rules: ''}
+  ],
+  KG6: [
+    {k: 'voc', name: 'VOC Test', subj: 'VOC Test', hw: '', rules: ''},
+    {k: 'gram', name: '문법시험', subj: '문법시험', hw: '', rules: ''},
+    {k: 'read', name: '수능토플독해', subj: '수능토플독해', hw: '', rules: ''},
+    {k: 'naesin', name: '내신기출', subj: '내신기출', hw: '', rules: ''},
+    {k: 'rq', name: '독해 문제풀이 숙제', subj: '', hw: 'reading_q', rules: ''},
+    {k: 'gq', name: '문법 문제풀이 숙제', subj: '', hw: 'gram_q', rules: ''}
+  ]
+};
+function gradeTypes() {
+  try { const v = JSON.parse(appSettings['gtypes|' + currentClass] || 'null'); if(Array.isArray(v) && v.length) return v; } catch(e) { /* 기본값 */ }
+  return (GRADE_DEFAULT_TYPES[currentClass] || []).map(function(t){ return Object.assign({}, t); });
+}
+function gradeType(k) { return gradeTypes().find(function(t){ return t.k === k; }) || null; }
+function gradeModel() { const m = appSettings['gmodel']; return GRADE_MODELS.some(function(x){ return x.id === m; }) ? m : GRADE_MODELS[0].id; }
+function gradeModelName(id) { const m = GRADE_MODELS.find(function(x){ return x.id === id; }); return m ? m.name : String(id || ''); }
+function gradeKeyId(k, label) { return 'gkey|' + currentClass + '|' + k + '|' + String(label || '').trim(); }
+function gradeKeyText(k, label) { return appSettings[gradeKeyId(k, label)] || ''; }
+function gradeLabels(k) {
+  const pre = 'gkey|' + currentClass + '|' + k + '|';
+  return Object.keys(appSettings).filter(function(id){ return id.indexOf(pre) === 0 && appSettings[id]; })
+    .map(function(id){ return id.slice(pre.length); }).filter(Boolean)
+    .sort(function(a, b){ return b.localeCompare(a, 'ko', {numeric: true}); });
+}
+function gradeAliases() { try { return JSON.parse(appSettings['galias|' + currentClass] || '{}') || {}; } catch(e) { return {}; } }
+function gradeHwList() { return (cfg().hwItems || []).map(function(x){ return x && x.key ? {k: x.key, l: x.label} : {k: x, l: x}; }); }
+function gradeHwLabel(k) { const it = gradeHwList().find(function(x){ return x.k === k; }); return it ? it.l : k; }
+function gradeDestText(t) {
+  const a = [];
+  if(t.subj) a.push('성적 <b>' + escHtml(t.subj) + '</b> 칸에 100점 만점 점수');
+  if(t.hw) a.push('숙제 <b>' + escHtml(gradeHwLabel(t.hw)) + '</b> 완료 표시');
+  return a.length ? '→ ' + a.join(' · ') : '→ 점수를 넣을 곳이 없어요 (⚙ 종류·규칙에서 고르기)';
+}
+function gradeIsBusy(j) { return j && (j['상태'] === '채점 대기' || j['상태'] === '채점 중'); }
+function gradeChip(label, on, onclick) { return '<button type="button" class="gr-chip' + (on ? ' on' : '') + '" onclick="' + onclick + '">' + label + '</button>'; }
+function gradeSortJobs() { gradeJobs.sort(function(a, b){ return String(b['시각'] || '').localeCompare(String(a['시각'] || '')); }); }
+async function gradeLoadInfo(force) {
+  if(gradeInfo && gradeInfo.ok && !force) return gradeInfo;
+  if(!gasUrl) return (gradeInfo = {ok: false, error: '서버 미연결'});
+  try { gradeInfo = await jsonpFetch(gasUrl + '?action=gradeInfo', 20000); } catch(e) { gradeInfo = {ok: false, error: e.message}; }
+  return gradeInfo;
+}
+function gradeOldServer(info) { return info && info.ok === false && /unknown action/.test(String(info.error || '')); }
+
+/* ── 진행 확인: 채점 중인 것이 있으면 15초마다 ── */
+let gradePollT = null;
+function gradePollKick(soon) {
+  clearTimeout(gradePollT);
+  if(!gradeJobs.some(gradeIsBusy)) return;
+  gradePollT = setTimeout(async function(){
+    if(document.hidden) { gradePollKick(); return; }
+    const before = gradeJobs.filter(gradeIsBusy).map(function(j){ return j.id; });
+    try { gradeJobs = await loadTable('grade'); gradeSortJobs(); } catch(e) { /* 다음에 */ }
+    gradeRefreshViews();
+    const fin = before.filter(function(id){ const j = gradeJobs.find(function(x){ return x.id === id; }); return j && j['상태'] === '확인 대기'; });
+    if(fin.length) showToast('📝 채점이 끝났어요 — 확인해 주세요', 's');
+    gradePollKick();
+  }, soon ? 5000 : 15000);
+}
+function gradeRefreshViews() {
+  renderGradeStrip();
+  try { if(document.getElementById('tab-work').classList.contains('active')) renderConfirmBox(); } catch(e) { /* 무시 */ }
+  try { if(orgActive()) renderOrg(); } catch(e) { /* 무시 */ }
+  try { renderBriefCard(); } catch(e) { /* 무시 */ }
+}
+
+/* ── 채점 목록 (출석·숙제 탭 줄 · 조직도) ── */
+function gradeJobRowHtml(j) {
+  const st = j['상태'], wait = st === '확인 대기', busy = gradeIsBusy(j), up = st === '올리는 중', err = st === '오류', saved = st === '저장됨';
+  const icon = wait ? '🟡' : busy || up ? '⏳' : err ? '⚠️' : saved ? '✅' : '•';
+  const stale = up && Date.now() - new Date(String(j['시각'] || '').replace(' ', 'T')).getTime() > 30 * 60000;
+  const detail = busy ? '채점 중 ' + (j['진행'] || '') + ' — 끝나면 알림이 와요' : up ? (stale ? '올리다 멈췄어요 — 지우고 다시 맡겨 주세요' : '쪽을 올리는 중…') : (j['요약'] || st);
+  const id = escHtml(j.id);
+  const acts = wait ? '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openGradeReview(\'' + id + '\')">확인하기</button>'
+    : saved ? '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openGradeReview(\'' + id + '\')">보기</button>'
+    : err ? '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();gradeRetry(\'' + id + '\')">다시 시도</button><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();gradeDelete(\'' + id + '\')">지우기</button>'
+    : stale ? '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();gradeDelete(\'' + id + '\')">지우기</button>' : '';
+  return '<div class="gj-row' + (wait ? ' wait' : err ? ' err' : '') + '" onclick="gradeJobClick(\'' + id + '\')"><span class="gj-ic">' + icon + '</span>'
+    + '<div class="gj-main"><div class="gj-t">' + escHtml(j['반'] + ' · ' + j['숙제'] + (j['범위'] ? ' ' + j['범위'] : '')) + ' <span class="gj-d">' + escHtml(mdLabel(j['날짜'], true)) + '</span></div>'
+    + '<div class="gj-s">' + escHtml(detail) + '</div></div><div class="gj-acts">' + acts + '</div></div>';
+}
+function gradeJobClick(id) {
+  const j = gradeJobs.find(function(x){ return x.id === id; }); if(!j) return;
+  if(j['상태'] === '확인 대기' || j['상태'] === '저장됨') openGradeReview(id);
+  else if(gradeIsBusy(j)) showToast('채점 중이에요 (' + (j['진행'] || '') + ') — 끝나면 알림이 와요');
+  else if(j['상태'] === '오류') showToast(j['요약'] || '채점을 멈췄어요', 'e');
+}
+function renderGradeStrip() {
+  const el = document.getElementById('grade-strip'); if(!el) return;
+  const today = todayYmd();
+  const list = gradeJobs.filter(function(j){ return j['상태'] !== '저장됨' || String(j['시각'] || '').slice(0, 10) === today; }).slice(0, 4);
+  el.style.display = list.length ? '' : 'none';
+  el.innerHTML = list.length ? '<div class="gj-head">📝 채점 비서</div>' + list.map(gradeJobRowHtml).join('') : '';
+}
+function gradeOrgHtml() {
+  const list = gradeJobs.slice(0, 20);
+  return '<div class="card"><div class="card-header"><div class="card-title">📝 채점 <span class="wk-sub" style="font-weight:400">' + cfg().label + '</span></div>'
+    + '<div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="openGradeSettings()">⚙ 설정</button><button class="btn btn-primary btn-sm" onclick="openGradeNew()">＋ 숙제 채점</button></div></div>'
+    + (list.length ? list.map(gradeJobRowHtml).join('') : '<div class="wk-empty" style="padding:12px 16px">아직 맡긴 채점이 없어요 — 출석·숙제 탭의 📝 숙제 채점에서도 맡길 수 있어요</div>') + '</div>';
+}
+async function gradeRetry(id, fromReview) {
+  try {
+    const r = await postJson({action: 'gradeRetry', id: id});
+    if(!r || !r.ok) throw new Error(r && r.error || '다시 시작하지 못했어요');
+    const j = gradeJobs.find(function(x){ return x.id === id; }); if(j) { j['상태'] = '채점 대기'; j['요약'] = ''; }
+    if(fromReview) closeModal('modal-grade-rv');
+    gradeRefreshViews(); gradePollKick(true);
+    showToast('다시 채점을 시작했어요', 's');
+  } catch(e) { showToast(e.message, 'e'); }
+}
+async function gradeDelete(id) {
+  if(!confirm('이 채점 기록을 지울까요?\n(올린 숙제 사진은 드라이브 휴지통으로 가요. 이미 성적에 넣은 점수는 그대로예요)')) return;
+  gradeJobs = gradeJobs.filter(function(x){ return x.id !== id; });
+  gradeRefreshViews();
+  try { await postJson({action: 'gradeDelete', id: id}); } catch(e) { /* 기록만 지움 */ }
+  await removeRecord('grade', id);
+  showToast('지웠어요', 's');
+}
+
+/* ── 📝 숙제 채점 맡기기 ── */
+let gn = null;
+function gradeLast(k) { try { return localStorage.getItem('emax_grade_last|' + currentClass + '|' + (k || '')) || ''; } catch(e) { return ''; } }
+function gradeSetLast(k, v) { try { localStorage.setItem('emax_grade_last|' + currentClass + '|' + (k || ''), v); } catch(e) { /* 무시 */ } }
+function openGradeNew(preset) {
+  preset = preset || {};
+  const types = gradeTypes();
+  const attCls = document.getElementById('att-class'), attDate = document.getElementById('att-date');
+  const k = preset.k || gradeLast('') || (types[0] || {}).k;
+  gn = {cls: preset.cls || (attCls && attCls.value) || getAllClasses()[0], date: preset.date || (attDate && attDate.value) || todayYmd(),
+    k: types.some(function(t){ return t.k === k; }) ? k : (types[0] || {}).k, label: '', files: [], pages: 0, busy: false, prog: ''};
+  gn.label = gradeLast(gn.k);
+  document.getElementById('modal-grade').classList.add('open');
+  renderGradeNew();
+  gradeLoadInfo().then(function(){ if(gn && !gn.busy) renderGradeNew(); });
+}
+function gradePickType(k) { if(!gn || gn.busy) return; gn.k = k; gn.label = gradeLast(k); renderGradeNew(); }
+function renderGradeNew() {
+  const el = document.getElementById('gr-body'); if(!el || !gn) return;
+  const t = gradeType(gn.k), types = gradeTypes(), sw = scoreWeekFor(gn.cls, gn.date), info = gradeInfo, dis = gn.busy ? ' disabled' : '';
+  let h = '';
+  if(gradeOldServer(info)) h += '<div class="gr-warn">서버를 아직 업데이트하지 않았어요 — 서버 업데이트 뒤에 채점할 수 있어요.</div>';
+  else if(info && info.ok && !info.hasKey) h += '<div class="gr-warn">AI 연결(API 키)이 아직 없어요. <a href="#" onclick="openGradeSettings();return false">⚙ 채점 설정</a>에서 넣는 법을 보고 연결해 주세요.</div>';
+  h += '<div class="gr-lbl">반</div><div class="gr-chips">' + getAllClasses().map(function(c){ return gradeChip(escHtml(c), c === gn.cls, gn.busy ? '' : "gn.cls='" + c + "';renderGradeNew()"); }).join('') + '</div>';
+  h += '<div class="gr-lbl">수업 날짜</div><div class="gr-date"><input type="date" class="fi"' + dis + ' value="' + escHtml(gn.date) + '" onchange="gn.date=this.value;renderGradeNew()">'
+    + '<span class="' + (sw.block ? 'gr-bad' : 'gr-dim') + '">' + escHtml(sw.block || ('점수는 ' + weekRangeLabel(sw.week) + ' 주에 들어가요')) + '</span></div>';
+  h += '<div class="gr-lbl">숙제 <a href="#" class="gr-link" onclick="openGradeSettings();return false">⚙ 종류·규칙</a></div><div class="gr-chips">'
+    + types.map(function(x){ return gradeChip(escHtml(x.name), x.k === gn.k, gn.busy ? '' : "gradePickType('" + x.k + "')"); }).join('') + '</div>';
+  if(t) h += '<div class="gr-dest">' + gradeDestText(t) + (t.rules ? '<div class="gr-dim">규칙: ' + escHtml(t.rules) + '</div>' : '') + '</div>';
+  const labs = t ? gradeLabels(t.k) : [];
+  h += '<div class="gr-lbl">범위 (정답지 이름)</div><input class="fi" id="gn-label"' + dis + ' placeholder="예: WK12, Unit 5" value="' + escHtml(gn.label) + '" oninput="gn.label=this.value;renderGradeKeyLine()">'
+    + (labs.length ? '<div class="gr-chips sm">' + labs.slice(0, 10).map(function(l){ return gradeChip(escHtml(l), l === String(gn.label).trim(), gn.busy ? '' : "gn.label=decodeURIComponent('" + encodeURIComponent(l) + "');renderGradeNew()"); }).join('') + '</div>' : '');
+  h += '<div id="gn-keyline"></div>';
+  h += '<div class="gr-lbl">숙제 사진·PDF</div>'
+    + (gn.busy ? '' : '<label class="gr-drop"><input type="file" accept="image/*,application/pdf" multiple hidden onchange="gradeAddFiles(this.files);this.value=\'\'">📷 사진·PDF 고르기<span>여러 개 가능 · 반 전체를 복사기로 스캔한 PDF 하나가 제일 좋아요</span></label>');
+  if(gn.files.length) h += '<div class="gr-files">' + gn.files.map(function(f, i){
+    return '<span class="cp-file">' + (f.kind === 'pdf' ? '📄' : '🖼️') + '<span>' + escHtml(f.file.name) + '</span><b>' + (f.n == null ? '…' : f.n + '쪽') + '</b>'
+      + (gn.busy ? '' : '<a href="#" onclick="gn.files.splice(' + i + ',1);gradeCountPages();return false" style="color:var(--text3)">✕</a>') + '</span>';
+  }).join('') + '</div>';
+  h += '<div class="gr-hint">한 학생 숙제는 이름 쓴 쪽부터 순서대로 놓아 주세요. 이름이 없는 쪽은 바로 앞 학생 것으로 봐요. 선생님 채점 표시(빨간 펜)는 무시하고 학생 글씨만 봐요.</div>';
+  if(gn.pages) h += '<div class="gr-est">모두 <b>' + gn.pages + '쪽</b> · 예상 약 $' + (gn.pages * (GRADE_PER_PAGE[gradeModel()] || 0.015)).toFixed(2) + ' (' + gradeModelName(gradeModel()) + ')</div>';
+  h += '<div class="gr-prog" id="gn-prog">' + escHtml(gn.prog || '') + '</div>';
+  el.innerHTML = h;
+  renderGradeKeyLine();
+  const go = document.getElementById('gr-go'); if(go) { go.disabled = !!gn.busy; go.textContent = gn.busy ? '보내는 중…' : '채점 맡기기'; }
+}
+function renderGradeKeyLine() {
+  const el = document.getElementById('gn-keyline'); if(!el || !gn) return;
+  const t = gradeType(gn.k), lab = String(gn.label || '').trim(), n = t && lab ? gradeKeyItems_(gradeKeyText(t.k, lab)).length : 0;
+  el.innerHTML = !lab ? '<div class="gr-key none">범위를 적으면 그 범위의 정답지를 찾아요</div>'
+    : n ? '<div class="gr-key ok">✓ 정답지 ' + n + '문항 <button class="btn btn-ghost btn-sm" onclick="openGradeKey()">보기·고치기</button></div>'
+    : '<div class="gr-key none">이 범위의 정답지가 아직 없어요 <button class="btn btn-primary btn-sm" onclick="openGradeKey()">정답지 넣기</button></div>';
+}
+function gradeIsPdf(f) { return f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''); }
+function gradeAddFiles(list) {
+  if(!gn) return;
+  Array.from(list || []).forEach(function(f){ gn.files.push({file: f, kind: gradeIsPdf(f) ? 'pdf' : 'img', n: gradeIsPdf(f) ? null : 1}); });
+  gradeCountPages();
+}
+async function gradeCountPages() {
+  if(!gn) return;
+  renderGradeNew();
+  for(const f of gn.files) {
+    if(f.kind !== 'pdf' || f.n != null) continue;
+    try { f.doc = await gradePdfDoc(f.file); f.n = f.doc.numPages; } catch(e) { f.n = 0; f.bad = true; showToast(f.file.name + ': PDF를 열지 못했어요', 'e'); }
+  }
+  gn.files = gn.files.filter(function(f){ return !f.bad; });
+  gn.pages = gn.files.reduce(function(s, f){ return s + (f.n || 0); }, 0);
+  renderGradeNew();
+}
+async function gradePdfDoc(file) {
+  const lib = await loadPdfJs();
+  return lib.getDocument({data: new Uint8Array(await file.arrayBuffer())}).promise;
+}
+function gradeJpeg(c) { const s = c.toDataURL('image/jpeg', 0.82); c.width = c.height = 0; return s.split(',')[1] || ''; }
+async function gradeRenderPdfPage(doc, n) {
+  const page = await doc.getPage(n), v1 = page.getViewport({scale: 1});
+  const v = page.getViewport({scale: Math.min(4, GRADE_PX / Math.max(v1.width, v1.height))});
+  const c = document.createElement('canvas'); c.width = Math.round(v.width); c.height = Math.round(v.height);
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  await page.render({canvasContext: ctx, viewport: v}).promise;
+  try { page.cleanup(); } catch(e) { /* 무시 */ }
+  return gradeJpeg(c);
+}
+async function gradeRenderImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise(function(res, rej){ const im = new Image(); im.onload = function(){ res(im); }; im.onerror = function(){ rej(new Error(file.name + ': 사진을 열지 못했어요 (HEIC면 JPG로 바꿔 주세요)')); }; im.src = url; });
+    const sc = Math.min(1, GRADE_PX / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * sc); c.height = Math.round(img.naturalHeight * sc);
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+    return gradeJpeg(c);
+  } finally { URL.revokeObjectURL(url); }
+}
+// 쪽을 차례로 만들어 3개씩 동시에 올림 (only: 이 쪽 번호들만 다시)
+async function gradeUploadPages(id, files, onProg, only) {
+  let idx = 0;
+  const inflight = new Set(), failed = [];
+  const send = async function(i, b64){
+    for(let t = 0; t < 3; t++) {
+      try { const r = await postJson({action: 'gradeUpload', id: id, p: i, data: b64}); if(r && r.ok) { onProg('sent'); return; } } catch(e) { /* 다시 */ }
+      await new Promise(function(r){ setTimeout(r, 1500 * (t + 1)); });
+    }
+    failed.push(i);
+  };
+  const queue = async function(i, make){
+    if(only && only.indexOf(i) < 0) return;
+    const b64 = await make(); onProg('made');
+    const p = send(i, b64); inflight.add(p); p.then(function(){ inflight.delete(p); });
+    if(inflight.size >= 3) await Promise.race(inflight);
+  };
+  for(const f of files) {
+    if(f.kind === 'pdf') {
+      const doc = f.doc || (f.doc = await gradePdfDoc(f.file));
+      for(let n = 1; n <= doc.numPages; n++) await queue(idx++, function(){ return gradeRenderPdfPage(doc, n); });
+    } else await queue(idx++, function(){ return gradeRenderImage(f.file); });
+  }
+  await Promise.all(Array.from(inflight));
+  return failed;
+}
+function gradeProg(t) { if(!gn) return; gn.prog = t; const el = document.getElementById('gn-prog'); if(el) el.textContent = t; }
+async function gradeGo() {
+  if(!gn || gn.busy) return;
+  const t = gradeType(gn.k), lab = String(gn.label || '').trim();
+  if(!t) { showToast('숙제 종류를 골라주세요', 'e'); return; }
+  if(!t.subj && !t.hw) { showToast('이 숙제는 점수를 넣을 곳이 없어요 — ⚙ 종류·규칙에서 골라주세요', 'e'); return; }
+  if(!lab) { showToast('범위(정답지 이름)를 적어주세요', 'e'); const i = document.getElementById('gn-label'); if(i) i.focus(); return; }
+  const key = gradeKeyText(t.k, lab);
+  if(!gradeKeyItems_(key).length) { showToast('이 범위의 정답지를 먼저 넣어주세요', 'e'); openGradeKey(); return; }
+  if(!gn.files.length) { showToast('숙제 사진이나 PDF를 골라주세요', 'e'); return; }
+  const sw = scoreWeekFor(gn.cls, gn.date); if(sw.block) { showToast(sw.block, 'e'); return; }
+  if(gn.files.some(function(f){ return f.n == null; })) await gradeCountPages();
+  if(!gn.pages) { showToast('올릴 쪽이 없어요', 'e'); return; }
+  if(gn.pages > 400) { showToast('한 번에 400쪽까지예요 — 나눠서 맡겨 주세요', 'e'); return; }
+  const info = await gradeLoadInfo(true);
+  if(gradeOldServer(info)) { showToast('서버를 아직 업데이트하지 않았어요', 'e'); renderGradeNew(); return; }
+  if(!info || !info.ok) { showToast('서버에 연결하지 못했어요 — 잠시 뒤 다시 해 주세요', 'e'); return; }
+  if(!info.hasKey) { showToast('AI 연결(API 키)이 아직 없어요', 'e'); openGradeSettings(); return; }
+  gn.busy = true; gn.prog = '채점 준비 중…'; renderGradeNew();
+  const id = newId('G'), al = gradeAliases(), total = gn.pages;
+  const roster = getStudents(gn.cls).map(function(s){ return {sid: s.id, name: s.name, alias: al[s.id] || []}; });
+  try {
+    const c = await postJson({action: 'gradeCreate', job: {id: id, track: currentClass, cls: gn.cls, type: {k: t.k, name: t.name, subj: t.subj || '', hw: t.hw || '', rules: t.rules || ''},
+      label: lab, date: gn.date, model: gradeModel(), key: key, roster: roster, n: total}});
+    if(!c || !c.ok) throw new Error(c && c.error || '채점을 만들지 못했어요');
+    gradeJobs.unshift({id: id, '반구분': currentClass, '반': gn.cls, '숙제': t.name, '범위': lab, '날짜': gn.date, '상태': '올리는 중', '쪽수': total, '진행': '0/' + total, '모델': gradeModel(), '요약': '', '시각': nowStamp()});
+    renderGradeStrip();
+    let made = 0, sent = 0;
+    const prog = function(k){ if(k === 'made') made++; else sent++; gradeProg('쪽 만들기 ' + made + '/' + total + ' · 올리기 ' + sent + '/' + total); };
+    let failed = await gradeUploadPages(id, gn.files, prog);
+    if(failed.length) { gradeProg('못 올린 ' + failed.length + '쪽을 다시 올리는 중…'); failed = await gradeUploadPages(id, gn.files, prog, failed); }
+    let st = await postJson({action: 'gradeStart', id: id});
+    if(st && !st.ok && st.missing && st.missing.length) { await gradeUploadPages(id, gn.files, prog, st.missing); st = await postJson({action: 'gradeStart', id: id}); }
+    if(!st || !st.ok) throw new Error(st && st.error || '채점을 시작하지 못했어요');
+    gradeSetLast('', t.k); gradeSetLast(t.k, lab);
+    const j = gradeJobs.find(function(x){ return x.id === id; }); if(j) j['상태'] = '채점 대기';
+    gn.busy = false;
+    closeModal('modal-grade');
+    gradeRefreshViews();
+    gradePollKick(true);
+    showToast('📝 채점을 맡겼어요 — ' + total + '쪽, 끝나면 알림이 와요 (보통 몇 분)', 's');
+  } catch(e) {
+    gn.busy = false; gn.prog = '⚠ ' + e.message; renderGradeNew();
+    showToast('채점을 맡기지 못했어요: ' + e.message, 'e');
+  }
+}
+
+/* ── 정답지 ── */
+let gk = null;
+function openGradeKey() {
+  if(!gn) return;
+  const t = gradeType(gn.k), lab = String(gn.label || '').trim();
+  if(!t) return;
+  if(!lab) { showToast('범위(정답지 이름)를 먼저 적어주세요', 'e'); const i = document.getElementById('gn-label'); if(i) i.focus(); return; }
+  gk = {k: t.k, name: t.name, label: lab, busy: false};
+  document.getElementById('gk-title').textContent = '정답지 — ' + t.name + ' · ' + lab;
+  document.getElementById('gk-ta').value = gradeKeyText(t.k, lab);
+  document.getElementById('gk-note').textContent = '';
+  gradeKeyCount();
+  document.getElementById('modal-grade-key').classList.add('open');
+}
+function gradeKeyCount() {
+  const v = (document.getElementById('gk-ta') || {}).value || '', items = gradeKeyItems_(v), el = document.getElementById('gk-count'); if(!el) return;
+  const w = items.reduce(function(s, x){ return s + x.w; }, 0);
+  el.textContent = items.length ? items.length + '문항' + (w !== items.length ? ' · 배점 합 ' + w : '') : '0문항';
+}
+async function gradeKeyFromFiles(list) {
+  if(!gk || gk.busy) return;
+  const files = Array.from(list || []); if(!files.length) return;
+  const note = document.getElementById('gk-note');
+  gk.busy = true; note.textContent = '사진 준비 중…';
+  try {
+    const imgs = [];
+    for(const f of files) {
+      if(imgs.length >= 8) break;
+      if(gradeIsPdf(f)) { const doc = await gradePdfDoc(f); for(let n = 1; n <= doc.numPages && imgs.length < 8; n++) imgs.push(await gradeRenderPdfPage(doc, n)); }
+      else imgs.push(await gradeRenderImage(f));
+    }
+    note.textContent = 'AI가 정답지를 읽는 중… (보통 20~40초)';
+    const r = await postJson({action: 'gradeKeyRead', images: imgs, name: gk.name, label: gk.label, model: gradeModel()});
+    if(!r || !r.ok) throw new Error(r && r.error || '정답지를 읽지 못했어요');
+    const ta = document.getElementById('gk-ta');
+    if(ta.value.trim() && !confirm('지금 적힌 정답지를 읽은 내용으로 바꿀까요?\n(취소하면 아래에 덧붙여요)')) ta.value = ta.value.trim() + '\n' + r.text; else ta.value = r.text;
+    gradeKeyCount();
+    note.textContent = '✓ ' + r.n + '문항을 읽었어요 — 번호와 답이 맞는지 한 번 봐 주세요' + (r.note ? ' · ' + r.note : '') + (files.length > 8 ? ' (사진은 8장까지 읽어요)' : '');
+  } catch(e) { note.textContent = '✗ ' + e.message; }
+  gk.busy = false;
+}
+async function gradeKeySave() {
+  if(!gk) return;
+  const text = document.getElementById('gk-ta').value.trim(), n = gradeKeyItems_(text).length;
+  if(!n) { showToast('한 줄에 "번호 정답"으로 적어주세요 (예: 1 b)', 'e'); return; }
+  const id = gradeKeyId(gk.k, gk.label);
+  appSettings[id] = text;
+  closeModal('modal-grade-key');
+  if(gn) { gn.label = gk.label; renderGradeNew(); }
+  const res = await saveRecord('appSettings', {id: id, '반구분': '', '값': text, '수정': nowStamp()});
+  if(res && res.ok !== false) showToast('정답지 저장 — ' + n + '문항', 's');
+}
+
+/* ── ⚙ 채점 설정 ── */
+let gs = null;
+function openGradeSettings() {
+  gs = {types: JSON.parse(JSON.stringify(gradeTypes())), model: gradeModel(), ping: ''};
+  document.getElementById('modal-grade-set').classList.add('open');
+  renderGradeSettings();
+  gradeLoadInfo(true).then(function(){ if(gs) renderGradeSettings(); });
+}
+function renderGradeSettings() {
+  const el = document.getElementById('gs-body'); if(!el || !gs) return;
+  const info = gradeInfo || {};
+  let h = '<div class="gs-sec"><div class="gs-h">🔌 AI 연결</div>';
+  if(gradeOldServer(info)) h += '<div class="gr-warn">서버를 아직 업데이트하지 않았어요</div>';
+  else if(!info.ok) h += '<div class="gr-dim">' + escHtml(info.error ? '확인하지 못했어요: ' + info.error : '확인 중…') + '</div>';
+  else {
+    h += info.hasKey ? '<div class="gr-ok">✓ API 키 연결됨' + (info.usage && info.usage.m ? ' · 이번 달 $' + Number(info.usage.usd || 0).toFixed(2) + ' · ' + (info.usage.pages || 0) + '쪽' : '') + '</div>'
+      : '<div class="gr-warn">API 키가 아직 없어요 — 아래 순서대로 넣어 주세요</div>';
+    h += '<div class="gs-acts"><button class="btn btn-ghost btn-sm" onclick="gradePing()">연결 확인</button><span class="gr-dim" id="gs-ping">' + escHtml(gs.ping) + '</span></div>';
+  }
+  h += '<details class="gs-how"' + (info.hasKey ? '' : ' open') + '><summary>API 키 넣는 법 (처음 한 번)</summary><ol>'
+    + '<li>Claude Console(<b>platform.claude.com</b>)에 로그인 → <b>API Keys</b> → <b>Create Key</b> (이름 예: eMAX 채점)</li>'
+    + '<li>Console <b>Settings → Spend limits</b>에서 월 한도를 걸어 두세요 (예: $30) — 한도에 닿으면 채점이 멈추고 알림이 와요</li>'
+    + '<li>PC에서 Apps Script 편집기 → 왼쪽 ⚙ <b>프로젝트 설정</b> → 맨 아래 <b>스크립트 속성 추가</b> → 속성 <code>ANTHROPIC_API_KEY</code>, 값에 만든 키 → <b>스크립트 속성 저장</b></li>'
+    + '<li>여기서 <b>연결 확인</b></li></ol><div class="gr-dim">키는 서버(스크립트 속성)에만 있고 앱·코드에는 들어가지 않아요.</div></details></div>';
+  h += '<div class="gs-sec"><div class="gs-h">🤖 채점 모델</div><div class="gr-chips">' + GRADE_MODELS.map(function(m){ return gradeChip(m.name + ' <span>' + m.note + '</span>', m.id === gs.model, "gs.model='" + m.id + "';renderGradeSettings()"); }).join('') + '</div></div>';
+  h += '<div class="gs-sec"><div class="gs-h">📏 기본 규칙</div><div class="gr-dim">철자는 정확해야 정답 · 대소문자와 끝 마침표는 따지지 않음 · 문장 답은 뜻과 그 문항이 보는 문법이 맞아야 정답 · 선생님 채점 표시는 무시. 숙제마다 규칙을 적으면 그게 먼저예요.</div></div>';
+  const subjOpts = function(v){ return '<option value="">(넣지 않음)</option>' + getSubjects().filter(function(s){ return s !== 'MarketDay Points'; }).map(function(s){ return '<option' + (s === v ? ' selected' : '') + '>' + escHtml(s) + '</option>'; }).join(''); };
+  const hwOpts = function(v){ return '<option value="">(표시 안 함)</option>' + gradeHwList().map(function(x){ return '<option value="' + escHtml(x.k) + '"' + (x.k === v ? ' selected' : '') + '>' + escHtml(x.l) + '</option>'; }).join(''); };
+  h += '<div class="gs-sec"><div class="gs-h">📚 숙제 종류 <span class="gr-dim">' + cfg().label + '</span></div>' + gs.types.map(function(t, i){
+    return '<div class="gs-type"><div class="gs-row"><input class="fi fi-sm" value="' + escHtml(t.name) + '" placeholder="이름" oninput="gs.types[' + i + '].name=this.value">'
+      + '<button class="btn btn-ghost btn-sm" onclick="if(confirm(\'이 종류를 지울까요?\')){gs.types.splice(' + i + ',1);renderGradeSettings()}">지우기</button></div>'
+      + '<div class="gs-row2"><label>성적 칸<select class="fi fi-sm" onchange="gs.types[' + i + '].subj=this.value">' + subjOpts(t.subj) + '</select></label>'
+      + '<label>숙제 완료 표시<select class="fi fi-sm" onchange="gs.types[' + i + '].hw=this.value">' + hwOpts(t.hw) + '</select></label></div>'
+      + '<textarea class="fi fi-sm" rows="2" placeholder="채점 규칙 (예: 철자 하나 틀리면 오답 · 서술형은 시험 문법만 맞으면 정답)" oninput="gs.types[' + i + '].rules=this.value">' + escHtml(t.rules || '') + '</textarea></div>';
+  }).join('') + '<button class="btn btn-ghost btn-sm" onclick="gs.types.push({k:\'t\'+Date.now().toString(36),name:\'\',subj:\'\',hw:\'\',rules:\'\'});renderGradeSettings()">＋ 종류 추가</button></div>';
+  el.innerHTML = h;
+}
+async function gradePing() {
+  if(!gs) return;
+  gs.ping = '확인 중…'; renderGradeSettings();
+  try {
+    const r = await jsonpFetch(gasUrl + '?action=gradePing&model=' + encodeURIComponent(gs.model), 60000);
+    gs.ping = r && r.ok ? '✓ 연결됐어요 (' + gradeModelName(r.model) + ', ' + (r.ms / 1000).toFixed(1) + '초)' : '✗ ' + (r && r.error || '연결하지 못했어요');
+  } catch(e) { gs.ping = '✗ ' + e.message; }
+  renderGradeSettings();
+  gradeLoadInfo(true).then(function(){ if(gs) renderGradeSettings(); if(gn && !gn.busy) renderGradeNew(); });
+}
+async function gradeSaveSettings() {
+  if(!gs) return;
+  const types = gs.types.map(function(t){ return {k: t.k, name: String(t.name || '').trim(), subj: t.subj || '', hw: t.hw || '', rules: String(t.rules || '').trim()}; }).filter(function(t){ return t.name; });
+  if(!types.length) { showToast('숙제 종류를 하나 이상 남겨 주세요', 'e'); return; }
+  const tid = 'gtypes|' + currentClass, tv = JSON.stringify(types);
+  const saves = [];
+  if(appSettings[tid] !== tv) { appSettings[tid] = tv; saves.push({id: tid, '반구분': '', '값': tv, '수정': nowStamp()}); }
+  if(gs.model !== gradeModel()) { appSettings['gmodel'] = gs.model; saves.push({id: 'gmodel', '반구분': '', '값': gs.model, '수정': nowStamp()}); }
+  closeModal('modal-grade-set');
+  if(gn && !gn.busy) { if(!types.some(function(t){ return t.k === gn.k; })) gn.k = types[0].k; renderGradeNew(); }
+  for(const r of saves) await saveRecord('appSettings', r);
+  if(saves.length) showToast('채점 설정 저장됨', 's');
+}
+
+/* ── 채점 확인 (학생별 점수 · 노란 칸 · 이름 못 찾은 쪽) ── */
+let gv = null;
+async function openGradeReview(id) {
+  closeModal('modal-grade');
+  gv = {id: id, job: null, assign: {}, toggles: {}, sel: '', imgs: {}, loading: {}, dirty: false, busy: false, zoom: false};
+  document.getElementById('modal-grade-rv').classList.add('open');
+  document.getElementById('grv-title').textContent = '채점 결과 불러오는 중…';
+  document.getElementById('grv-sub').textContent = '';
+  document.getElementById('grv-body').innerHTML = '<div class="aiv-msg">불러오는 중…</div>';
+  document.getElementById('grv-foot').innerHTML = '';
+  try {
+    const r = await jsonpFetch(gasUrl + '?action=gradeResult&id=' + encodeURIComponent(id), 60000);
+    if(!r || !r.ok) throw new Error(gradeOldServer(r) ? '서버를 아직 업데이트하지 않았어요' : (r && r.error || '채점 결과를 불러오지 못했어요'));
+    if(!gv || gv.id !== id) return;
+    gv.job = r.job; gv.assign = Object.assign({}, r.job.assign || {}); gv.toggles = Object.assign({}, r.job.toggles || {});
+    renderGradeReview();
+  } catch(e) {
+    document.getElementById('grv-title').textContent = '채점 결과';
+    document.getElementById('grv-body').innerHTML = '<div class="aiv-msg">' + escHtml(e.message) + '</div>';
+  }
+}
+function gradeRvClose() {
+  if(gv && gv.job && gv.dirty && !gv.busy) {
+    postJson({action: 'gradeSave', id: gv.id, final: false, assign: gv.assign, toggles: gv.toggles}).catch(function(){});
+    showToast('고친 내용을 저장해 뒀어요 — 다음에 이어서 볼 수 있어요');
+  }
+  gv = null;
+  closeModal('modal-grade-rv');
+}
+function gradeRvEnc(s) { return encodeURIComponent(String(s)); }
+function gradeRvSel(owner) {
+  if(!gv) return;
+  gv.sel = gv.sel === owner && !isWide() ? '' : owner;
+  renderGradeReview();
+  if(!isWide() && gv.sel) setTimeout(function(){ const e = document.querySelector('.grv-st.on, .grv-card.on'); if(e) e.scrollIntoView({behavior: 'smooth', block: 'start'}); }, 30);
+}
+function gradeRvToggle(owner, nq) {
+  if(!gv) return;
+  const g = gradeGroups_(gv.job, gv.assign, gv.toggles).find(function(x){ return x.owner === owner; }); if(!g) return;
+  const row = g.rows.find(function(r){ return r.nq === nq; }); if(!row) return;
+  gv.toggles[owner + '|' + nq] = !row.ok;
+  gv.dirty = true; renderGradeReview();
+}
+function gradeRvAcceptAll(owner) {
+  if(!gv) return;
+  const g = gradeGroups_(gv.job, gv.assign, gv.toggles).find(function(x){ return x.owner === owner; }); if(!g) return;
+  g.rows.forEach(function(r){ if(r.flag || (r.read == null && !r.set)) gv.toggles[owner + '|' + r.nq] = r.ok; });
+  gv.dirty = true; renderGradeReview();
+}
+function gradeRvAssign(i, sid) {
+  if(!gv) return;
+  if(sid) gv.assign[i] = sid; else delete gv.assign[i];
+  gv.dirty = true; renderGradeReview();
+}
+function gradeRvAssignGroup(owner, sid) {
+  if(!gv || !sid) return;
+  const g = gradeGroups_(gv.job, gv.assign, gv.toggles).find(function(x){ return x.owner === owner; }); if(!g) return;
+  g.pages.forEach(function(i){ gv.assign[i] = sid; });
+  gv.sel = sid === 'skip' ? '' : 'sid:' + sid;
+  gv.dirty = true; renderGradeReview();
+}
+function gradeRvOwnerOptions(cur) {
+  const roster = (gv.job.roster || []).slice().sort(function(a, b){ return a.name.localeCompare(b.name, 'ko'); });
+  const known = cur === 'skip' || roster.some(function(r){ return cur === 'sid:' + r.sid; });
+  return (known ? '' : '<option value="" selected>누구 숙제인지 고르기…</option>')
+    + roster.map(function(r){ return '<option value="' + escHtml(r.sid) + '"' + (cur === 'sid:' + r.sid ? ' selected' : '') + '>' + escHtml(r.name) + '</option>'; }).join('')
+    + '<option value="skip"' + (cur === 'skip' ? ' selected' : '') + '>(채점 안 함)</option>';
+}
+function gradeRvDetailHtml(g, inline) {
+  const job = gv.job, unk = !g.sid && g.owner !== 'skip';
+  const accept = g.unsure || g.missing ? '<button class="btn btn-ghost btn-sm" onclick="gradeRvAcceptAll(decodeURIComponent(\'' + gradeRvEnc(g.owner) + '\'))">노란 칸 AI대로 확인</button>' : '';
+  let h = inline ? (accept ? '<div class="grv-dh">' + accept + '</div>' : '')
+    : '<div class="grv-dh"><b>' + escHtml(g.owner === 'skip' ? '채점 안 하는 쪽' : unk ? '이름 못 찾음' + (g.name ? ' — “' + g.name + '”' : '') : g.name) + '</b>'
+    + (g.owner === 'skip' ? '' : '<span class="grv-big">' + g.score + '점</span><span class="gr-dim">' + g.right + '/' + g.total + '</span>') + accept + '</div>';
+  if(g.owner !== 'skip') h += '<div class="gi-grid">' + g.rows.map(function(r){
+    const miss = r.read == null && !r.set;
+    return '<button type="button" class="gi' + (r.ok ? ' ok' : ' ng') + (r.flag ? ' flag' : '') + (miss ? ' miss' : '') + '" onclick="gradeRvToggle(decodeURIComponent(\'' + gradeRvEnc(g.owner) + '\'),decodeURIComponent(\'' + gradeRvEnc(r.nq) + '\'))">'
+      + '<span class="gi-q">' + escHtml(r.q) + '</span><span class="gi-r">' + escHtml(r.read == null ? '(못 찾음)' : (r.read || '(빈칸)')) + '</span><span class="gi-m">' + (r.ok ? '✓' : '✗') + '</span>'
+      + ((!r.ok || r.flag || miss) ? '<span class="gi-a">정답 ' + escHtml(r.a) + (r.w !== 1 ? ' (' + r.w + '점)' : '') + '</span>' : '')
+      + (r.note ? '<span class="gi-n">' + escHtml(r.note) + '</span>' : '') + '</button>';
+  }).join('') + '</div>';
+  h += '<div class="grv-pages">' + g.pages.map(function(i){
+    const pg = job.pages[i] || {}, pn = pg.res && pg.res.page_note ? ' · ' + pg.res.page_note : pg.st === 'err' ? ' · ⚠ ' + (pg.err || '못 읽음') : '';
+    return '<div class="grv-pg"><div class="grv-pgh"><span>' + (i + 1) + '쪽' + escHtml(pn) + '</span><select class="fi fi-sm" onchange="gradeRvAssign(' + i + ',this.value)">' + gradeRvOwnerOptions(g.owner) + '</select></div>'
+      + '<div class="grv-img' + (gv.zoom ? ' zoom' : '') + '" id="grv-img-' + i + '" onclick="gv.zoom=!gv.zoom;renderGradeReview()">' + (gv.imgs[i] ? '<img src="data:image/jpeg;base64,' + gv.imgs[i] + '" alt="' + (i + 1) + '쪽">' : '<div class="gr-dim" style="padding:20px">사진 불러오는 중…</div>') + '</div></div>';
+  }).join('') + '<div class="gr-dim" style="text-align:center">사진을 누르면 크게 / 작게</div></div>';
+  return h;
+}
+function gradeRvLoadImgs(pages) {
+  (pages || []).forEach(function(i){
+    if(!gv || gv.imgs[i] || gv.loading[i]) return;
+    gv.loading[i] = true;
+    const id = gv.id;
+    jsonpFetch(gasUrl + '?action=gradeImg&id=' + encodeURIComponent(id) + '&p=' + i, 60000).then(function(r){
+      if(!gv || gv.id !== id) return;
+      gv.loading[i] = false;
+      if(r && r.ok) { gv.imgs[i] = r.b64; const el = document.getElementById('grv-img-' + i); if(el) el.innerHTML = '<img src="data:image/jpeg;base64,' + r.b64 + '" alt="' + (i + 1) + '쪽">'; }
+    }).catch(function(){ if(gv) gv.loading[i] = false; });
+  });
+}
+function renderGradeReview() {
+  if(!gv || !gv.job) return;
+  const job = gv.job, groups = gradeGroups_(job, gv.assign, gv.toggles), wide = isWide();
+  const named = groups.filter(function(g){ return g.sid; }).sort(function(a, b){ return a.name.localeCompare(b.name, 'ko'); });
+  const unk = groups.filter(function(g){ return !g.sid && g.owner !== 'skip'; }), skip = groups.find(function(g){ return g.owner === 'skip'; });
+  const errPages = (job.pages || []).map(function(p, i){ return {p: p, i: i}; }).filter(function(x){ return x.p && x.p.st === 'err'; });
+  const check = named.reduce(function(s, g){ return s + g.unsure + (g.missing ? 1 : 0); }, 0) + unk.length;
+  const avg = named.length ? Math.round(named.reduce(function(s, g){ return s + g.score; }, 0) / named.length) : 0;
+  document.getElementById('grv-title').textContent = job.cls + ' · ' + (job.type && job.type.name || '') + (job.label ? ' ' + job.label : '');
+  document.getElementById('grv-sub').textContent = mdLabel(job.date, true) + ' 수업 · ' + job.pages.length + '쪽 · ' + gradeModelName(job.model) + (job.usage ? ' · $' + Number(job.usage.usd || 0).toFixed(2) : '') + (job.saved ? ' · ✅ ' + job.saved.at + ' 성적에 저장함' : '');
+  if(!gv.sel && wide) gv.sel = (unk[0] || named.find(function(g){ return g.unsure || g.missing; }) || named[0] || {}).owner || '';
+  let h = '<div class="grv-sum"><b>' + named.length + '명</b> 채점 · 평균 <b>' + avg + '점</b> · ' + (check ? '<span class="grv-flag">확인할 칸 ' + check + '</span>' : '확인할 칸 없음 ✓') + '</div>'
+    + '<div class="grv-legend"><span class="gi-dot"></span>노란 칸 = AI가 확신하지 못한 답 · 칸을 누르면 ✓/✗가 바뀌어요</div>';
+  unk.forEach(function(g){
+    h += '<div class="grv-card unk' + (gv.sel === g.owner ? ' on' : '') + '"><div><b>🔎 이름을 못 찾은 쪽</b> — ' + (g.name ? '“' + escHtml(g.name) + '”' : '이름 없음') + ' · ' + g.pages.map(function(i){ return i + 1; }).join(', ') + '쪽</div>'
+      + '<div class="gr-dim">누구 숙제인지 고르면 그 학생 점수로 들어가요' + (g.name ? ' — 다음부터 “' + escHtml(g.name) + '”은 이 학생으로 알아봐요' : '') + '</div>'
+      + '<div class="grv-unk-acts"><select class="fi fi-sm" onchange="gradeRvAssignGroup(decodeURIComponent(\'' + gradeRvEnc(g.owner) + '\'),this.value)">' + gradeRvOwnerOptions('') + '</select>'
+      + '<button class="btn btn-ghost btn-sm" onclick="gradeRvSel(decodeURIComponent(\'' + gradeRvEnc(g.owner) + '\'))">쪽 보기</button></div>'
+      + (!wide && gv.sel === g.owner ? '<div class="grv-detail">' + gradeRvDetailHtml(g) + '</div>' : '') + '</div>';
+  });
+  if(errPages.length) h += '<div class="grv-card warn">⚠ 못 읽은 쪽 ' + errPages.length + '개 (' + errPages.map(function(x){ return x.i + 1; }).join(', ') + '쪽) — ' + escHtml(errPages[0].p.err || '') + ' <button class="btn btn-ghost btn-sm" onclick="gradeRetry(gv.id, true)">그 쪽만 다시 채점</button></div>';
+  const row = function(g){
+    return '<div class="grv-st' + (gv.sel === g.owner ? ' on' : '') + '" onclick="gradeRvSel(decodeURIComponent(\'' + gradeRvEnc(g.owner) + '\'))"><span class="grv-name">' + escHtml(g.name) + '</span>'
+      + '<span class="grv-meta">' + g.right + '/' + g.total + (g.missing ? ' · 못 찾음 ' + g.missing : '') + '</span>' + (g.unsure ? '<span class="badge b-yellow">확인 ' + g.unsure + '</span>' : '')
+      + '<span class="grv-score">' + g.score + '</span><span class="org-go">›</span></div>'
+      + (!wide && gv.sel === g.owner ? '<div class="grv-detail">' + gradeRvDetailHtml(g, true) + '</div>' : '');
+  };
+  const have = {}; named.forEach(function(g){ have[g.sid] = 1; });
+  const none = (job.roster || []).filter(function(r){ return !have[r.sid]; });
+  const noneHtml = none.length ? '<div class="grv-none">숙제 사진이 없는 학생 ' + none.length + '명 (점수 안 넣음): ' + escHtml(none.map(function(r){ return r.name; }).join(', ')) + '</div>' : '';
+  const skipHtml = skip ? '<div class="grv-none">채점 안 하는 쪽: ' + skip.pages.map(function(i){ return i + 1; }).join(', ') + '쪽 <a href="#" onclick="gradeRvSel(\'skip\');return false">보기</a></div>' : '';
+  const sel = groups.find(function(g){ return g.owner === gv.sel; });
+  if(wide) h += '<div class="grv-split"><div class="grv-list">' + named.map(row).join('') + noneHtml + skipHtml + '</div><div class="grv-side">' + (sel ? gradeRvDetailHtml(sel) : '<div class="gr-dim" style="padding:20px">왼쪽에서 학생을 누르면 문항과 사진이 보여요</div>') + '</div></div>';
+  else h += '<div class="grv-list">' + named.map(row).join('') + noneHtml + skipHtml + (gv.sel === 'skip' && skip ? '<div class="grv-detail">' + gradeRvDetailHtml(skip) + '</div>' : '') + '</div>';
+  const body = document.getElementById('grv-body'), st = body.scrollTop;
+  body.innerHTML = h;
+  body.scrollTop = st;
+  document.getElementById('grv-foot').innerHTML = '<span class="gr-dim" style="flex:1">' + (gv.dirty ? '고친 내용 있음' : '') + '</span>'
+    + (job.saved ? '' : '<button class="btn btn-ghost btn-sm" onclick="gradeDeleteFromReview()">지우기</button>')
+    + '<button class="btn btn-primary" id="grv-save" onclick="gradeRvCommit()"' + (gv.busy ? ' disabled' : '') + '>' + (gv.busy ? '저장 중…' : (job.saved ? '다시 저장' : '성적에 저장') + ' (' + named.length + '명)') + '</button>';
+  if(sel) gradeRvLoadImgs(sel.pages);
+}
+function gradeDeleteFromReview() { if(!gv) return; const id = gv.id; gv.dirty = false; gradeRvClose(); gradeDelete(id); }
+async function gradeRvCommit() {
+  if(!gv || !gv.job || gv.busy) return;
+  const job = gv.job, t = job.type || {}, sw = scoreWeekFor(job.cls, job.date);
+  if(sw.block) { showToast(sw.block, 'e'); return; }
+  const week = sw.week, date = job.date, groups = gradeGroups_(job, gv.assign, gv.toggles);
+  const named = groups.filter(function(g){ return g.sid; }), unk = groups.filter(function(g){ return !g.sid && g.owner !== 'skip'; });
+  if(!named.length) { showToast('점수를 넣을 학생이 없어요', 'e'); return; }
+  const left = named.reduce(function(s, g){ return s + g.unsure + (g.missing ? 1 : 0); }, 0);
+  const over = t.subj ? named.filter(function(g){ const ex = (scores[g.sid] || []).find(function(x){ return x.week === week && x.type === t.subj; }); return ex && Number(ex.score) !== g.score; }) : [];
+  const msg = [];
+  if(left) msg.push('아직 확인하지 않은 칸이 ' + left + '개 있어요 (AI가 읽은 대로 들어가요)');
+  if(unk.length) msg.push('이름을 못 찾은 쪽 ' + unk.length + '묶음은 빠져요');
+  if(over.length) msg.push('이미 점수가 있는 ' + over.length + '명은 새 점수로 바뀌어요: ' + over.map(function(g){ return g.name; }).slice(0, 6).join(', '));
+  if(!confirm((msg.length ? msg.join('\n') + '\n\n' : '') + named.length + '명의 점수를 ' + (t.subj ? '성적 ' + t.subj + ' 칸' : '') + (t.subj && t.hw ? '과 ' : '') + (t.hw ? '숙제 ' + gradeHwLabel(t.hw) : '') + '에 저장할까요?')) return;
+  gv.busy = true; renderGradeReview();
+  try {
+    for(const g of named) {
+      const s = (students[currentClass] || []).find(function(x){ return x.id === g.sid; }); if(!s) continue;
+      if(t.subj) {
+        if(!scores[s.id]) scores[s.id] = [];
+        const i = scores[s.id].findIndex(function(x){ return x.week === week && x.type === t.subj; });
+        const rec = {week: week, type: t.subj, score: g.score, date: date, memo: ''};
+        if(i >= 0) Object.assign(scores[s.id][i], rec); else scores[s.id].push(rec);
+        postToSheets({action: 'saveScores', cls: s.cls, week: week, date: date, name: s.name, scoreData: [{name: s.name, cls: s.cls, week: week, type: t.subj, score: g.score, date: date, memo: ''}]});
+      }
+      if(t.hw) {
+        homework[s.id] = homework[s.id] || {}; homework[s.id][week] = homework[s.id][week] || {};
+        homework[s.id][week][t.hw] = Object.assign({}, homework[s.id][week][t.hw] || {}, {done: true, score: g.score});
+        postToSheets({action: 'saveHw', name: s.name, cls: s.cls, week: week, total: calcHwTotal(s.id, week, s.cls), detail: JSON.stringify(homework[s.id][week])});
+      }
+    }
+    gradeLearnAliases();
+    const r = await postJson({action: 'gradeSave', id: gv.id, final: true, assign: gv.assign, toggles: gv.toggles, scores: named.map(function(g){ return {sid: g.sid, name: g.name, score: g.score}; })});
+    if(!r || !r.ok) throw new Error(r && r.error || '채점 기록 저장 실패');
+    const j = gradeJobs.find(function(x){ return x.id === gv.id; }); if(j) j['상태'] = '저장됨';
+    const n = named.length;
+    gv.dirty = false; gv.busy = false;
+    gradeRvClose();
+    gradeRefreshViews();
+    try { renderDashboard(); } catch(e) { /* 무시 */ }
+    try { if(document.getElementById('tab-attendance').classList.contains('active')) renderAttList(); } catch(e) { /* 무시 */ }
+    showToast('📝 ' + n + '명 점수를 저장했어요', 's');
+  } catch(e) {
+    if(gv) { gv.busy = false; renderGradeReview(); }
+    showToast('저장하지 못했어요: ' + e.message, 'e');
+  }
+}
+// 이름 못 찾은 쪽을 학생에게 붙였으면 그 이름(영어 이름 등)을 기억 → 다음 채점부터 바로 알아봄
+function gradeLearnAliases() {
+  if(!gv || !gv.job) return;
+  const roster = gv.job.roster || [], al = gradeAliases();
+  let changed = false;
+  Object.keys(gv.assign).forEach(function(i){
+    const sid = gv.assign[i], pg = gv.job.pages[i];
+    if(!sid || sid === 'skip' || !pg || !pg.res) return;
+    const nm = String(pg.res.name_on_page || '').trim();
+    if(!nm || gradeFindSid_(roster, nm)) return;
+    al[sid] = al[sid] || [];
+    if(al[sid].indexOf(nm) < 0) { al[sid].push(nm); changed = true; }
+  });
+  if(!changed) return;
+  const id = 'galias|' + currentClass, v = JSON.stringify(al);
+  appSettings[id] = v;
+  saveRecord('appSettings', {id: id, '반구분': '', '값': v, '수정': nowStamp()});
+}
+// ── 채점 비서 공통 (서버·앱이 같은 코드를 씀): 정답지 읽기 · 이름 맞추기 · 학생별로 묶어 점수 계산 ──
+function gradeNormQ_(q) {
+  return String(q == null ? '' : q).trim().toLowerCase()
+    .replace(/^(q|no\.?|문항)\s*/, '').replace(/[.)\]:：]+$/, '').replace(/\s+/g, '');
+}
+// 정답지: 한 줄에 "번호 정답" (정답이 여러 개면 " / ", 배점이 다르면 "(2점)")
+function gradeKeyItems_(text) {
+  var out = [], seen = {};
+  String(text || '').split(/\r?\n/).forEach(function (line) {
+    var t = line.trim();
+    if (!t || t.charAt(0) === '#') return;
+    var m = t.match(/^(\S+?)[.):]?\s+(.+)$/);
+    if (!m) return;
+    var nq = gradeNormQ_(m[1]);
+    if (!nq || seen[nq]) return;
+    var a = m[2].trim(), w = 1, pm = a.match(/\((\d+(?:\.\d+)?)\s*점\)/);
+    if (pm) { w = Number(pm[1]) || 1; a = a.replace(pm[0], '').trim(); }
+    seen[nq] = 1;
+    out.push({q: m[1].replace(/[.):]+$/, ''), nq: nq, a: a, w: w});
+  });
+  return out;
+}
+function gradeNameKey_(s) {
+  return String(s || '').toLowerCase().replace(/\[t\]/g, '').replace(/[^0-9a-z가-힣]/g, '');
+}
+// 쪽에 적힌 이름 → 반 명단의 학생 id (확실할 때만)
+function gradeFindSid_(roster, name) {
+  var k = gradeNameKey_(name);
+  if (!k) return '';
+  var hit = '';
+  (roster || []).forEach(function (r) {
+    if (hit) return;
+    var keys = [r.name].concat(r.alias || []).map(gradeNameKey_).filter(Boolean);
+    if (keys.indexOf(k) >= 0) hit = r.sid;
+  });
+  if (hit) return hit;
+  // 성을 빼고 쓴 이름(민준) 등 — 한 명만 맞을 때만
+  var part = (roster || []).filter(function (r) {
+    var n = gradeNameKey_(r.name);
+    return k.length >= 2 && n.length >= 2 && (n.indexOf(k) >= 0 || k.indexOf(n) >= 0);
+  });
+  return part.length === 1 ? part[0].sid : '';
+}
+// 쪽들을 학생별로 묶고 점수 계산. assign: {쪽번호: 학생id|'skip'}, toggles: {'주인|문항': true/false}
+function gradeGroups_(job, assign, toggles) {
+  assign = assign || {};
+  toggles = toggles || {};
+  var key = gradeKeyItems_(job.key), roster = job.roster || [], groups = [], idx = {}, cur = null, inKey = {};
+  key.forEach(function (k) { inKey[k.nq] = 1; });
+  (job.pages || []).forEach(function (pg, i) {
+    var r = pg && pg.st === 'ok' ? pg.res : null, owner;
+    if (assign[i]) owner = assign[i] === 'skip' ? 'skip' : 'sid:' + assign[i];
+    else if (r) {
+      var sid = gradeFindSid_(roster, r.roster_name) || gradeFindSid_(roster, r.name_on_page);
+      var nm = String(r.name_on_page || '').trim();
+      owner = sid ? 'sid:' + sid : nm ? 'unk:' + nm : (cur ? cur.owner : 'unk:');
+    } else owner = cur ? cur.owner : 'unk:';
+    var g = idx[owner];
+    if (!g) { g = idx[owner] = {owner: owner, pages: [], items: {}}; groups.push(g); }
+    g.pages.push(i);
+    if (owner !== 'skip') cur = g;
+    if (r && owner !== 'skip') (r.items || []).forEach(function (it) {
+      var nq = gradeNormQ_(it.q);
+      if (!inKey[nq]) return;
+      var ex = g.items[nq];
+      if (!ex || (!ex.sure && it.sure)) g.items[nq] = {read: String(it.read == null ? '' : it.read), correct: !!it.correct, sure: !!it.sure, note: String(it.note || ''), p: i};
+    });
+  });
+  var totalW = key.reduce(function (s, k) { return s + k.w; }, 0) || 1;
+  groups.forEach(function (g) {
+    var sid = g.owner.indexOf('sid:') === 0 ? g.owner.slice(4) : '';
+    var st = sid ? roster.filter(function (r) { return r.sid === sid; })[0] : null;
+    g.sid = st ? sid : '';
+    g.name = st ? st.name : g.owner.indexOf('unk:') === 0 ? g.owner.slice(4) : '';
+    var got = 0, right = 0, unsure = 0, missing = 0;
+    g.rows = key.map(function (k) {
+      var it = g.items[k.nq], t = toggles[g.owner + '|' + k.nq], set = t === true || t === false;
+      var ok = set ? t : !!(it && it.correct);
+      var flag = !set && !!it && !it.sure;
+      if (ok) { got += k.w; right++; }
+      if (flag) unsure++;
+      if (!it && !set) missing++;
+      return {q: k.q, nq: k.nq, a: k.a, w: k.w, read: it ? it.read : null, ok: ok, flag: flag, note: it ? it.note : '', p: it ? it.p : -1, set: set};
+    });
+    g.right = right;
+    g.total = key.length;
+    g.unsure = unsure;
+    g.missing = missing;
+    g.score = Math.round(got / totalW * 100);
+  });
+  return groups;
+}
+function gradeSummary_(job, assign, toggles) {
+  var gs = gradeGroups_(job, assign || job.assign, toggles || job.toggles);
+  var named = gs.filter(function (g) { return g.sid; });
+  var unk = gs.filter(function (g) { return !g.sid && g.owner !== 'skip'; });
+  var unsure = named.reduce(function (s, g) { return s + g.unsure; }, 0);
+  var miss = named.filter(function (g) { return g.missing; }).length;
+  var err = (job.pages || []).filter(function (p) { return p && p.st === 'err'; }).length;
+  var avg = named.length ? Math.round(named.reduce(function (s, g) { return s + g.score; }, 0) / named.length) : 0;
+  var check = unsure + miss + unk.length + err;
+  return {students: named.length, avg: avg, check: check, unsure: unsure, missing: miss, unknown: unk.length, err: err,
+    text: '학생 ' + named.length + '명 · 평균 ' + avg + '점 · 확인 ' + check + '칸' + (unk.length ? ' · 이름 못 찾은 묶음 ' + unk.length : '') + (err ? ' · 못 읽은 쪽 ' + err : '')};
+}
 
 /* ═══════════════════════════════════════════════════════
    UTILS
