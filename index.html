@@ -1289,7 +1289,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.16.2';
+const APP_VERSION = '1.16.3';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -5195,7 +5195,8 @@ function cwFillPreviews() {
 /* ── v1.16 AI 비서와 대화: 맡긴 일마다 대화방 (선생님 말은 '피드백' 칸에 대화 기록으로, 비서 말은 '[작업 id] 대화' 파일로) ── */
 const CHAT_RE = /^\[선생님 ([\d-]{2}\/[\d-]{2} [\d-]{2}:[\d-]{2}) · 결과 (\d+)개 뒤\] (.*)$/;
 let chatv = null, chatPollT = null;
-function isChatFile(x) { return /대화|질문/.test(String(x.t || '')); }
+// 비서가 한 말: 제목이 "대화 — …" 또는 "질문 — …" (결과물 제목에 '대화'가 들어가도 결과물로 봄)
+function isChatFile(x) { const t = String(x.t || '').replace(/^[📄📊📝🗂️❓💬📁\s]+/u, '').replace(/^\[[^\]]*\]\s*/, ''); return /^(대화|질문)(\s*[—–:-]|\s*$)/.test(t); }
 function chatStamp() { const d = new Date(), p = function(n){ return String(n).padStart(2, '0'); }; return p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
 function chatTeacherMsgs(r) {
   const fb = String(r['피드백'] || '').trim(); if(!fb) return [];
