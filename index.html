@@ -1289,7 +1289,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.16.1';
+const APP_VERSION = '1.16.2';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -7212,13 +7212,19 @@ async function routeNav(url, t, atLoad) {
   if(tab === 'work' || tab === 'org') {
     goTab(tab);
     if(!atLoad) { try { await loadWorkTables(); } catch(e) { /* 보이던 것으로 */ } }
-    if(tab === 'work') setTimeout(function(){ if(q.get('chat') === '1' && q.get('task')) openChat(q.get('task')); else focusWorkItem(q.get('task')); }, 120);
+    if(tab === 'work') setTimeout(function(){ if(q.get('chat') === '1' && q.get('task')) openChatWhenReady(q.get('task'), 0); else focusWorkItem(q.get('task')); }, 120);
   } else if(q.get('brief') === '1') {
     goTab('dashboard');
     if(!atLoad) { try { await loadWorkTables(); } catch(e) { /* 보이던 것으로 */ } }
     showBriefing();
     try { localStorage.setItem('emax_brief_seen', todayYmd()); } catch(e) { /* 무시 */ }
   }
+}
+// 알림에서 대화창 열기 — 전달함을 아직 못 받았으면 받을 때까지 잠깐 기다림 (최대 약 20초)
+function openChatWhenReady(id, n) {
+  if(inboxItems.some(function(x){ return x.id === id; })) { openChat(id); return; }
+  if(n === 6) loadWorkTables().catch(function(){});
+  if(n < 40) setTimeout(function(){ openChatWhenReady(id, n + 1); }, 500); else focusWorkItem(id);
 }
 function focusWorkItem(id) {
   let el = null;
