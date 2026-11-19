@@ -552,6 +552,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 .grv-pgs .fi{width:auto;max-width:170px}
 .grv-pgs select.need{border-color:var(--yellow);background:rgba(251,191,36,.12)}
 .grv-img.rot img{transform:rotate(180deg)}
+.grv-repage{width:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:rgba(79,156,249,.08);border:1px solid rgba(79,156,249,.35);border-radius:8px;padding:6px 8px}
 /* 비서 조직도 */
 .org-guide{display:flex;flex-direction:column;gap:10px}
 .org-step{display:flex;gap:10px;font-size:13px;line-height:1.6;color:var(--text2)}
@@ -1438,7 +1439,7 @@ tr.changed td{background:rgba(79,156,249,.08)}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = '1.18.0';
+const APP_VERSION = '1.18.1';
 document.addEventListener('DOMContentLoaded', function() {
   const el = document.getElementById('versionBadge');
   if(el) el.textContent = 'v' + APP_VERSION;
@@ -8204,6 +8205,22 @@ function gradeRvPart(i, pid) {
   gv.dirty = true; renderGradeReview();
 }
 function gradeRvRot(i) { if(!gv) return; gv.rot[i] = !gv.rot[i]; renderGradeReview(); }
+// 숙제를 잘못(못) 고른 쪽 → 선생님이 고른 숙제의 정답지로 그 쪽만 다시 채점 (고친 내용은 같이 저장)
+async function gradeRvRepage(i) {
+  if(!gv || !gv.job || gv.busy) return;
+  const part = gv.passign[i]; if(!part || part === 'none') return;
+  if(!confirm((i + 1) + '쪽만 ' + gradeRvPartName(part) + ' 정답지로 다시 채점할까요?\n(지금까지 고친 내용은 저장해 두고, 끝나면 알림이 와요)')) return;
+  gv.busy = true;
+  try {
+    const r = await postJson({action: 'gradeRepage', id: gv.id, p: i, part: part, assign: gv.assign, toggles: gv.toggles, passign: gv.passign});
+    if(!r || !r.ok) throw new Error(r && r.error || '다시 채점하지 못했어요');
+    const j = gradeJobs.find(function(x){ return x.id === gv.id; }); if(j) { j['상태'] = '채점 대기'; j['요약'] = ''; }
+    gv.dirty = false; gv.busy = false;
+    gradeRvClose();
+    gradeRefreshViews(); gradePollKick(true);
+    showToast((i + 1) + '쪽을 다시 채점해요 — 끝나면 알림이 와요', 's');
+  } catch(e) { if(gv) gv.busy = false; showToast(e.message, 'e'); }
+}
 function gradeRvAssignGroup(owner, sid) {
   if(!gv || !sid) return;
   const g = gradeRvGroups().find(function(x){ return x.owner === owner; }); if(!g) return;
@@ -8262,7 +8279,9 @@ function gradeRvDetailHtml(g, inline) {
     return '<div class="grv-pg"><div class="grv-pgh"><span>' + (i + 1) + '쪽' + (multi && pid && pid !== 'none' ? ' · ' + escHtml(gradeRvPartName(pid)) : '') + escHtml(pn) + (res.upside_down ? ' · 거꾸로 스캔' : '') + '</span>'
       + '<span class="grv-pgs"><select class="fi fi-sm" onchange="gradeRvAssign(' + i + ',this.value)">' + gradeRvOwnerOptions(g.owner) + '</select>'
       + (multi && g.owner !== 'skip' ? '<select class="fi fi-sm' + (pid ? '' : ' need') + '" onchange="gradeRvPart(' + i + ',this.value)">' + gradeRvPartOptions(pid) + '</select>' : '')
-      + '<button class="btn btn-ghost btn-sm" title="사진 돌리기" onclick="gradeRvRot(' + i + ')">↻</button></span></div>'
+      + '<button class="btn btn-ghost btn-sm" title="사진 돌리기" onclick="gradeRvRot(' + i + ')">↻</button></span>'
+      + (multi && pg.st === 'ok' && gv.passign[i] && gv.passign[i] !== 'none' && gv.passign[i] !== res.part ? '<div class="grv-repage"><span class="gr-dim">AI가 고른 숙제와 달라요 — 이 쪽 답을 ' + escHtml(gradeRvPartName(gv.passign[i])) + ' 정답지로 다시 읽어야 정확해요</span><button class="btn btn-primary btn-sm" onclick="gradeRvRepage(' + i + ')">이 숙제로 다시 읽기</button></div>' : '')
+      + '</div>'
       + '<div class="grv-img' + (gv.zoom ? ' zoom' : '') + (rot ? ' rot' : '') + '" id="grv-img-' + i + '" onclick="gv.zoom=!gv.zoom;renderGradeReview()">' + (gv.imgs[i] ? '<img src="data:image/jpeg;base64,' + gv.imgs[i] + '" alt="' + (i + 1) + '쪽">' : '<div class="gr-dim" style="padding:20px">사진 불러오는 중…</div>') + '</div></div>';
   }).join('') + '<div class="gr-dim" style="text-align:center">사진을 누르면 크게 / 작게</div></div>';
   return h;
